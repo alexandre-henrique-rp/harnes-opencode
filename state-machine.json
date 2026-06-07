@@ -1,0 +1,216 @@
+{
+  "_type": "harness-state-machine-v6",
+  "version": 1,
+  "schema": {
+    "phase": {
+      "id": "phase.{0-5}.{kebab-name}",
+      "name": "Human readable",
+      "owner": "agent-name",
+      "auxiliaries": ["optional sub-agents"],
+      "workers": ["optional parallel agents in phase 5"],
+      "inputFrom": ["phase-ids this phase consumes"],
+      "outputContract": {
+        "files": [
+          { "path": "relative/path", "required": true, "minLines": 0, "minSections": 0, "maxCharsPerSection": 3000 }
+        ],
+        "metrics": { "key": { "min": 0, "max": 0, "scope": "per-sprint|per-project" } }
+      },
+      "gate": {
+        "type": "user-approval|presence-and-min|score-threshold|coverage-check|all-of",
+        "checks": [],
+        "onFail": { "action": "block|rework|restart", "loopbackTo": "phase.id", "message": "..." }
+      },
+      "next": ["phase.ids"],
+      "onFailure": { "class": "transient|quality|user-action|fatal", "maxAutoRetries": 0, "backoff": "exponential|none", "delays": [1000, 3000, 9000] }
+    }
+  },
+  "phases": [
+    {
+      "id": "phase.0.briefing",
+      "name": "Briefing",
+      "owner": "briefing",
+      "auxiliaries": [],
+      "workers": [],
+      "inputFrom": [],
+      "outputContract": {
+        "files": [
+          { "path": "brief.md", "required": true, "minLines": 5 }
+        ]
+      },
+      "gate": {
+        "type": "user-approval",
+        "checks": [
+          { "file": "brief.md", "approver": "user" }
+        ],
+        "onFail": { "action": "block", "message": "Aguardando aprovacao humana do brief.md" }
+      },
+      "next": ["phase.1.documentacao"],
+      "onFailure": { "class": "user-action", "maxAutoRetries": 0, "backoff": "none", "delays": [] }
+    },
+    {
+      "id": "phase.1.documentacao",
+      "name": "Documentacao + RAG",
+      "owner": "documenter",
+      "auxiliaries": ["rag-curator"],
+      "workers": [],
+      "inputFrom": ["phase.0.briefing"],
+      "outputContract": {
+        "files": [
+          { "path": "AGENTS.md", "required": true, "minLines": 50 },
+          { "path": "ARCH.md", "required": true, "minLines": 20 },
+          { "path": "RAG/index.json", "required": true, "minDocs": 3 }
+        ]
+      },
+      "gate": {
+        "type": "presence-and-min",
+        "checks": [
+          { "file": "AGENTS.md", "minLines": 50 },
+          { "file": "ARCH.md", "minLines": 20 },
+          { "file": "RAG/index.json", "minDocs": 3 }
+        ],
+        "onFail": { "action": "block", "message": "AGENTS.md, ARCH.md ou RAG/index.json incompletos" }
+      },
+      "next": ["phase.2.requisitos"],
+      "onFailure": { "class": "quality", "maxAutoRetries": 2, "backoff": "none", "delays": [], "loopbackTo": "phase.1.documentacao" }
+    },
+    {
+      "id": "phase.2.requisitos",
+      "name": "Requisitos (PRD + SPEC)",
+      "owner": "requirements",
+      "auxiliaries": [],
+      "workers": ["prd-reviewer", "spec-reviewer"],
+      "inputFrom": ["phase.1.documentacao"],
+      "outputContract": {
+        "files": [
+          { "path": "PRD.html", "required": true, "minSections": 5, "maxCharsPerSection": 3000 },
+          { "path": "SPEC.html", "required": true, "minSections": 10, "maxCharsPerSection": 3000 }
+        ],
+        "schema": "html-with-embedded-json"
+      },
+      "gate": {
+        "type": "score-threshold",
+        "checks": [
+          { "agent": "prd-reviewer", "file": "PRD.html", "minScore": 80 },
+          { "agent": "spec-reviewer", "file": "SPEC.html", "minScore": 85 }
+        ],
+        "onFail": { "action": "rework", "loopbackTo": "phase.2.requisitos", "message": "PRD ou SPEC abaixo do score minimo" }
+      },
+      "next": ["phase.3.design"],
+      "onFailure": { "class": "quality", "maxAutoRetries": 2, "backoff": "none", "delays": [], "loopbackTo": "phase.2.requisitos" }
+    },
+    {
+      "id": "phase.3.design",
+      "name": "Design (PRODUCT + DESIGN + PROMPT)",
+      "owner": "designer",
+      "auxiliaries": [],
+      "workers": ["design-reviewer"],
+      "inputFrom": ["phase.2.requisitos"],
+      "outputContract": {
+        "files": [
+          { "path": "PRODUCT.md", "required": true },
+          { "path": "design/*.DESIGN.md", "required": true, "glob": "**/*.DESIGN.md" },
+          { "path": "design/*.PROMPT.md", "required": true, "glob": "**/*.PROMPT.md" }
+        ]
+      },
+      "gate": {
+        "type": "score-threshold",
+        "checks": [
+          { "agent": "design-reviewer", "minScore": 70, "glob": "design/*.{DESIGN,PROMPT}.md" }
+        ],
+        "onFail": { "action": "rework", "loopbackTo": "phase.3.design", "message": "Design abaixo do score minimo" }
+      },
+      "next": ["phase.4.planejamento"],
+      "onFailure": { "class": "quality", "maxAutoRetries": 2, "backoff": "none", "delays": [], "loopbackTo": "phase.3.design" }
+    },
+    {
+      "id": "phase.4.planejamento",
+      "name": "Sprint Planning",
+      "owner": "sprint-tasker",
+      "auxiliaries": [],
+      "workers": ["reviewer"],
+      "inputFrom": ["phase.3.design"],
+      "outputContract": {
+        "files": [
+          { "path": "sprints/index.json", "required": true },
+          { "path": "sprints/S*.json", "required": true, "minCount": 1 },
+          { "path": "sprints/cross-sprint.json", "required": true }
+        ]
+      },
+      "gate": {
+        "type": "coverage-check",
+        "checks": [
+          { "type": "spec-coverage", "min": 100, "message": "100% do SPEC deve estar em sprints" },
+          { "type": "no-orphan-cross-refs" }
+        ],
+        "onFail": { "action": "rework", "loopbackTo": "phase.4.planejamento", "message": "Sprints nao cobrem 100% do SPEC" }
+      },
+      "next": ["phase.5.build"],
+      "onFailure": { "class": "quality", "maxAutoRetries": 2, "backoff": "none", "delays": [], "loopbackTo": "phase.4.planejamento" }
+    },
+    {
+      "id": "phase.5.build",
+      "name": "Build + Quality (paralelo, 5 workers)",
+      "owner": "orchestrator",
+      "auxiliaries": [],
+      "workers": ["backend", "frontend", "tester", "security", "lgpd-officer"],
+      "inputFrom": ["phase.4.planejamento"],
+      "outputContract": {
+        "metrics": {
+          "coverage": { "min": 85, "scope": "per-sprint" },
+          "vulnerabilities": { "maxCritical": 0, "maxHigh": 0, "scope": "per-sprint" },
+          "reviewScore": { "min": 70, "scope": "per-sprint" },
+          "lgpdStatus": { "min": "warning", "scope": "per-sprint" }
+        }
+      },
+      "gate": {
+        "type": "all-of",
+        "checks": [
+          { "type": "coverage", "min": 85 },
+          { "type": "security", "maxCritical": 0, "maxHigh": 0 },
+          { "type": "review", "min": 70 },
+          { "type": "lgpd", "status": "non-blocking", "min": "warning", "maxCritical": 0, "maxHigh": 0, "_comment": "lgpd-officer bloqueia se 1+ critical OU 1+ high no Art. 18/48. Outros findings viram advisory." }
+        ],
+        "onFail": { "action": "rework", "loopbackTo": "phase.5.build", "message": "Coverage, security, review ou LGPD abaixo do threshold" }
+      },
+      "next": ["phase.5.complete"],
+      "onFailure": { "class": "quality", "maxAutoRetries": 2, "backoff": "none", "delays": [], "loopbackTo": "phase.5.build" }
+    }
+  ],
+  "globalFailureProtocol": {
+    "_type": "harness-failure-protocol-v6",
+    "version": 1,
+    "classes": {
+      "transient": {
+        "maxAutoRetries": 3,
+        "backoff": "exponential",
+        "delays": [1000, 3000, 9000],
+        "onExhaustion": "promote-to-user-action",
+        "examples": ["LLM 502/503/504", "MCP timeout", "state.json race condition"]
+      },
+      "quality": {
+        "maxAutoRetries": 2,
+        "loopbackTo": "declared-in-phase.onFailure",
+        "onExhaustion": "block-and-escalate",
+        "examples": ["PRD score 65/100", "Coverage 78% < 85%", "Security critical=1"]
+      },
+      "user-action": {
+        "maxAutoRetries": 0,
+        "behavior": "block",
+        "userPrompt": "structured question with context + options",
+        "examples": ["Brief rejected", "Score between threshold and rework", "Stack decision"]
+      },
+      "fatal": {
+        "maxAutoRetries": 0,
+        "behavior": "halt-and-require-manual-fix",
+        "notify": ["user", "audit log"],
+        "examples": ["state.json corrupted", "permission hook crashed", "5+ retries exhausted"]
+      }
+    },
+    "autoDetection": {
+      "transient": ["HTTP 502", "HTTP 503", "HTTP 504", "ECONNRESET", "ETIMEDOUT"],
+      "quality": ["score < threshold", "coverage < min", "vuln count > max"],
+      "user-action": ["user explicit reject", "ambiguous decision"],
+      "fatal": ["schema corrupted", "hook exception", "infrastructure broken"]
+    }
+  }
+}
