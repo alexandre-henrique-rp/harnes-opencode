@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PRD — {{project}} v{{version}}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; color: #222; }
+    h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+    h2 { margin-top: 2rem; color: #444; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { border: 1px solid #ddd; padding: 0.5rem; text-align: left; }
+    th { background: #f4f4f4; }
+    details { margin: 0.5rem 0; padding: 0.5rem; border: 1px solid #eee; border-radius: 4px; }
+    summary { cursor: pointer; font-weight: 600; }
+    code { background: #f4f4f4; padding: 0.1rem 0.3rem; border-radius: 3px; font-family: monospace; }
+    pre { background: #f4f4f4; padding: 1rem; border-radius: 4px; overflow-x: auto; }
+    .meta { background: #fafafa; padding: 1rem; border-left: 4px solid #666; margin: 1rem 0; }
+  </style>
+</head>
+<body>
+  <article id="prd">
+
+    <!-- ============ METADATA (lido por machines) ============ -->
+    <script type="application/json" id="prd-meta">
+    {
+      "_type": "harness-prd-v6",
+      "id": "prd-{{project}}-v{{version}}",
+      "version": {{version}},
+      "status": "draft",
+      "score": 0,
+      "reviewer": "prd-reviewer",
+      "createdAt": "{{createdAt}}",
+      "updatedAt": "{{updatedAt}}",
+      "project": "{{project}}",
+      "module": "{{module}}",
+      "sprint": null
+    }
+    </script>
+
+    <header>
+      <h1>PRD — {{Nome do Projeto}} v{{version}}</h1>
+      <div class="meta">
+        <strong>Versão:</strong> {{version}} |
+        <strong>Status:</strong> <span data-status>{{status}}</span> |
+        <strong>Score:</strong> <span data-score>0</span>/100 |
+        <strong>Módulo:</strong> {{module}}
+      </div>
+    </header>
+
+    <!-- ============ 1. SUMÁRIO EXECUTIVO ============ -->
+    <section id="sumario" data-prd-section="summary">
+      <h2>1. Sumário Executivo</h2>
+      <p>Descrição em 1 parágrafo do que é o produto/projeto e por que ele existe.</p>
+      <p><em>Limite: 3000 caracteres. Se estourar, é sinal de que precisa ser dividido em sub-PRDs.</em></p>
+    </section>
+
+    <!-- ============ 2. PROBLEMA ============ -->
+    <section id="problema" data-prd-section="problem">
+      <h2>2. Problema</h2>
+      <p>Qual dor/necessidade estamos resolvendo. Quem tem essa dor. Com que frequência. Com que custo atual.</p>
+    </section>
+
+    <!-- ============ 3. USUÁRIOS / PERSONAS ============ -->
+    <section id="usuarios" data-prd-section="users">
+      <h2>3. Usuários / Personas</h2>
+      <script type="application/json" id="prd-personas">
+      [
+        {
+          "id": "P-001",
+          "name": "{{Nome da Persona}}",
+          "role": "{{papel}}",
+          "goals": ["{{goal1}}", "{{goal2}}"],
+          "painPoints": ["{{pain1}}", "{{pain2}}"],
+          "frequency": "{{daily|weekly|monthly}}",
+          "techSavvy": "low|medium|high"
+        }
+      ]
+      </script>
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Persona</th><th>Papel</th><th>Goals</th><th>Pain Points</th><th>Frequência</th></tr>
+        </thead>
+        <tbody data-personas-rows></tbody>
+      </table>
+    </section>
+
+    <!-- ============ 4. OBJETIVOS & MÉTRICAS DE SUCESSO ============ -->
+    <section id="objetivos" data-prd-section="goals">
+      <h2>4. Objetivos & Métricas de Sucesso</h2>
+      <script type="application/json" id="prd-goals">
+      [
+        {
+          "id": "G-001",
+          "objective": "{{objetivo}}",
+          "metric": "{{métrica mensurável}}",
+          "baseline": "{{valor atual}}",
+          "target": "{{valor alvo}}",
+          "timeframe": "{{prazo}}"
+        }
+      ]
+      </script>
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Objetivo</th><th>Métrica</th><th>Baseline</th><th>Target</th><th>Prazo</th></tr>
+        </thead>
+        <tbody data-goals-rows></tbody>
+      </table>
+    </section>
+
+    <!-- ============ 5. ESCOPO ============ -->
+    <section id="escopo" data-prd-section="scope">
+      <h2>5. Escopo</h2>
+
+      <h3>5.1 Dentro do escopo</h3>
+      <ul>
+        <li>{{item 1}}</li>
+        <li>{{item 2}}</li>
+      </ul>
+
+      <h3>5.2 Fora do escopo (não-goals)</h3>
+      <ul>
+        <li>{{item 1}}</li>
+        <li>{{item 2}}</li>
+      </ul>
+    </section>
+
+    <!-- ============ 6. USER STORIES (resumo executivo) ============ -->
+    <section id="stories" data-prd-section="user-stories">
+      <h2>6. User Stories (resumo)</h2>
+      <script type="application/json" id="prd-stories">
+      [
+        {
+          "id": "US-001",
+          "persona": "P-001",
+          "story": "Como {{persona}}, quero {{ação}}, para {{benefício}}",
+          "priority": "high",
+          "specRef": "SPEC.html#US-001"
+        }
+      ]
+      </script>
+      <p>Detalhamento completo em <a href="SPEC.html">SPEC.html</a>.</p>
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Persona</th><th>Story</th><th>Prioridade</th><th>Spec Ref</th></tr>
+        </thead>
+        <tbody data-stories-rows></tbody>
+      </table>
+    </section>
+
+    <!-- ============ 7. RESTRIÇÕES & DEPENDÊNCIAS ============ -->
+    <section id="restricoes" data-prd-section="constraints">
+      <h2>7. Restrições & Dependências</h2>
+      <ul>
+        <li><strong>Técnicas:</strong> {{ex: deve rodar em X, integrar com Y}}</li>
+        <li><strong>Negócio:</strong> {{ex: LGPD compliance obrigatório, prazo}}</li>
+        <li><strong>Orçamento:</strong> {{ex: infra &lt; $X/mês}}</li>
+        <li><strong>Dependências externas:</strong> {{ex: API do ViaCEP, gateway de pagamento}}</li>
+      </ul>
+    </section>
+
+    <!-- ============ 8. CRITÉRIOS DE PRONTO (DoD) ============ -->
+    <section id="dod" data-prd-section="definition-of-done">
+      <h2>8. Critérios de Pronto (Definition of Done)</h2>
+      <ul>
+        <li>✅ Cobertura de testes ≥ 85%</li>
+        <li>✅ Zero vulnerabilidades critical/high (security audit)</li>
+        <li>✅ Review score ≥ 70</li>
+        <li>✅ LGPD compliance verificado (se aplicável)</li>
+        <li>✅ Documentação atualizada (AGENTS.md, RAG, README)</li>
+        <li>✅ Deploy em homologação bem-sucedido</li>
+        <li>✅ Stakeholder aprovou</li>
+      </ul>
+    </section>
+
+    <!-- ============ 9. RISCOS & MITIGAÇÕES ============ -->
+    <section id="riscos" data-prd-section="risks">
+      <h2>9. Riscos & Mitigações</h2>
+      <script type="application/json" id="prd-risks">
+      [
+        {
+          "id": "R-001",
+          "risk": "{{descrição do risco}}",
+          "probability": "low|medium|high",
+          "impact": "low|medium|high",
+          "mitigation": "{{como mitigar}}"
+        }
+      ]
+      </script>
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Risco</th><th>Prob.</th><th>Impacto</th><th>Mitigação</th></tr>
+        </thead>
+        <tbody data-risks-rows></tbody>
+      </table>
+    </section>
+
+  </article>
+</body>
+</html>

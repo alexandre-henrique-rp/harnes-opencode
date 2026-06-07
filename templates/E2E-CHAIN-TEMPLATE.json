@@ -1,0 +1,182 @@
+{
+  "_type": "harness-e2e-chains-v6",
+  "version": 1,
+  "schema": "e2e-chains",
+  "description": "Chains de teste E2E declarativas. Gerado pelo tester agent na fase 5, a partir de SPEC.html e2eChains[] + sprints/cross-sprint.json flows[]. Compilado para código de teste (Playwright, supertest, etc).",
+  "project": "{{project}}",
+  "sprint": "S01",
+  "generatedAt": "{{ISO8601}}",
+  "generatedBy": "tester",
+  "scope": "intra-module | cross-module | regression",
+  "chains": [
+    {
+      "id": "E2E-USER-001",
+      "name": "user-full-lifecycle",
+      "module": "user",
+      "type": "intra-module",
+      "spec": "Garantir ciclo de vida completo de um user no módulo user (create → use → delete)",
+      "dataSource": "fresh",
+      "cleanup": "always",
+      "minCoverage": 85,
+      "sequence": [
+        {
+          "step": 1,
+          "name": "create-user",
+          "method": "POST",
+          "path": "/api/v1/users",
+          "payload": {
+            "cpf": "529.982.247-25",
+            "email": "e2e@test.com",
+            "name": "Test User"
+          },
+          "expectedStatus": 201,
+          "responseShape": {
+            "id": "uuid",
+            "email": "string"
+          },
+          "records": ["id", "email"],
+          "intoContext": "user"
+        },
+        {
+          "step": 2,
+          "name": "get-user",
+          "method": "GET",
+          "path": "/api/v1/users/{context.user.id}",
+          "expectedStatus": 200,
+          "responseShape": {
+            "id": "uuid",
+            "email": "string",
+            "avatarUrl": "string|null"
+          }
+        },
+        {
+          "step": 3,
+          "name": "update-user-email",
+          "method": "PUT",
+          "path": "/api/v1/users/{context.user.id}",
+          "payload": { "email": "updated@test.com" },
+          "expectedStatus": 200
+        },
+        {
+          "step": 4,
+          "name": "delete-user",
+          "method": "DELETE",
+          "path": "/api/v1/users/{context.user.id}",
+          "expectedStatus": 204,
+          "cleanup": true
+        },
+        {
+          "step": 5,
+          "name": "verify-deleted",
+          "method": "GET",
+          "path": "/api/v1/users/{context.user.id}",
+          "expectedStatus": 404
+        }
+      ]
+    },
+    {
+      "id": "E2E-USER-AVATAR-001",
+      "name": "user-upload-avatar-consumed-by-profile",
+      "module": "user",
+      "type": "cross-module",
+      "spec": "Validar que avatar uploaded em user é consumido em profile (cross-module prediction)",
+      "trigger": "spec.crossModuleHints[user.upload → profile.display]",
+      "dataSource": "fresh",
+      "cleanup": "always",
+      "minCoverage": 85,
+      "sequence": [
+        {
+          "step": 1,
+          "name": "create-user",
+          "method": "POST",
+          "path": "/api/v1/users",
+          "payload": { "cpf": "529.982.247-25", "email": "avatar@test.com" },
+          "expectedStatus": 201,
+          "records": ["id"],
+          "intoContext": "user"
+        },
+        {
+          "step": 2,
+          "name": "upload-avatar",
+          "method": "POST",
+          "path": "/api/v1/users/{context.user.id}/avatar",
+          "payload": { "file": "<binary-test-image>" },
+          "expectedStatus": 201,
+          "records": ["avatarId", "avatarUrl"],
+          "intoContext": "avatar"
+        },
+        {
+          "step": 3,
+          "name": "verify-user-has-avatar",
+          "method": "GET",
+          "path": "/api/v1/users/{context.user.id}",
+          "expectedStatus": 200,
+          "assertions": [
+            "response.avatarUrl === context.avatar.avatarUrl"
+          ]
+        },
+        {
+          "step": 4,
+          "name": "create-profile-from-user",
+          "method": "POST",
+          "path": "/api/v1/profiles",
+          "payload": {
+            "userId": "{context.user.id}",
+            "displayAvatar": true
+          },
+          "expectedStatus": 201,
+          "records": ["id"],
+          "intoContext": "profile"
+        },
+        {
+          "step": 5,
+          "name": "get-profile-shows-user-avatar",
+          "method": "GET",
+          "path": "/api/v1/profiles/{context.profile.id}",
+          "expectedStatus": 200,
+          "assertions": [
+            "response.userId === context.user.id",
+            "response.avatarUrl === context.avatar.avatarUrl"
+          ]
+        },
+        {
+          "step": 6,
+          "name": "cleanup-profile",
+          "method": "DELETE",
+          "path": "/api/v1/profiles/{context.profile.id}",
+          "expectedStatus": 204,
+          "cleanup": true
+        },
+        {
+          "step": 7,
+          "name": "cleanup-user",
+          "method": "DELETE",
+          "path": "/api/v1/users/{context.user.id}",
+          "expectedStatus": 204,
+          "cleanup": true
+        }
+      ]
+    }
+  ],
+  "coverage": {
+    "current": 0,
+    "required": 85,
+    "byModule": {
+      "user": { "lines": 0, "branches": 0, "functions": 0 },
+      "profile": { "lines": 0, "branches": 0, "functions": 0 }
+    }
+  },
+  "results": {
+    "lastRun": null,
+    "passed": 0,
+    "failed": 0,
+    "duration": 0
+  },
+  "validation": {
+    "allChainsHaveCleanup": true,
+    "allCrossModuleHintsCovered": true,
+    "allCrossSprintFlowsHaveChain": true,
+    "validatedAt": "{{ISO8601}}",
+    "validatedBy": "qa-gate"
+  }
+}

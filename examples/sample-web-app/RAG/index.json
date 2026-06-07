@@ -1,0 +1,57 @@
+{
+  "_type": "harness-rag-index-v6",
+  "generatedAt": "2026-06-06T00:00:00Z",
+  "generatedBy": "rag-curator",
+  "totalDocs": 3,
+  "byCategory": {
+    "law": 1,
+    "security": 1,
+    "pattern": 1,
+    "convention": 0,
+    "antipattern": 0,
+    "workflow": 0,
+    "architecture": 0,
+    "decision": 0,
+    "lesson": 0,
+    "schema": 0,
+    "meta": 0
+  },
+  "byPriority": {
+    "critical": 2,
+    "high": 1,
+    "medium": 0,
+    "low": 0
+  },
+  "docs": [
+    {
+      "id": "lgpd-consentimento",
+      "title": "LGPD — Bases legais e consentimento para tratamento de dados pessoais",
+      "description": "Como coletar, registrar e armazenar consentimento conforme LGPD Art. 7º e Art. 8º.",
+      "category": "law",
+      "tags": ["lgpd", "gdpr", "consent", "privacy", "br", "compliance"],
+      "priority": "critical",
+      "status": "approved",
+      "updatedAt": "2026-06-06T00:00:00Z"
+    },
+    {
+      "id": "cpf-encryption",
+      "title": "Criptografia de CPF em repouso (AES-256)",
+      "description": "Como armazenar CPF criptografado com AES-256-GCM, incluindo rotação de chaves.",
+      "category": "security",
+      "tags": ["cpf", "encryption", "aes-256", "lgpd", "security", "crypto"],
+      "priority": "critical",
+      "status": "approved",
+      "updatedAt": "2026-06-06T00:00:00Z"
+    },
+    {
+      "id": "viacep-integration",
+      "title": "Integração com ViaCEP para autocomplete de endereço",
+      "description": "Como integrar com a API pública do ViaCEP (gratuita, sem auth) com tratamento de erros e rate limit.",
+      "category": "pattern",
+      "tags": ["viacep", "api-external", "cep", "address", "debounce", "error-handling"],
+      "priority": "high",
+      "status": "approved",
+      "updatedAt": "2026-06-06T00:00:00Z"
+    }
+  ]
+}

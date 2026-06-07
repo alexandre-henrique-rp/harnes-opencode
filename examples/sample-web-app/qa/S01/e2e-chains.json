@@ -1,0 +1,166 @@
+{
+  "_type": "harness-e2e-chains-v6",
+  "version": 1,
+  "schema": "e2e-chains",
+  "project": "sample-web-app",
+  "sprint": "S01",
+  "generatedAt": "2026-06-06T00:00:00Z",
+  "generatedBy": "tester",
+  "scope": "intra-module",
+  "chains": [
+    {
+      "id": "E2E-USER-REGISTER-001",
+      "name": "user-full-lifecycle-cadastro",
+      "module": "user",
+      "type": "intra-module",
+      "spec": "Garantir ciclo de vida completo: criar user, consultar, deletar, verificar 404",
+      "dataSource": "fresh",
+      "cleanup": "always",
+      "minCoverage": 85,
+      "sequence": [
+        {
+          "step": 1,
+          "name": "create-user",
+          "method": "POST",
+          "path": "/api/users",
+          "payload": {
+            "cpf": "529.982.247-25",
+            "nome": "Maria Silva Test",
+            "email": "maria.e2e@test.com",
+            "cep": "01310-100",
+            "logradouro": "Avenida Paulista",
+            "bairro": "Bela Vista",
+            "cidade": "São Paulo",
+            "uf": "SP"
+          },
+          "expectedStatus": 201,
+          "responseShape": {
+            "id": "uuid",
+            "email": "string"
+          },
+          "records": ["id", "email"],
+          "intoContext": "user"
+        },
+        {
+          "step": 2,
+          "name": "get-user",
+          "method": "GET",
+          "path": "/api/users/{context.user.id}",
+          "expectedStatus": 200,
+          "responseShape": {
+            "id": "uuid",
+            "email": "string",
+            "nome": "string",
+            "logradouro": "string"
+          }
+        },
+        {
+          "step": 3,
+          "name": "delete-user",
+          "method": "DELETE",
+          "path": "/api/users/{context.user.id}",
+          "expectedStatus": 202,
+          "cleanup": true
+        },
+        {
+          "step": 4,
+          "name": "verify-deleted",
+          "method": "GET",
+          "path": "/api/users/{context.user.id}",
+          "expectedStatus": 404
+        }
+      ]
+    },
+    {
+      "id": "E2E-USER-CEP-001",
+      "name": "user-cep-autocomplete-viacep",
+      "module": "user",
+      "type": "intra-module",
+      "spec": "Validar que CEP enviado é re-validado via ViaCEP no backend (defense in depth)",
+      "dataSource": "fresh",
+      "cleanup": "always",
+      "minCoverage": 85,
+      "sequence": [
+        {
+          "step": 1,
+          "name": "create-user-with-valid-cep",
+          "method": "POST",
+          "path": "/api/users",
+          "payload": {
+            "cpf": "390.533.447-05",
+            "nome": "João Test CEP",
+            "email": "joao.cep@test.com",
+            "cep": "01310-100",
+            "logradouro": "Avenida Paulista",
+            "bairro": "Bela Vista",
+            "cidade": "São Paulo",
+            "uf": "SP"
+          },
+          "expectedStatus": 201,
+          "records": ["id", "logradouro"],
+          "intoContext": "user"
+        },
+        {
+          "step": 2,
+          "name": "verify-address-was-viacep-validated",
+          "method": "GET",
+          "path": "/api/users/{context.user.id}",
+          "expectedStatus": 200,
+          "assertions": [
+            "response.logradouro === context.user.logradouro",
+            "response.cidade === 'São Paulo'",
+            "response.uf === 'SP'"
+          ]
+        },
+        {
+          "step": 3,
+          "name": "create-user-with-invalid-cep-should-fail",
+          "method": "POST",
+          "path": "/api/users",
+          "payload": {
+            "cpf": "831.354.270-40",
+            "nome": "Test CEP Inválido",
+            "email": "invalid.cep@test.com",
+            "cep": "00000-000",
+            "logradouro": "fake",
+            "bairro": "fake",
+            "cidade": "fake",
+            "uf": "XX"
+          },
+          "expectedStatus": 422,
+          "assertions": [
+            "response.error includes 'CEP'"
+          ]
+        },
+        {
+          "step": 4,
+          "name": "cleanup-user",
+          "method": "DELETE",
+          "path": "/api/users/{context.user.id}",
+          "expectedStatus": 202,
+          "cleanup": true
+        }
+      ]
+    }
+  ],
+  "coverage": {
+    "current": 0,
+    "required": 85,
+    "byModule": {
+      "user": { "lines": 0, "branches": 0, "functions": 0 }
+    }
+  },
+  "results": {
+    "lastRun": null,
+    "passed": 0,
+    "failed": 0,
+    "duration": 0
+  },
+  "validation": {
+    "allChainsHaveCleanup": true,
+    "allCrossModuleHintsCovered": true,
+    "allCrossSprintFlowsHaveChain": true,
+    "validatedAt": "2026-06-06T00:00:00Z",
+    "validatedBy": "qa-gate"
+  }
+}

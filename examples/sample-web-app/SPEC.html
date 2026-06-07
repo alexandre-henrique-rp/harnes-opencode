@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>SPEC — sample-web-app v1</title>
+  <style>
+    body { font-family: sans-serif; max-width: 1000px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; }
+    h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+    h2 { margin-top: 2rem; }
+    h3 { margin-top: 1.5rem; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { border: 1px solid #ddd; padding: 0.5rem; text-align: left; }
+    th { background: #f4f4f4; }
+    pre { background: #f4f4f4; padding: 1rem; border-radius: 4px; overflow-x: auto; }
+    .meta { background: #fafafa; padding: 1rem; border-left: 4px solid #666; margin: 1rem 0; }
+    .endpoint { margin: 0.5rem 0; padding: 0.5rem; border-left: 3px solid #0066cc; background: #f0f7ff; }
+  </style>
+</head>
+<body>
+  <article id="spec">
+    <script type="application/json" id="spec-meta">
+    {
+      "_type": "harness-spec-v6",
+      "id": "spec-sample-web-app-v1",
+      "version": 1,
+      "status": "approved",
+      "score": 92,
+      "reviewer": "spec-reviewer",
+      "createdAt": "2026-06-06T00:00:00Z",
+      "updatedAt": "2026-06-06T00:00:00Z",
+      "project": "sample-web-app",
+      "module": "user",
+      "sprint": null
+    }
+    </script>
+
+    <header>
+      <h1>SPEC — sample-web-app v1</h1>
+      <div class="meta">
+        <strong>Versão:</strong> 1 |
+        <strong>Status:</strong> approved |
+        <strong>Score:</strong> 92/100 |
+        <strong>Módulo:</strong> user
+      </div>
+    </header>
+
+    <section id="objetivo" data-spec-section="goal">
+      <h2>1. Objetivo</h2>
+      <p>Este SPEC detalha o módulo <strong>user</strong> do sample-web-app. Cobre cadastro, busca, atualização e exclusão de clientes. Integra com ViaCEP para autocomplete. Compliance com LGPD. Personas: P-001 (lojista) e P-002 (cliente final) — ver <a href="PRD.html">PRD.html</a>.</p>
+    </section>
+
+    <section id="stack" data-spec-section="stack">
+      <h2>2. Stack</h2>
+      <script type="application/json" id="spec-stack">
+      {
+        "language": "typescript",
+        "framework": "nextjs",
+        "database": "postgres",
+        "orm": "prisma",
+        "runtime": "node@22",
+        "deployment": "vercel",
+        "testing": ["vitest", "playwright", "supertest"]
+      }
+      </script>
+      <table>
+        <thead><tr><th>Camada</th><th>Tecnologia</th></tr></thead>
+        <tbody>
+          <tr><td>Linguagem</td><td>TypeScript 5.4</td></tr>
+          <tr><td>Framework</td><td>Next.js 14.2 (pages router)</td></tr>
+          <tr><td>Banco</td><td>Postgres 16 (Supabase)</td></tr>
+          <tr><td>ORM</td><td>Prisma 5.18</td></tr>
+          <tr><td>Runtime</td><td>Node.js 22</td></tr>
+          <tr><td>Validação</td><td>Zod 3.23</td></tr>
+          <tr><td>Testes unit</td><td>Vitest 1.6</td></tr>
+          <tr><td>Testes e2e</td><td>Playwright 1.45</td></tr>
+          <tr><td>Deploy</td><td>Vercel</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="personas" data-spec-section="personas">
+      <h2>3. Personas & User Stories (detalhado)</h2>
+      <script type="application/json" id="spec-stories">
+      [
+        { "id": "US-001", "persona": "P-002", "story": "Cliente digita CEP e tem endereço preenchido", "priority": "high", "acceptanceCriteria": ["Campo CEP tem máscara #####-###", "Ao perder foco (on-blur), chama ViaCEP após 500ms de debounce", "Em sucesso, preenche logradouro, bairro, cidade, UF", "Em erro, mostra 'CEP não encontrado' inline", "Em timeout, mostra 'Serviço indisponível, preencha manualmente'"], "sprint": "S01", "e2eChainRef": "E2E-USER-REGISTER-001" },
+        { "id": "US-002", "persona": "P-002", "story": "Cliente valida CPF antes de submeter", "priority": "high", "acceptanceCriteria": ["Campo CPF tem máscara ###.###.###-##", "Validação client-side bloqueia submit se CPF inválido", "Mensagem de erro: 'CPF inválido'"], "sprint": "S01", "e2eChainRef": "E2E-USER-REGISTER-001" },
+        { "id": "US-003", "persona": "P-001", "story": "Lojista busca cliente por CPF", "priority": "medium", "acceptanceCriteria": ["GET /api/users?cpf=...", "Retorna 200 com user, ou 404 se não existe"], "sprint": "S02", "e2eChainRef": null },
+        { "id": "US-004", "persona": "P-002", "story": "Cliente pede exclusão dos dados (LGPD)", "priority": "high", "acceptanceCriteria": ["DELETE /api/users/:id", "Soft delete imediato, hard delete após 30 dias", "Audit log registra a solicitação"], "sprint": "S02", "e2eChainRef": "E2E-USER-DELETE-001" },
+        { "id": "US-005", "persona": "P-001", "story": "Lojista lista clientes", "priority": "medium", "acceptanceCriteria": ["GET /api/users?page=1&limit=20", "Retorna 200 com lista paginada"], "sprint": "S02", "e2eChainRef": null }
+      ]
+      </script>
+      <details><summary>US-001: Cliente digita CEP e tem endereço preenchido</summary>
+        <p><strong>Persona:</strong> P-002</p>
+        <p><strong>Critérios:</strong> ver JSON acima</p>
+      </details>
+    </section>
+
+    <section id="arquitetura" data-spec-section="architecture">
+      <h2>4. Arquitetura</h2>
+      <pre><code class="mermaid">
+graph TD
+  A[Browser Mobile/Desktop] -->|HTTPS| B[Next.js Pages Router]
+  B -->|API Routes| C[Backend]
+  C -->|Prisma| D[(Postgres)]
+  C -->|HTTPS| E[ViaCEP]
+  C -.->|audit log| F[.harness/audit/]
+      </code></pre>
+      <p>Backend monolítico (Next.js API Routes). Banco único. Sem cache inicial (cache de CEPs pode entrar em S03).</p>
+    </section>
+
+    <section id="contratos" data-spec-section="contracts">
+      <h2>5. Contratos de API</h2>
+      <script type="application/json" id="spec-contracts">
+      {
+        "endpoints": [
+          { "id": "EP-001", "method": "POST", "path": "/api/users", "auth": "required", "rateLimit": "10/min", "requestSchema": { "ref": "RAG/cpf-encryption" }, "responseSchema": { "ref": "userSchema" }, "errorResponses": [{ "status": 400, "reason": "validation error" }, { "status": 401, "reason": "unauthorized" }, { "status": 409, "reason": "duplicate CPF" }, { "status": 422, "reason": "invalid CPF or CEP" }] },
+          { "id": "EP-002", "method": "GET", "path": "/api/users/:id", "auth": "required", "rateLimit": "100/min", "responseSchema": { "ref": "userSchema" }, "errorResponses": [{ "status": 401 }, { "status": 404 }] },
+          { "id": "EP-003", "method": "GET", "path": "/api/users?cpf=...", "auth": "required", "rateLimit": "100/min", "responseSchema": { "ref": "userListSchema" }, "errorResponses": [{ "status": 401 }] },
+          { "id": "EP-004", "method": "DELETE", "path": "/api/users/:id", "auth": "required", "rateLimit": "10/min", "errorResponses": [{ "status": 401 }, { "status": 404 }] }
+        ]
+      }
+      </script>
+      <div class="endpoint"><strong>POST /api/users</strong> — Cria user. Auth required. 10/min.</div>
+      <div class="endpoint"><strong>GET /api/users/:id</strong> — Busca user. Auth required. 100/min.</div>
+      <div class="endpoint"><strong>GET /api/users?cpf=X</strong> — Busca por CPF. Auth required. 100/min.</div>
+      <div class="endpoint"><strong>DELETE /api/users/:id</strong> — Soft delete (LGPD). Auth required. 10/min.</div>
+    </section>
+
+    <section id="regras" data-spec-section="business-rules">
+      <h2>6. Regras de Negócio</h2>
+      <script type="application/json" id="spec-rules">
+      [
+        { "id": "RN-001", "rule": "CPF deve ser validado com dígitos verificadores antes de criar", "source": "LGPD + negócio", "testable": true, "testRef": "test/unit/lib/cpfValidator.test.ts" },
+        { "id": "RN-002", "rule": "CPF duplicado bloqueia criação (retorna 409)", "source": "negócio", "testable": true, "testRef": "test/integration/api/users.test.ts" },
+        { "id": "RN-003", "rule": "CEP deve ser re-validado via ViaCEP no backend (defense in depth)", "source": "segurança", "testable": true, "testRef": "test/integration/api/users.test.ts" },
+        { "id": "RN-004", "rule": "Soft delete imediato, hard delete após 30 dias", "source": "LGPD Art. 18", "testable": true, "testRef": "test/integration/api/users.test.ts" }
+      ]
+      </script>
+      <table>
+        <thead><tr><th>ID</th><th>Regra</th><th>Fonte</th><th>Test Ref</th></tr></thead>
+        <tbody>
+          <tr><td>RN-001</td><td>CPF validado com dígitos verificadores</td><td>LGPD</td><td>test/unit/lib/cpfValidator.test.ts</td></tr>
+          <tr><td>RN-002</td><td>CPF duplicado bloqueia</td><td>negócio</td><td>test/integration/api/users.test.ts</td></tr>
+          <tr><td>RN-003</td><td>CEP re-validado no backend</td><td>segurança</td><td>test/integration/api/users.test.ts</td></tr>
+          <tr><td>RN-004</td><td>Soft delete + hard delete 30d</td><td>LGPD</td><td>test/integration/api/users.test.ts</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="componentes" data-spec-section="components">
+      <h2>7. Componentes / Módulos</h2>
+      <h3>7.1 UserForm (frontend)</h3>
+      <p>Form de cadastro. Campos: cpf, nome, email, cep, logradouro, bairro, cidade, uf. Ações: submit, clean. Integra ViaCEP no on-blur do cep.</p>
+      <h3>7.2 userCreator service (backend)</h3>
+      <p>Recebe input validado, criptografa CPF, persiste no DB. Audit log.</p>
+      <h3>7.3 cpfValidator (lib)</h3>
+      <p>Validação de dígitos verificadores. Pure function. Sem dependência externa.</p>
+    </section>
+
+    <section id="seguranca" data-spec-section="security">
+      <h2>8. Segurança</h2>
+      <script type="application/json" id="spec-security">
+      {
+        "owaspCategories": ["A01", "A02", "A03", "A04", "A05", "A07", "A09"],
+        "lgpdArticles": ["Art. 7º (base legal: execução de contrato)", "Art. 18 (direito de exclusão)", "Art. 37 (registro de data)", "Art. 46 (segurança)"],
+        "encryption": { "atRest": "AES-256-GCM", "inTransit": "TLS 1.3" },
+        "auth": "JWT com RS256 (access token 1h, refresh token 30d)",
+        "rateLimit": "10/min em POST, 100/min em GET",
+        "auditLog": true,
+        "dataRetention": "5 anos (Art. 16 LGPD + obrigações legais)"
+      }
+      </script>
+      <table>
+        <thead><tr><th>Categoria</th><th>Aplicável</th><th>Mitigação</th></tr></thead>
+        <tbody>
+          <tr><td>A01 Broken Access Control</td><td>✓</td><td>JWT + auth middleware em toda rota</td></tr>
+          <tr><td>A02 Cryptographic Failures</td><td>✓</td><td>AES-256-GCM no CPF, TLS 1.3</td></tr>
+          <tr><td>A03 Injection</td><td>✓</td><td>Prisma parametrizado, Zod validação</td></tr>
+          <tr><td>A04 Insecure Design</td><td>✓</td><td>Rate limit, validação dupla (frontend + backend)</td></tr>
+          <tr><td>A05 Misconfig</td><td>✓</td><td>CORS restrito, env vars gerenciadas</td></tr>
+          <tr><td>A07 Auth Failures</td><td>✓</td><td>bcrypt em senhas (futuro), rate limit em login</td></tr>
+          <tr><td>A09 Logging Failures</td><td>✓</td><td>audit-logger.js hook em todas as tool calls</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="testes" data-spec-section="tests">
+      <h2>9. Testes</h2>
+      <script type="application/json" id="spec-tests">
+      {
+        "minCoverage": 85,
+        "testTypes": ["unit", "integration", "e2e"],
+        "frameworks": { "unit": "vitest", "integration": "supertest", "e2e": "playwright" },
+        "e2eChains": [
+          {
+            "name": "user-full-lifecycle",
+            "sequence": ["POST /api/users", "GET /api/users/:id", "DELETE /api/users/:id", "GET /api/users/:id (404)"],
+            "dataFlow": "response[POST].id → path[GET].id, path[DELETE].id",
+            "cleanup": "always"
+          },
+          {
+            "name": "user-cep-autocomplete",
+            "sequence": ["POST /api/users (com CEP válido)", "GET /api/users/:id (verificar logradouro preenchido)"],
+            "dataFlow": "input.cep → response.logradouro (via ViaCEP)",
+            "cleanup": "always"
+          }
+        ],
+        "crossModuleHints": [
+          {
+            "source": "POST /api/users (retorna id, cpf_encrypted, endereço completo)",
+            "consumedBy": "futuro: GET /api/orders?userId=... (módulo order, sprint futura)",
+            "dataFlow": "user.id → orders.userId"
+          }
+        ]
+      }
+      </script>
+      <p>Cobertura mínima: <strong>85%</strong>. Tipos: unit + integration + e2e. Ver <code>qa/S01/e2e-chains.json</code>.</p>
+    </section>
+
+    <section id="riscos" data-spec-section="risks">
+      <h2>10. Riscos</h2>
+      <table>
+        <thead><tr><th>ID</th><th>Risco</th><th>Prob.</th><th>Impacto</th><th>Mitigação</th></tr></thead>
+        <tbody>
+          <tr><td>RS-001</td><td>ViaCEP ficar fora do ar</td><td>low</td><td>high</td><td>Backend tem fallback (timeout 5s, mensagem)</td></tr>
+          <tr><td>RS-002</td><td>Chave de criptografia comprometida</td><td>low</td><td>critical</td><td>Rotação de chaves a cada 90 dias, KMS em prod</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </article>
+</body>
+</html>

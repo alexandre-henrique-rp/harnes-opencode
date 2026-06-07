@@ -1,0 +1,203 @@
+/**
+ * harness-init.ts — Harness v6 tool
+ *
+ * Cria a estrutura `.harness/` em um projeto novo:
+ *   - .harness/state-machine.json (copia do template na raiz do harness)
+ *   - .harness/state.json (snapshot inicial, phase.0.briefing)
+ *   - .harness/events.jsonl (primeiro evento: harness.init)
+ *   - .harness/agent-boundaries.json (gerado a partir de opencode.json)
+ *   - .harness/audit/ (diretório vazio para audit logs)
+ *
+ * Idempotente: se .harness/ já existe, falha com mensagem clara (use --force para sobrescrever).
+ */
+
+import { tool } from "@opencode-ai/plugin";
+import * as fs from "fs";
+import * as path from "path";
+
+export default tool({
+  name: "harness_init",
+  description:
+    "Inicializa um projeto Harness v6. Cria .harness/ com state-machine.json, state.json, events.jsonl, agent-boundaries.json. Idempotente (use --force para resetar).",
+  args: {
+    project: tool.schema
+      .string()
+      .describe("Nome/ID do projeto (kebab-case, ex: 'meu-app-web')"),
+    force: tool.schema
+      .boolean()
+      .optional()
+      .describe("Se true, sobrescreve .harness/ existente (CUIDADO: apaga state.json)"),
+  },
+  async execute({ project, force = false }, context) {
+    const cwd = context?.directory || process.cwd();
+    const harnessDir = path.join(cwd, ".harness");
+    const auditDir = path.join(harnessDir, "audit");
+
+    if (fs.existsSync(harnessDir) && !force) {
+      return {
+        success: false,
+        error: `.harness/ ja existe em ${cwd}. Use --force para resetar (CUIDADO: apaga state.json e events.jsonl).`,
+      };
+    }
+
+    // 1. Cria diretórios
+    fs.mkdirSync(harnessDir, { recursive: true });
+    fs.mkdirSync(auditDir, { recursive: true });
+
+    // 2. Copia state-machine.json do template
+    const stateMachineSrc = path.join(cwd, "state-machine.json");
+    const stateMachineDest = path.join(harnessDir, "state-machine.json");
+    if (!fs.existsSync(stateMachineSrc)) {
+      return {
+        success: false,
+        error: `state-machine.json nao encontrado em ${cwd}. Verifique se o harness v6 foi copiado para a raiz do projeto.`,
+      };
+    }
+    fs.copyFileSync(stateMachineSrc, stateMachineDest);
+
+    // 3. Cria state.json inicial
+    const stateMachine = JSON.parse(fs.readFileSync(stateMachineDest, "utf8"));
+    const initialState = {
+      _type: "harness-state-v6",
+      version: 1,
+      project,
+      stateMachineVersion: stateMachine.version,
+      currentPhase: "phase.0.briefing",
+      currentSprint: null,
+      phases: {},
+      sprints: {},
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    // Inicializa todas as fases como pending
+    for (const phase of stateMachine.phases) {
+      initialState.phases[phase.id] = {
+        status: "pending",
+        owner: phase.owner,
+        startedAt: null,
+        completedAt: null,
+        gate: null,
+        score: null,
+        attempt: 0,
+      };
+    }
+    fs.writeFileSync(path.join(harnessDir, "state.json"), JSON.stringify(initialState, null, 2));
+
+    // 4. Cria events.jsonl com primeiro evento
+    const firstEvent = {
+      ts: new Date().toISOString(),
+      event: "harness.init",
+      actor: "orchestrator",
+      project,
+      stateMachineVersion: stateMachine.version,
+      currentPhase: "phase.0.briefing",
+    };
+    fs.writeFileSync(path.join(harnessDir, "events.jsonl"), JSON.stringify(firstEvent) + "\n");
+
+    // 5. Gera agent-boundaries.json a partir de opencode.json
+    const opencodePath = path.join(cwd, "opencode.json");
+    let agentBoundaries = {};
+    if (fs.existsSync(opencodePath)) {
+      const opencode = JSON.parse(fs.readFileSync(opencodePath, "utf8"));
+      agentBoundaries = deriveBoundaries(opencode);
+    } else {
+      // Fallback conservador se opencode.json não existir
+      agentBoundaries = conservativeBoundaries();
+    }
+    fs.writeFileSync(
+      path.join(harnessDir, "agent-boundaries.json"),
+      JSON.stringify(agentBoundaries, null, 2)
+    );
+
+    return {
+      success: true,
+      project,
+      harnessDir: harnessDir,
+      files: [
+        ".harness/state-machine.json",
+        ".harness/state.json",
+        ".harness/events.jsonl",
+        ".harness/agent-boundaries.json",
+        ".harness/audit/",
+      ],
+      currentPhase: "phase.0.briefing",
+      next: "Faca sua demanda ao orchestrator. Ele iniciara a fase 0 (briefing).",
+    };
+  },
+});
+
+/**
+ * Deriva allowlist de paths por agent a partir do opencode.json agent map.
+ * Mapeia agent → paths que ele tem permissao de editar.
+ */
+function deriveBoundaries(opencode: any): Record<string, { allow: string[]; deny: string[] }> {
+  const agents = opencode.agent || {};
+  const boundaries: Record<string, { allow: string[]; deny: string[] }> = {};
+
+  for (const [name, config] of Object.entries<any>(agents)) {
+    if (name === "_comment") continue;
+
+    // Default: agent só escreve em seu próprio subdiretório
+    let allow = [`.harness/${name}/**`, ".harness/events.jsonl"];
+    let deny: string[] = ["src/**", "db/**", "app/**"];
+
+    // Owners de fase escrevem em paths específicos
+    if (name === "briefing") {
+      allow = ["brief.md", ...allow];
+    } else if (name === "documenter") {
+      allow = ["AGENTS.md", "ARCH.md", "docs/**", ...allow];
+    } else if (name === "rag-curator") {
+      allow = ["RAG/**", ".harness/RAG/**", "training/**", ".harness/training/**", ...allow];
+      deny = ["src/**"];
+    } else if (name === "requirements") {
+      allow = ["PRD.html", "SPEC.html", ...allow];
+    } else if (name === "prd-reviewer" || name === "spec-reviewer" || name === "design-reviewer") {
+      allow = [".harness/reviews/**"];
+      deny = ["**"]; // reviewers só escrevem em reports, nada de feature code
+    } else if (name === "designer") {
+      allow = ["PRODUCT.md", "design/**", ...allow];
+    } else if (name === "sprint-tasker") {
+      allow = ["sprints/**", ...allow];
+    } else if (name === "reviewer") {
+      allow = [".harness/reviews/**"];
+      deny = ["**"];
+    } else if (name === "backend") {
+      allow = ["src/backend/**", "db/**", "app/services/**", "test/backend/**", "tests/backend/**", ...allow];
+      deny = ["src/frontend/**", "src/components/**"];
+    } else if (name === "frontend") {
+      allow = ["src/frontend/**", "src/components/**", "src/pages/**", "test/frontend/**", "tests/frontend/**", ...allow];
+      deny = ["src/backend/**", "db/**", "app/services/**"];
+    } else if (name === "tester") {
+      allow = ["test/**", "tests/**", "qa/**", "e2e/**", ...allow];
+      deny = ["src/**", "app/**", "db/**"];
+    } else if (name === "security") {
+      allow = [".harness/security/**", "qa/security/**", ...allow];
+      deny = ["src/**", "app/**", "db/**"]; // security NUNCA corrige codigo
+    } else if (name === "qa-gate") {
+      allow = [".harness/qa-gate/**", ...allow];
+      deny = ["**"];
+    } else if (name === "orchestrator") {
+      allow = [".harness/**"];
+      deny = ["src/**", "app/**", "db/**", "test/**"]; // orchestrator não escreve feature code
+    }
+
+    boundaries[name] = { allow, deny };
+  }
+
+  return boundaries;
+}
+
+function conservativeBoundaries(): Record<string, { allow: string[]; deny: string[] }> {
+  // Fallback se opencode.json não existir
+  return {
+    orchestrator: { allow: [".harness/**"], deny: ["src/**", "app/**", "db/**"] },
+    briefing: { allow: ["brief.md", ".harness/briefing/**"], deny: ["**"] },
+    documenter: { allow: ["AGENTS.md", "ARCH.md", "docs/**", ".harness/documenter/**"], deny: ["**"] },
+    "rag-curator": { allow: ["RAG/**", "training/**", ".harness/training/**"], deny: ["**"] },
+    requirements: { allow: ["PRD.html", "SPEC.html", ".harness/requirements/**"], deny: ["**"] },
+    backend: { allow: ["src/backend/**", "db/**", "test/**"], deny: ["src/frontend/**"] },
+    frontend: { allow: ["src/frontend/**", "test/frontend/**"], deny: ["src/backend/**", "db/**"] },
+    tester: { allow: ["test/**", "qa/**", "e2e/**"], deny: ["src/**", "app/**", "db/**"] },
+    security: { allow: [".harness/security/**", "qa/security/**"], deny: ["**"] },
+  };
+}

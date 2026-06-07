@@ -1,0 +1,45 @@
+{
+  "_type": "harness-sprint-v6",
+  "version": 1,
+  "schema": "sprint-detail",
+  "description": "Detalhe de uma sprint. Gerado pelo sprint-tasker. 1 arquivo por sprint (S01.json, S02.json, ...).",
+  "sprint": {
+    "id": "S01",
+    "name": "{{kebab-name}}",
+    "goal": "{{1 frase}}",
+    "module": "{{modulo}}",
+    "specRefs": ["US-001", "EP-001"],
+    "dependsOn": []
+  },
+  "tasks": [
+    {
+      "id": "T-001",
+      "module": "{{modulo}}",
+      "title": "{{titulo curto}}",
+      "type": "backend|frontend|infra|test",
+      "workstream": "backend|frontend|tests|infra|security",
+      "specRefs": ["US-001"],
+      "promptRef": null,
+      "description": "{{markdown: o que fazer, em linguagem executavel}}",
+      "acceptanceCriteria": [
+        "{{criterio testavel 1}}",
+        "{{criterio testavel 2}}"
+      ],
+      "files": [
+        "src/backend/user/creator.rb",
+        "test/backend/user/creator_test.rb"
+      ],
+      "estimateHours": 4,
+      "dependencies": ["T-000"],
+      "status": "pending",
+      "startedInSprint": "S01",
+      "finishedInSprint": "S01",
+      "contextFlow": {
+        "source": null,
+        "target": null
+      },
+      "owner": "backend|frontend|tester|security",
+      "reviewerNotes": ""
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "_type": "harness-sprint-index-v6",
+  "version": 1,
+  "schema": "sprint-index",
+  "description": "Catálogo de sprints do projeto. Gerado pelo sprint-tasker na fase 4.",
+  "project": "{{project}}",
+  "generatedAt": "{{ISO8601}}",
+  "generatedBy": "sprint-tasker",
+  "specRef": "SPEC.html",
+  "totalSprints": 0,
+  "sprints": [
+    {
+      "id": "S01",
+      "name": "{{kebab-name}}",
+      "goal": "{{1 frase: o que esta sprint entrega}}",
+      "module": "{{modulo principal}}",
+      "status": "pending",
+      "taskCount": 0,
+      "startedAt": null,
+      "finishedAt": null,
+      "dependsOn": []
+    }
+  ]
+}

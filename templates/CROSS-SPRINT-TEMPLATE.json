@@ -1,0 +1,68 @@
+{
+  "_type": "harness-cross-sprint-v6",
+  "version": 1,
+  "schema": "cross-sprint-flows",
+  "description": "Mapa global de dependências cross-sprint. Mostra tasks que começam em uma sprint e terminam em outra, com dataFlow explícito. Usado pelo tester agent para montar e2e chains e pelo orchestrator para detectar overlap de worktrees.",
+  "project": "{{project}}",
+  "generatedAt": "{{ISO8601}}",
+  "generatedBy": "sprint-tasker",
+  "flows": [
+    {
+      "id": "X-001",
+      "name": "{{kebab-name-of-flow}}",
+      "description": "{{1 frase: o que este cross-sprint flow representa}}",
+      "tasks": ["T-002", "T-007"],
+      "startsIn": "S01",
+      "finishesIn": "S02",
+      "dataFlow": "{{ex: T-002.response.id → T-007.request.userId}}",
+      "modules": ["user", "profile"],
+      "e2eTestRef": "{{ex: tester deve encadear: create user → upload avatar → get user (com avatar)}}",
+      "contextFlow": {
+        "source": {
+          "taskId": "T-002",
+          "sprintId": "S01",
+          "endpoint": "POST /api/v1/users",
+          "dataPath": "response.id"
+        },
+        "target": {
+          "taskId": "T-007",
+          "sprintId": "S02",
+          "endpoint": "POST /api/v1/users/:id/avatar",
+          "bindsTo": "request.userId"
+        }
+      }
+    },
+    {
+      "id": "X-002",
+      "name": "order-with-user-discount",
+      "description": "Pedido consome tier do user para calcular desconto",
+      "tasks": ["T-101", "T-203"],
+      "startsIn": "S02",
+      "finishesIn": "S04",
+      "dataFlow": "T-101.response.userTier → T-203.request.discountCode",
+      "modules": ["user", "order"],
+      "e2eTestRef": "tester: create user (com tier=gold) → create order → verify discount=15%",
+      "contextFlow": {
+        "source": {
+          "taskId": "T-101",
+          "sprintId": "S02",
+          "endpoint": "GET /api/v1/users/:id",
+          "dataPath": "response.tier"
+        },
+        "target": {
+          "taskId": "T-203",
+          "sprintId": "S04",
+          "endpoint": "POST /api/v1/orders",
+          "bindsTo": "request.discountCode"
+        }
+      }
+    }
+  ],
+  "validation": {
+    "allTasksExist": true,
+    "noOrphanReferences": true,
+    "crossSprintTaskCoverage": "100%",
+    "validatedAt": "{{ISO8601}}",
+    "validatedBy": "reviewer"
+  }
+}

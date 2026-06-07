@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SPEC — {{project}} v{{version}}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 1000px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; color: #222; }
+    h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+    h2 { margin-top: 2rem; color: #444; }
+    h3 { margin-top: 1.5rem; color: #555; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { border: 1px solid #ddd; padding: 0.5rem; text-align: left; }
+    th { background: #f4f4f4; }
+    code { background: #f4f4f4; padding: 0.1rem 0.3rem; border-radius: 3px; font-family: monospace; }
+    pre { background: #f4f4f4; padding: 1rem; border-radius: 4px; overflow-x: auto; }
+    .meta { background: #fafafa; padding: 1rem; border-left: 4px solid #666; margin: 1rem 0; }
+    .endpoint { margin: 0.5rem 0; padding: 0.5rem; border-left: 3px solid #0066cc; background: #f0f7ff; }
+    .method-get { border-color: #4CAF50; background: #f1f8e9; }
+    .method-post { border-color: #2196F3; background: #e3f2fd; }
+    .method-put { border-color: #FF9800; background: #fff3e0; }
+    .method-delete { border-color: #F44336; background: #ffebee; }
+  </style>
+</head>
+<body>
+  <article id="spec">
+
+    <!-- ============ METADATA ============ -->
+    <script type="application/json" id="spec-meta">
+    {
+      "_type": "harness-spec-v6",
+      "id": "spec-{{project}}-v{{version}}",
+      "version": {{version}},
+      "status": "draft",
+      "score": 0,
+      "reviewer": "spec-reviewer",
+      "createdAt": "{{createdAt}}",
+      "updatedAt": "{{updatedAt}}",
+      "project": "{{project}}",
+      "module": "{{module}}",
+      "sprint": null
+    }
+    </script>
+
+    <header>
+      <h1>SPEC — {{Nome do Projeto}} v{{version}}</h1>
+      <div class="meta">
+        <strong>Versão:</strong> {{version}} |
+        <strong>Status:</strong> <span data-status>{{status}}</span> |
+        <strong>Score:</strong> <span data-score>0</span>/100 |
+        <strong>Módulo:</strong> {{module}}
+      </div>
+    </header>
+
+    <!-- ============ 1. OBJETIVO ============ -->
+    <section id="objetivo" data-spec-section="goal">
+      <h2>1. Objetivo</h2>
+      <p>O que este SPEC entrega. Em qual módulo. Para quais personas (linkar para PRD).</p>
+    </section>
+
+    <!-- ============ 2. STACK ============ -->
+    <section id="stack" data-spec-section="stack">
+      <h2>2. Stack</h2>
+      <script type="application/json" id="spec-stack">
+      {
+        "language": "{{ex: typescript}}",
+        "framework": "{{ex: nextjs, react, vue, express, fastify}}",
+        "database": "{{ex: postgres, mongodb, sqlite}}",
+        "orm": "{{ex: prisma, drizzle, typeorm}}",
+        "runtime": "{{ex: node@22, deno, bun}}",
+        "deployment": "{{ex: vercel, railway, docker+k8s}}",
+        "testing": "{{ex: vitest, jest, playwright}}"
+      }
+      </script>
+      <table>
+        <thead>
+          <tr><th>Camada</th><th>Tecnologia</th></tr>
+        </thead>
+        <tbody data-stack-rows></tbody>
+      </table>
+    </section>
+
+    <!-- ============ 3. PERSONAS / USER STORIES (detalhado) ============ -->
+    <section id="personas" data-spec-section="personas">
+      <h2>3. Personas & User Stories (detalhado)</h2>
+      <script type="application/json" id="spec-stories">
+      [
+        {
+          "id": "US-001",
+          "persona": "P-001",
+          "story": "Como {{persona}}, quero {{ação}}, para {{benefício}}",
+          "priority": "high",
+          "acceptanceCriteria": [
+            "{{critério testável 1}}",
+            "{{critério testável 2}}"
+          ],
+          "sprint": null,
+          "e2eChainRef": null
+        }
+      ]
+      </script>
+      <details>
+        <summary>US-001: {{título curto}}</summary>
+        <p><strong>Persona:</strong> P-001</p>
+        <p><strong>Story:</strong> Como ...</p>
+        <p><strong>Critérios de aceitação:</strong></p>
+        <ul>
+          <li>{{critério 1}}</li>
+          <li>{{critério 2}}</li>
+        </ul>
+      </details>
+    </section>
+
+    <!-- ============ 4. ARQUITETURA ============ -->
+    <section id="arquitetura" data-spec-section="architecture">
+      <h2>4. Arquitetura</h2>
+      <p>Descrição textual da arquitetura em alto nível.</p>
+      <pre><code class="mermaid">
+graph TD
+  A[Frontend] -->|HTTPS| B[API]
+  B -->|SQL| C[(Database)]
+  B -->|HTTPS| D[External API]
+      </code></pre>
+      <p>Decisões macro de arquitetura e justificativas.</p>
+    </section>
+
+    <!-- ============ 5. CONTRATOS DE API ============ -->
+    <section id="contratos" data-spec-section="contracts">
+      <h2>5. Contratos de API</h2>
+      <script type="application/json" id="spec-contracts">
+      {
+        "endpoints": [
+          {
+            "id": "EP-001",
+            "method": "POST",
+            "path": "/api/v1/users",
+            "description": "{{descrição}}",
+            "auth": "required|optional|public",
+            "rateLimit": "{{ex: 100/hour}}",
+            "requestSchema": { "ref": "RAG/schemas/user-create.yaml" },
+            "responseSchema": { "ref": "RAG/schemas/user.yaml" },
+            "errorResponses": [
+              { "status": 400, "reason": "validation error" },
+              { "status": 401, "reason": "unauthorized" },
+              { "status": 422, "reason": "duplicate email" }
+            ]
+          }
+        ]
+      }
+      </script>
+
+      <div class="endpoint method-post">
+        <strong>POST /api/v1/users</strong> — {{descrição}}
+        <p><strong>Auth:</strong> required | <strong>Rate limit:</strong> 100/hour</p>
+        <p><strong>Request:</strong> ver <code>RAG/schemas/user-create.yaml</code></p>
+        <p><strong>Response 201:</strong> ver <code>RAG/schemas/user.yaml</code></p>
+        <p><strong>Errors:</strong> 400 (validation), 401 (unauthorized), 422 (duplicate)</p>
+      </div>
+    </section>
+
+    <!-- ============ 6. REGRAS DE NEGÓCIO ============ -->
+    <section id="regras" data-spec-section="business-rules">
+      <h2>6. Regras de Negócio</h2>
+      <script type="application/json" id="spec-rules">
+      [
+        {
+          "id": "RN-001",
+          "rule": "{{descrição da regra}}",
+          "source": "{{LGPD|negócio|lei X}}",
+          "testable": true,
+          "testRef": "{{RAG doc ou test path}}",
+          "exceptions": []
+        }
+      ]
+      </script>
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Regra</th><th>Fonte</th><th>Testável?</th><th>Test Ref</th></tr>
+        </thead>
+        <tbody data-rules-rows></tbody>
+      </table>
+    </section>
+
+    <!-- ============ 7. COMPONENTES / MÓDULOS ============ -->
+    <section id="componentes" data-spec-section="components">
+      <h2>7. Componentes / Módulos</h2>
+      <p>Cada sub-módulo é uma sub-seção. <em>Limite: 3000 chars por sub-seção. Se estourar, quebrar em SPECs separados.</em></p>
+
+      <h3>7.1 {{Nome do Componente}}</h3>
+      <p>Responsabilidade, interfaces, dependências.</p>
+
+      <h3>7.2 {{Nome do Componente}}</h3>
+      <p>Responsabilidade, interfaces, dependências.</p>
+    </section>
+
+    <!-- ============ 8. SEGURANÇA ============ -->
+    <section id="seguranca" data-spec-section="security">
+      <h2>8. Segurança</h2>
+      <script type="application/json" id="spec-security">
+      {
+        "owaspCategories": ["A01", "A03", "A07"],
+        "lgpdArticles": ["Art. 7º", "Art. 18"],
+        "gdprArticles": [],
+        "encryption": {
+          "atRest": "AES-256",
+          "inTransit": "TLS 1.3"
+        },
+        "auth": "{{ex: JWT com RS256, session, OAuth2}}",
+        "rateLimit": "{{ex: 100/hour por IP, 1000/hour por user}}",
+        "auditLog": true,
+        "dataRetention": "{{ex: 5 anos, conformidade legal}}"
+      }
+      </script>
+      <table>
+        <thead><tr><th>Categoria</th><th>Aplicável?</th><th>Mitigação</th></tr></thead>
+        <tbody>
+          <tr><td>A01 — Broken Access Control</td><td>✓</td><td>{{como}}</td></tr>
+          <tr><td>A02 — Cryptographic Failures</td><td>✓</td><td>AES-256 at rest, TLS 1.3 in transit</td></tr>
+          <tr><td>A03 — Injection (SQL/XSS/Command)</td><td>✓</td><td>ORM parametrizado, escape de output</td></tr>
+          <tr><td>A04 — Insecure Design</td><td>—</td><td>—</td></tr>
+          <tr><td>A05 — Security Misconfiguration</td><td>✓</td><td>{{como}}</td></tr>
+          <tr><td>A06 — Vulnerable Components</td><td>✓</td><td>brakeman/bundler-audit/npm audit em CI</td></tr>
+          <tr><td>A07 — Identification & Auth Failures</td><td>✓</td><td>{{como}}</td></tr>
+          <tr><td>A08 — Software & Data Integrity</td><td>—</td><td>—</td></tr>
+          <tr><td>A09 — Security Logging Failures</td><td>✓</td><td>audit-logger.js hook</td></tr>
+          <tr><td>A10 — Server-Side Request Forgery</td><td>—</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ============ 9. TESTES ============ -->
+    <section id="testes" data-spec-section="tests">
+      <h2>9. Testes</h2>
+      <script type="application/json" id="spec-tests">
+      {
+        "minCoverage": 85,
+        "testTypes": ["unit", "integration", "e2e"],
+        "frameworks": {
+          "unit": "vitest",
+          "integration": "supertest",
+          "e2e": "playwright"
+        },
+        "e2eChains": [
+          {
+            "name": "user-crud-full",
+            "sequence": [
+              "POST /api/v1/users",
+              "GET /api/v1/users/:id",
+              "PUT /api/v1/users/:id",
+              "DELETE /api/v1/users/:id"
+            ],
+            "dataFlow": "response[POST].id → path[GET].id",
+            "cleanup": "always"
+          }
+        ],
+        "crossModuleHints": [
+          {
+            "source": "POST /api/v1/users/:id/avatar (user module)",
+            "consumedBy": "GET /api/v1/profiles/:id (profile module)",
+            "dataFlow": "user.avatarUrl → profile.displayAvatar"
+          }
+        ]
+      }
+      </script>
+      <p>Cobertura mínima: <strong>85%</strong>. Tipos: unit + integration + e2e. Ver <code>qa/&lt;sprint&gt;/e2e-chains.json</code> para chains geradas pelo tester agent.</p>
+    </section>
+
+    <!-- ============ 10. RISCOS ============ -->
+    <section id="riscos" data-spec-section="risks">
+      <h2>10. Riscos</h2>
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Risco</th><th>Probabilidade</th><th>Impacto</th><th>Mitigação</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>RS-001</td><td>{{descrição}}</td><td>low/medium/high</td><td>low/medium/high</td><td>{{mitigação}}</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+  </article>
+</body>
+</html>

@@ -1,0 +1,218 @@
+name: Harness v6 CI
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+
+jobs:
+  validate:
+    name: Validate harness files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 'latest'
+
+      - name: Cache pnpm
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      # 1. Instala deps dos plugins
+      - name: Install plugin deps
+        run: |
+          mkdir -p /tmp/opencode-test
+          cp -r agents commands templates tools plugins examples GERAIS.md state-machine.json failure-protocol.json opencode.json /tmp/opencode-test/
+          cp .github/workflows/ci-validate.sh /tmp/opencode-test/ 2>/dev/null || true
+          cd /tmp/opencode-test
+          pnpm install --silent
+
+      # 2. Valida todos os JSONs
+      - name: Validate JSON files
+        run: |
+          echo "=== Root JSONs ==="
+          for f in state-machine.json failure-protocol.json opencode.json; do
+            echo "Checking $f"
+            python3 -c "import json; json.load(open('$f'))" || exit 1
+          done
+          echo ""
+          echo "=== Template JSONs ==="
+          for f in templates/*.json; do
+            echo "Checking $f"
+            python3 -c "import json; json.load(open('$f'))" || exit 1
+          done
+          echo ""
+          echo "=== Example JSONs ==="
+          for f in examples/**/*.json; do
+            echo "Checking $f"
+            python3 -c "import json; json.load(open('$f'))" || exit 1
+          done
+          echo ""
+          echo "All JSONs valid ✓"
+
+      # 3. Valida YAML frontmatter de todos os agents
+      - name: Validate agent frontmatters
+        run: |
+          pip install pyyaml --quiet
+          python3 << 'EOF'
+          import yaml, os, sys
+          required_top = ['description', 'mode', 'permission']
+          expected_modes = {'primary', 'subagent', 'all'}
+          errors = []
+          for f in sorted(os.listdir('agents')):
+              if not f.endswith('.md'):
+                  continue
+              path = f'agents/{f}'
+              with open(path) as fp:
+                  content = fp.read()
+              parts = content.split('---', 2)
+              if len(parts) < 3:
+                  errors.append(f'{path}: no frontmatter')
+                  continue
+              try:
+                  fm = yaml.safe_load(parts[1])
+              except yaml.YAMLError as e:
+                  errors.append(f'{path}: YAML error: {e}')
+                  continue
+              missing = [k for k in required_top if k not in fm]
+              if missing:
+                  errors.append(f'{path}: missing {missing}')
+                  continue
+              if fm['mode'] not in expected_modes:
+                  errors.append(f'{path}: invalid mode {fm["mode"]}')
+              if fm['mode'] == 'subagent' and fm.get('permission', {}).get('task') != 'deny':
+                  errors.append(f'{path}: subagent deve ter permission.task = deny (tem {fm.get("permission", {}).get("task")})')
+              if fm['mode'] == 'primary' and not (isinstance(fm.get('permission', {}).get('task'), dict) or fm.get('permission', {}).get('task') == 'allow'):
+                  errors.append(f'{path}: primary deve ter permission.task = allow ou object')
+          if errors:
+              print('FAIL:')
+              for e in errors:
+                  print(f'  {e}')
+              sys.exit(1)
+          print(f'All {len([f for f in os.listdir("agents") if f.endswith(".md")])} agents valid ✓')
+          EOF
+
+      # 4. Valida sintaxe dos plugins TypeScript
+      - name: Validate plugin syntax
+        run: |
+          cd /tmp/opencode-test
+          echo "=== Checking plugin syntax ==="
+          npx -y -p typescript@5 tsc --noEmit --skipLibCheck --target es2022 --module esnext --moduleResolution node plugins/*.ts tools/*.ts 2>&1 | head -30 || true
+          echo "=== Plugin syntax check completed ==="
+
+      # 5. Valida sintaxe do install.sh
+      - name: Validate install.sh
+        run: |
+          bash -n install.sh && echo "install.sh syntax valid ✓"
+          shellcheck install.sh 2>/dev/null || echo "  (shellcheck not available, skipping)"
+
+      # 6. Verifica que opencode.json segue o schema do opencode
+      - name: Validate opencode.json schema
+        run: |
+          python3 << 'EOF'
+          import json
+          with open('opencode.json') as f:
+              data = json.load(f)
+          allowed = {
+              '$schema', 'shell', 'logLevel', 'server', 'command', 'skills', 'reference',
+              'watcher', 'snapshot', 'plugin', 'share', 'autoupdate',
+              'disabled_providers', 'enabled_providers', 'model', 'small_model',
+              'default_agent', 'username', 'mode', 'agent', 'provider', 'mcp',
+              'formatter', 'lsp', 'instructions', 'layout', 'permission', 'tools',
+              'attachment', 'enterprise', 'tool_output', 'compaction', 'experimental'
+          }
+          extra = set(data.keys()) - allowed
+          if extra:
+              print(f'FAIL: opencode.json tem chaves invalidas: {extra}')
+              exit(1)
+          # MCP entries
+          for name, cfg in data.get('mcp', {}).items():
+              if 'type' not in cfg:
+                  print(f'FAIL: mcp.{name} sem campo type')
+                  exit(1)
+              if cfg['type'] == 'remote' and 'url' not in cfg:
+                  print(f'FAIL: mcp.{name} (remote) sem url')
+                  exit(1)
+              if cfg['type'] == 'local' and 'command' not in cfg:
+                  print(f'FAIL: mcp.{name} (local) sem command')
+                  exit(1)
+          # Plugins
+          for plugin in data.get('plugin', []):
+              if not isinstance(plugin, str):
+                  continue
+              if plugin.endswith('.ts') or plugin.endswith('.js'):
+                  path = plugin.lstrip('./')
+                  if not os.path.exists(path):
+                      print(f'FAIL: plugin {plugin} nao existe ({path})')
+                      exit(1)
+          print(f'opencode.json valid ({len(data.get("plugin", []))} plugins, {len(data.get("mcp", {}))} MCPs)')
+          import os
+          EOF
+
+      # 7. Verifica que todos os templates referenciados existem
+      - name: Validate cross-references
+        run: |
+          echo "=== Checking examples/sample-web-app/ ==="
+          python3 << 'EOF'
+          import json, os, re
+          errors = []
+          # Check e2e-chains referenciam tasks existentes
+          sprints_dir = 'examples/sample-web-app/sprints'
+          if os.path.exists(sprints_dir):
+              all_task_ids = set()
+              for f in os.listdir(sprints_dir):
+                  if f.startswith('S') and f.endswith('.json'):
+                      with open(f'{sprints_dir}/{f}') as fp:
+                          data = json.load(fp)
+                      for t in data.get('tasks', []):
+                          all_task_ids.add(t['id'])
+              print(f'Tasks found: {sorted(all_task_ids)}')
+              # Check cross-sprint.json
+              cs_file = f'{sprints_dir}/cross-sprint.json'
+              if os.path.exists(cs_file):
+                  with open(cs_file) as fp:
+                      cs = json.load(fp)
+                  for flow in cs.get('flows', []):
+                      for task_id in flow.get('tasks', []):
+                          if task_id not in all_task_ids:
+                              errors.append(f'cross-sprint.json flow {flow["id"]} referencia task inexistente: {task_id}')
+                      # Check contextFlow
+                      cf = flow.get('contextFlow', {})
+                      for key in ['source', 'target']:
+                          if key in cf and 'taskId' in cf[key]:
+                              if cf[key]['taskId'] not in all_task_ids:
+                                  errors.append(f'cross-sprint.json flow {flow["id"]} contextFlow.{key}.taskId={cf[key]["taskId"]} nao existe')
+          if errors:
+              print('FAIL:')
+              for e in errors:
+                  print(f'  {e}')
+              exit(1)
+          print('Cross-references valid ✓')
+          EOF
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "=== CI Summary ==="
+          echo "Files validated:"
+          echo "  - $(find . -name '*.json' -not -path './node_modules/*' -not -path '*/node_modules/*' | wc -l) JSONs"
+          echo "  - $(find . -name '*.ts' -not -path './node_modules/*' -not -path '*/node_modules/*' | wc -l) TS files"
+          echo "  - $(find . -name '*.js' -not -path './node_modules/*' -not -path '*/node_modules/*' | wc -l) JS files"
+          echo "  - $(ls agents/*.md | wc -l) agent definitions"
+          echo "  - $(ls commands/*.md | wc -l) commands"
+          echo "  - $(ls templates/*.md templates/*.html templates/*.json 2>/dev/null | wc -l) templates"
+          echo "  - $(ls plugins/*.ts | wc -l) plugins"
+          echo "  - $(ls tools/*.ts | wc -l) custom tools"

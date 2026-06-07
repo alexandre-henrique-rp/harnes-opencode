@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>PRD — sample-web-app v1</title>
+  <style>
+    body { font-family: sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; }
+    h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+    h2 { margin-top: 2rem; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { border: 1px solid #ddd; padding: 0.5rem; text-align: left; }
+    th { background: #f4f4f4; }
+    .meta { background: #fafafa; padding: 1rem; border-left: 4px solid #666; margin: 1rem 0; }
+  </style>
+</head>
+<body>
+  <article id="prd">
+    <script type="application/json" id="prd-meta">
+    {
+      "_type": "harness-prd-v6",
+      "id": "prd-sample-web-app-v1",
+      "version": 1,
+      "status": "approved",
+      "score": 88,
+      "reviewer": "prd-reviewer",
+      "createdAt": "2026-06-06T00:00:00Z",
+      "updatedAt": "2026-06-06T00:00:00Z",
+      "project": "sample-web-app",
+      "module": "user",
+      "sprint": null
+    }
+    </script>
+
+    <header>
+      <h1>PRD — sample-web-app v1</h1>
+      <div class="meta">
+        <strong>Versão:</strong> 1 |
+        <strong>Status:</strong> approved |
+        <strong>Score:</strong> 88/100 |
+        <strong>Módulo:</strong> user
+      </div>
+    </header>
+
+    <section id="sumario" data-prd-section="summary">
+      <h2>1. Sumário Executivo</h2>
+      <p>Sistema de cadastro de cliente para pequenos comércios brasileiros. Substitui planilhas e formulários lentos por um wizard mobile-first que valida CEP automaticamente via ViaCEP. Foco em velocidade (&lt; 60 segundos por cadastro) e LGPD compliance.</p>
+    </section>
+
+    <section id="problema" data-prd-section="problem">
+      <h2>2. Problema</h2>
+      <p>Pequenos comércios perdem clientes porque o cadastro na plataforma é lento (5+ minutos), exige dados demais, e não valida o endereço automaticamente. O lojista perde tempo no balcão. O cliente desiste antes de finalizar. <strong>Custo atual:</strong> 40% de abandono no formulário atual. <strong>Frequência:</strong> 50-200 cadastros/mês por loja.</p>
+    </section>
+
+    <section id="usuarios" data-prd-section="users">
+      <h2>3. Usuários / Personas</h2>
+      <script type="application/json" id="prd-personas">
+      [
+        {
+          "id": "P-001",
+          "name": "Dona Maria (lojista)",
+          "role": "Administradora da loja",
+          "goals": ["Cadastrar clientes rápido no balcão", "Ter base de clientes organizada"],
+          "painPoints": ["Formulário web lento", "Cliente desistindo no balcão", "CPFs duplicados"],
+          "frequency": "daily",
+          "techSavvy": "low"
+        },
+        {
+          "id": "P-002",
+          "name": "Cliente final",
+          "role": "Consumidor",
+          "goals": ["Cadastrar rápido pra usar a plataforma"],
+          "painPoints": ["Formulário longo", "Pedir CEP / endereço na mão", "Não ter feedback de erro"],
+          "frequency": "once",
+          "techSavvy": "medium"
+        }
+      ]
+      </script>
+      <table>
+        <thead><tr><th>ID</th><th>Persona</th><th>Papel</th><th>Goals</th><th>Pain Points</th><th>Frequência</th></tr></thead>
+        <tbody>
+          <tr><td>P-001</td><td>Dona Maria</td><td>Lojista</td><td>Cadastrar rápido, base organizada</td><td>Formulário lento, abandono, CPFs duplicados</td><td>daily</td></tr>
+          <tr><td>P-002</td><td>Cliente final</td><td>Consumidor</td><td>Cadastrar rápido</td><td>Formulário longo, sem autocomplete</td><td>once</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="objetivos" data-prd-section="goals">
+      <h2>4. Objetivos & Métricas de Sucesso</h2>
+      <script type="application/json" id="prd-goals">
+      [
+        { "id": "G-001", "objective": "Reduzir tempo de cadastro", "metric": "Tempo médio de cadastro (abrir página → cliente criado)", "baseline": "5min (300s)", "target": "60s", "timeframe": "MVP" },
+        { "id": "G-002", "objective": "Aumentar taxa de conclusão", "metric": "% de cadastros iniciados que terminam", "baseline": "60%", "target": "80%", "timeframe": "MVP + 30 dias" },
+        { "id": "G-003", "objective": "Zero erros de CPF", "metric": "CPFs rejeitados pós-validação", "baseline": "5%", "target": "0%", "timeframe": "MVP" }
+      ]
+      </script>
+      <table>
+        <thead><tr><th>ID</th><th>Objetivo</th><th>Métrica</th><th>Baseline</th><th>Target</th><th>Prazo</th></tr></thead>
+        <tbody>
+          <tr><td>G-001</td><td>Reduzir tempo de cadastro</td><td>Tempo médio (s)</td><td>300s</td><td>60s</td><td>MVP</td></tr>
+          <tr><td>G-002</td><td>Aumentar conclusão</td><td>% de cadastros iniciados</td><td>60%</td><td>80%</td><td>MVP + 30d</td></tr>
+          <tr><td>G-003</td><td>Zero erros de CPF</td><td>CPFs rejeitados</td><td>5%</td><td>0%</td><td>MVP</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="escopo" data-prd-section="scope">
+      <h2>5. Escopo</h2>
+      <h3>5.1 Dentro do escopo</h3>
+      <ul>
+        <li>Cadastro de cliente via web (mobile-first)</li>
+        <li>Validação de CPF (dígitos verificadores)</li>
+        <li>Autocomplete de endereço via ViaCEP</li>
+        <li>Criptografia de CPF em repouso (AES-256)</li>
+        <li>Exclusão de cadastro (LGPD Art. 18, VI)</li>
+      </ul>
+      <h3>5.2 Fora do escopo (não-goals)</h3>
+      <ul>
+        <li>Login social (Google, Facebook) na v1</li>
+        <li>Pagamentos / checkout</li>
+        <li>Mobile app nativo</li>
+        <li>Multi-tenant (lojista com várias lojas)</li>
+      </ul>
+    </section>
+
+    <section id="stories" data-prd-section="user-stories">
+      <h2>6. User Stories (resumo)</h2>
+      <script type="application/json" id="prd-stories">
+      [
+        { "id": "US-001", "persona": "P-002", "story": "Como cliente, quero digitar meu CEP e ter logradouro/bairro/cidade/UF preenchidos automaticamente, para não digitar tudo na mão.", "priority": "high", "specRef": "SPEC.html#US-001" },
+        { "id": "US-002", "persona": "P-002", "story": "Como cliente, quero saber se meu CPF é válido antes de submeter, para não perder tempo.", "priority": "high", "specRef": "SPEC.html#US-002" },
+        { "id": "US-003", "persona": "P-001", "story": "Como lojista, quero buscar cliente por CPF, para ver se já existe antes de cadastrar duplicado.", "priority": "medium", "specRef": "SPEC.html#US-003" },
+        { "id": "US-004", "persona": "P-002", "story": "Como cliente, quero poder pedir exclusão dos meus dados a qualquer momento, conforme LGPD.", "priority": "high", "specRef": "SPEC.html#US-004" },
+        { "id": "US-005", "persona": "P-001", "story": "Como lojista, quero ver lista dos clientes cadastrados, para gerenciar minha base.", "priority": "medium", "specRef": "SPEC.html#US-005" }
+      ]
+      </script>
+      <p>Detalhamento completo em <a href="SPEC.html">SPEC.html</a>.</p>
+    </section>
+
+    <section id="restricoes" data-prd-section="constraints">
+      <h2>7. Restrições & Dependências</h2>
+      <ul>
+        <li><strong>Técnicas:</strong> Next.js 14, TypeScript, Postgres, Prisma, Zod</li>
+        <li><strong>Negócio:</strong> LGPD compliance obrigatório (CPF, endereço)</li>
+        <li><strong>Orçamento:</strong> Infra &lt; $50/mês (Vercel free + Supabase free)</li>
+        <li><strong>Dependências externas:</strong> ViaCEP (API pública, gratuita)</li>
+      </ul>
+    </section>
+
+    <section id="dod" data-prd-section="definition-of-done">
+      <h2>8. Critérios de Pronto (Definition of Done)</h2>
+      <ul>
+        <li>✅ Cobertura de testes ≥ 85%</li>
+        <li>✅ Zero vulnerabilidades critical/high</li>
+        <li>✅ Review score ≥ 70</li>
+        <li>✅ LGPD compliance verificado (consent, deletion, encryption)</li>
+        <li>✅ Documentação atualizada (AGENTS.md, RAG, README)</li>
+        <li>✅ Deploy em homologação bem-sucedido</li>
+        <li>✅ Dona Maria valida em teste de usabilidade</li>
+      </ul>
+    </section>
+
+    <section id="riscos" data-prd-section="risks">
+      <h2>9. Riscos & Mitigações</h2>
+      <script type="application/json" id="prd-risks">
+      [
+        { "id": "R-001", "risk": "ViaCEP ficar fora do ar", "probability": "low", "impact": "high", "mitigation": "Backend tem fallback (cache de CEPs recentes, timeout 5s, mensagem 'preencha manualmente')" },
+        { "id": "R-002", "risk": "CPF duplicado", "probability": "high", "impact": "medium", "mitigation": "Validação server-side antes de criar + endpoint de busca por CPF" }
+      ]
+      </script>
+      <table>
+        <thead><tr><th>ID</th><th>Risco</th><th>Prob.</th><th>Impacto</th><th>Mitigação</th></tr></thead>
+        <tbody>
+          <tr><td>R-001</td><td>ViaCEP fora do ar</td><td>low</td><td>high</td><td>Backend tem fallback, timeout 5s</td></tr>
+          <tr><td>R-002</td><td>CPF duplicado</td><td>high</td><td>medium</td><td>Validação server-side + busca</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </article>
+</body>
+</html>
