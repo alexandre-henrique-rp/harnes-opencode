@@ -1,0 +1,43 @@
+# Node / TypeScript
+node_modules/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-store/
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Build artifacts
+dist/
+build/
+*.tsbuildinfo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backups do install.sh
+*.bak.*
+*.bak
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Harness runtime (auditoria é local, nao versionada)
+.harness/audit/
+.harness/sessions/
+
+# Env / secrets
+.env
+.env.*
+secrets/
+*.pem
+*.key
