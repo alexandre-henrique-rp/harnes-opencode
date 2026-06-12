@@ -193,12 +193,11 @@ merge_json() {
     local output="$3"
 
     if command -v python3 >/dev/null 2>&1; then
-        python3 -c "
+        python3 - <<EOF
 import json, sys
 
 def deep_merge(base, update):
     if isinstance(base, list) and isinstance(update, list):
-        # Para arrays (como instructions ou plugins), faz union e remove duplicatas
         return list(dict.fromkeys(base + update))
     if not isinstance(base, dict) or not isinstance(update, dict):
         return update
@@ -210,16 +209,17 @@ def deep_merge(base, update):
     return base
 
 try:
-    with open('$base', 'r') as f: base_data = json.load(f)
-    with open('$update', 'r') as f: update_data = json.load(f)
+    with open("$base", "r") as f: base_data = json.load(f)
+    with open("$update", "r") as f: update_data = json.load(f)
     merged = deep_merge(base_data, update_data)
-    with open('$output', 'w') as f: json.dump(merged, f, indent=2)
+    with open("$output", "w") as f: json.dump(merged, f, indent=2)
 except Exception as e:
     sys.exit(1)
-"
+EOF
         return $?
-    else:
+    else
         return 1
+    fi
 }
 
 # ============================================================================
@@ -497,6 +497,15 @@ os: $(detect_os)
 source: ${src}
 EOF
         log_ok "marcador de versao criado: $dest/.harness-version"
+    fi
+
+    # 6. Limpeza de arquivos (residuais e backups)
+    if ! $DRY_RUN; then
+        log_info "Limpando arquivos residuais e backups antigos..."
+        # Remove arquivos de 0 bytes, ignorando os que tem .bak no nome
+        find "$dest" -type f -size 0 ! -name "*.bak*" -delete 2>/dev/null
+        # Remove backups antigos (.bak.*)
+        find "$dest" -type f -name "*.bak.*" -delete 2>/dev/null
     fi
 }
 
