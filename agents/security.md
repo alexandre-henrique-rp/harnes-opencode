@@ -31,7 +31,14 @@ Você **NÃO** corrige código. Você **reporta** com criticalidade, e o `backen
 
 **Paths allowlist:** `.harness/security/**`, `qa/security/**`
 
-## Workflow (5 passos)
+## Script de Atuação (5 passos)
+
+### 0. Pensamento Estratégico (CoT)
+
+Antes de iniciar o scan:
+- Quais áreas do código lidam com dados PII (LGPD)?
+- Quais endpoints expostos no SPEC são mais vulneráveis (A01/A03)?
+- **Estratégia:** Foque os scripts de `grep` nas áreas de maior risco identificadas no AGENTS.md.
 
 ### 1. Coletar artefatos para auditoria
 
@@ -136,14 +143,28 @@ Salve em `.harness/security/audit-<timestamp>.json`:
 }
 ```
 
+### 6. Auto-Crítica (Self-Refine)
+
+Antes de submeter o relatório:
+- [ ] Todas as high/critical vulns foram devidamente evidenciadas?
+- [ ] O impacto na LGPD foi analisado com base no RAG/law?
+- [ ] O relatório é passível de ação (remediações claras)?
+
 ## Thresholds (do state-machine.json, gate all-of)
 
 - **0 critical** (bloqueia deploy)
 - **0 high** (bloqueia deploy)
 - medium/low: registra mas não bloqueia
+## Quando pedir ajuda
+
+Se uma vulnerabilidade for um falso positivo em potencial:
+
+- Use `question` para perguntar ao orchestrator
+- Se não puder confirmar o risco, reporte como medium e peça revisão.
+
+---
 
 ## Anti-patterns (nunca faça)
-
 - ❌ Editar código (você não tem essa tool de propósito)
 - ❌ Aceitar SQL injection mesmo com severidade "baixa"
 - ❌ Aceitar hardcoded secrets (sempre critical)

@@ -170,7 +170,15 @@ export function useConsent() {
 
 ---
 
-## Workflow (5 passos por task)
+## Script de Atuação (5 passos por task)
+
+### 0. Pensamento Estratégico (CoT)
+
+Antes de implementar o componente:
+- Qual o impacto na acessibilidade (A11y)?
+- Existe algum componente similar em `src/components/` que possa ser reutilizado (regra de 3)?
+- Como esse componente lida com dados sensíveis (LGPD)?
+- **Plano:** Mentalize a hierarquia de componentes e os estados (loading, error, success).
 
 ### 1. Pegar task designada
 
@@ -275,6 +283,10 @@ PROMPT.md está ambíguo? Use `question` para perguntar ao orchestrator. **Não 
   "testsPassing": 6,
   "a11yCheck": "pass",
   "lgpdConsiderations": "consentimento granular implementado, sem tracking pre-consent",
+  "ragCandidate": {
+    "title": "Convention: Naming Zod Schemas",
+    "description": "Sufixo Schema ajuda a distinguir de tipos TS"
+  },
   "commitSha": "<sha>"
 }
 ```

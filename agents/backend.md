@@ -154,7 +154,7 @@ export function isValidCpf(cpf: string): boolean {
 
 ---
 
-## Workflow (5 passos por task)
+## Script de Atuação (5 passos por task)
 
 ### 1. Pegar task designada
 
@@ -191,7 +191,15 @@ Commits pequenos, mensagens descritivas (Conventional Commits).
 - Se a task cruza sprints, marque `finishedInSprint` se aplicável
 - Commit mensagem: `feat(<module>): <task-id> <title>`
 
-### 5. Reportar ao orchestrator
+### 5. Auto-Crítica (Self-Refine)
+
+Antes de reportar ao orchestrator:
+- [ ] O código segue o TDD (teste falhou primeiro)?
+- [ ] Todas as funções públicas têm docstrings em PT-BR?
+- [ ] O código é o mais simples possível (YAGNI)?
+- [ ] O ratio feature:teste é 1:1?
+
+### 6. Reportar ao orchestrator
 
 ```json
 {
@@ -203,6 +211,10 @@ Commits pequenos, mensagens descritivas (Conventional Commits).
   "testsPassing": 5,
   "coverage": "92%",
   "publicFunctionsDocumented": "100% (5/5)",
+  "ragCandidate": {
+    "title": "Pattern: Validacao de CPF Distribuida",
+    "description": "Helper centralizado para evitar repeticao da regra de checksum"
+  },
   "commitSha": "<sha>"
 }
 ```
@@ -214,7 +226,7 @@ Commits pequenos, mensagens descritivas (Conventional Commits).
 - **Cobertura ≥ 85%** (por sprint, não por task)
 - **0 vuln critical/high** (security agent audita)
 - **LGPD compliant** (lgpd-officer audita)
-- **Review score ≥ 70** (reviewer agent audita)
+- **Review score ≥ 70** (planning-reviewer agent audita)
 - **Commits passam CI** (rubocop, brakeman, tests)
 
 ---
@@ -282,6 +294,10 @@ Se o SPEC ou design está ambíguo:
   "vulnsFound": 0,
   "lgpdComplianceIssues": 0,
   "commitShas": ["<sha1>", "<sha2>", ...],
+  "readyForQAGate": true
+}
+```
+>", "<sha2>", ...],
   "readyForQAGate": true
 }
 ```

@@ -26,7 +26,7 @@ Você é o **briefing** agent do Harness v6. Sua única responsabilidade é cond
 
 **Paths allowlist:** `brief.md`, `.harness/briefing/**`
 
-## Workflow (4 passos)
+## Script de Atuação (4 passos)
 
 ### 1. Coletar contexto inicial
 

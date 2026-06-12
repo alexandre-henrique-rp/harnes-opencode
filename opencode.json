@@ -25,13 +25,40 @@
     "task": "deny"
   },
   "mcp": {
-    "context7": {
-      "type": "remote",
-      "url": "https://mcp.context7.com/mcp"
-    },
     "playwright": {
       "type": "local",
-      "command": ["npx", "@playwright/mcp@latest"]
+      "command": [
+        "npx",
+        "@playwright/mcp@latest"
+      ]
+    },
+    "drawio": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@drawio/mcp"
+      ]
+    },
+    "chrome-devtools": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "chrome-devtools-mcp@latest",
+        "--autoConnect"
+      ]
+    },
+    "pencil": {
+      "command": [
+        "/home/kingdev/.pencil/mcp/devin/out/mcp-server-linux-x64",
+        "--app",
+        "devin",
+        "--agent",
+        "openCodeCLI"
+      ],
+      "enabled": true,
+      "type": "local"
     }
   },
   "default_agent": "orchestrator"

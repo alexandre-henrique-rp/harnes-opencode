@@ -127,7 +127,7 @@
       "name": "Sprint Planning",
       "owner": "sprint-tasker",
       "auxiliaries": [],
-      "workers": ["reviewer"],
+      "workers": ["planning-reviewer"],
       "inputFrom": ["phase.3.design"],
       "outputContract": {
         "files": [
@@ -152,7 +152,7 @@
       "name": "Build + Quality (paralelo, 5 workers)",
       "owner": "orchestrator",
       "auxiliaries": [],
-      "workers": ["backend", "frontend", "tester", "security", "lgpd-officer"],
+      "workers": ["backend", "frontend", "tester", "security", "lgpd-officer", "code-reviewer"],
       "inputFrom": ["phase.4.planejamento"],
       "outputContract": {
         "metrics": {
@@ -167,7 +167,7 @@
         "checks": [
           { "type": "coverage", "min": 85 },
           { "type": "security", "maxCritical": 0, "maxHigh": 0 },
-          { "type": "review", "min": 70 },
+          { "type": "review", "agent": "code-reviewer", "min": 70 },
           { "type": "lgpd", "status": "non-blocking", "min": "warning", "maxCritical": 0, "maxHigh": 0, "_comment": "lgpd-officer bloqueia se 1+ critical OU 1+ high no Art. 18/48. Outros findings viram advisory." }
         ],
         "onFail": { "action": "rework", "loopbackTo": "phase.5.build", "message": "Coverage, security, review ou LGPD abaixo do threshold" }

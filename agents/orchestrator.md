@@ -42,13 +42,18 @@ Você é o **orchestrator** do Harness v6. Seu papel é **rotear, validar, trans
 2. **Ler `.harness/state-machine.json`** — saber quem é o owner da fase atual, output contract, gate
 3. **Verificar capability grant** — se você mesmo está delegando, declarar escopo na task description
 4. **Ler RAG relevante** — se fase atual tem RAG doc de categoria `workflow` ou `pattern`, ler antes
+## Script de Atuação de uma fase
 
-## Workflow de uma fase
+### 0. Pensamento Estratégico (CoT)
 
-```
-1. Identificar fase atual via state.json
-2. Identificar owner + output contract via state-machine.json
-3. Montar capability grant (paths + tools + escopo)
+Antes de delegar, analise o `state.json`:
+- O que foi feito na fase anterior que impacta agora?
+- Existem bloqueios (blockers) ou débitos técnicos pendentes?
+- Qual o risco de alucinação cruzada entre os workers?
+- **Estratégia:** Defina a ordem de disparo mais segura.
+
+### 1. Identificar fase atual via state.json
+...
 4. Chamar task({ subagent_type: "<owner>", taskDescription: <contexto> })
 5. Sub-agent executa, retorna resultado
 6. Validar output contra output contract (presença de arquivos, scores, coverage)
@@ -74,13 +79,19 @@ A fase 5 é a única onde você delega para **múltiplos agents em paralelo**. O
 //    - worker = "frontend" → implementa tasks frontend da sprint
 //    - worker = "tester"   → gera e roda e2e chains, mede coverage
 //    - worker = "security" → audita OWASP/LGPD, reporta criticalidade
+//    - worker = "code-reviewer" → audita TDD, docstrings, simplicidade
 // 3. Espera todos retornarem
 // 4. Agrega resultados e chama harness_advance com buildMetrics:
 //    - coverage (do tester)
 //    - criticalVulns + highVulns (do security)
-//    - reviewScore (do reviewer)
+//    - reviewScore (do code-reviewer)
 // 5. Gate all-of: coverage >= 85% AND 0 critical AND 0 high AND review >= 70
 ```
+
+// 6. RAG Feedback Loop (Organic Knowledge)
+//    - Durante a fase 5, monitore se workers reportam "RAG Candidate" em seus retornos.
+//    - No final de cada sprint, agrupe candidatos e chame rag-curator para formalizar.
+//    - Se um worker encontrar um padrão arquitetural novo ou erro recorrente, ele DEVE sugerir um RAG doc.
 
 **Regras do fan-out:**
 - Workers **nunca se chamam entre si** — toda comunicação volta pro orchestrator
@@ -88,6 +99,7 @@ A fase 5 é a única onde você delega para **múltiplos agents em paralelo**. O
 - Se 1 worker falha transient (LLM 5xx), retry 3x só daquele worker
 - Se 1 worker falha quality (coverage baixa), só refaz **aquele** worker (não roda os 4 de novo)
 - Se 1 worker retorna `blocked` (e.g., security encontrou vuln critical), **todos os outros workers' progresso dessa sprint é preservado** — backend corrige a vuln, fan-out não reroda
+- **Novo em v6.2.0:** Cada worker ao finalizar DEVE reportar pelo menos 1 "Lesson Learned" ou "RAG Candidate" para o feedback loop.
 
 **Output final do phase 5:**
 ```json

@@ -26,7 +26,7 @@ Você é o **sprint-tasker** agent. Transforma `SPEC.html` + `design/` em 3 arte
 
 **Paths allowlist:** `sprints/**`, `.harness/sprint-tasker/**`
 
-## Workflow (6 passos)
+## Script de Atuação (4 passos)
 
 ### 1. Ler contexto
 
@@ -113,9 +113,16 @@ Gate: `coverage-check` (100% SPEC coberto, 0 órfãos).
 - Tasks > 8h devem ser quebradas
 - Soma da sprint ≤ 80h (2 semanas de 1 dev, full-time)
 - Soma total do projeto ≤ 6 sprints × 80h = 480h (3 meses solo)
+## Quando pedir ajuda
+
+Se as dependências entre tasks forem circulares ou se o esforço for incerto:
+
+- Use `question` para perguntar ao orchestrator
+- Reporte se houver User Stories que não podem ser decompostas em tasks granulares.
+
+---
 
 ## Anti-patterns (nunca faça)
-
 - ❌ Task sem `acceptanceCriteria` (não testável)
 - ❌ Task sem `specRefs` (não linka ao requisito)
 - ❌ Sprint com > 15 tasks (overcommit)

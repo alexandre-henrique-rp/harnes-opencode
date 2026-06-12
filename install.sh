@@ -184,37 +184,47 @@ check_prerequisites() {
 }
 
 # ============================================================================
-# Backup e copia
+# Smart Merge (JSON)
 # ============================================================================
 
-# Detecta se o destino tem modificacoes locais (customizacoes do usuario)
-# comparando com o source. Retorna 0 (true) se modificado, 1 (false) se igual.
-has_local_modifications() {
-    local dest="$1"
-    local src="$2"
+merge_json() {
+    local base="$1"
+    local update="$2"
+    local output="$3"
 
-    # Diretorios: compara recursivamente
-    if [[ -d "$dest" ]] && [[ -d "$src" ]]; then
-        # diff retorna exit 1 se houver diferencas, 0 se iguais
-        if diff -rq "$src" "$dest" >/dev/null 2>&1; then
-            return 1  # nao modificado
-        else
-            return 0  # modificado
-        fi
-    fi
+    if command -v python3 >/dev/null 2>&1; then
+        python3 -c "
+import json, sys
 
-    # Arquivo: compara bytes
-    if [[ -f "$dest" ]] && [[ -f "$src" ]]; then
-        if cmp -s "$src" "$dest"; then
-            return 1  # nao modificado
-        else
-            return 0  # modificado
-        fi
-    fi
+def deep_merge(base, update):
+    if isinstance(base, list) and isinstance(update, list):
+        # Para arrays (como instructions ou plugins), faz union e remove duplicatas
+        return list(dict.fromkeys(base + update))
+    if not isinstance(base, dict) or not isinstance(update, dict):
+        return update
+    for key, value in update.items():
+        if key in base:
+            base[key] = deep_merge(base[key], value)
+        else:
+            base[key] = value
+    return base
 
-    # Se um nao existe, considera modificado (vai instalar)
-    return 0
+try:
+    with open('$base', 'r') as f: base_data = json.load(f)
+    with open('$update', 'r') as f: update_data = json.load(f)
+    merged = deep_merge(base_data, update_data)
+    with open('$output', 'w') as f: json.dump(merged, f, indent=2)
+except Exception as e:
+    sys.exit(1)
+"
+        return $?
+    else:
+        return 1
 }
+
+# ============================================================================
+# Backup e copia
+# ============================================================================
 
 backup_path() {
     local path="$1"
@@ -233,6 +243,7 @@ copy_item() {
     local src="$1"
     local dest="$2"
     local desc="$3"
+    local force_replace="${4:-true}"
 
     if [[ ! -e "$src" ]]; then
         log_warn "  source nao existe, pulando: $src"
@@ -244,21 +255,21 @@ copy_item() {
         return
     fi
 
-    # UPDATE mode: se destino existe e tem customizacao, preserva
-    if $UPDATE_MODE && [[ -e "$dest" ]]; then
-        if has_local_modifications "$dest" "$src"; then
-            log_warn "  [UPDATE] customizado, preservando: $desc"
-            log_warn "           diff disponivel em: $(diff -rq "$src" "$dest" 2>/dev/null | head -3)"
-            return
-        fi
-    fi
-
-    # Backup se destino existe
+    # Se o destino existe
     if [[ -e "$dest" ]]; then
-        backup_path "$dest"
-        # IMPORTANTE: remove o destino antes de copiar pra evitar nesting
-        # (cp -r src dest quando dest existe cria dest/src)
-        rm -rf "$dest"
+        # Se for um diretorio, SEMPRE remove para evitar sujeira (leftover files)
+        # conforme solicitado: 'as demais pode somente subistituir'
+        if [[ -d "$dest" ]]; then
+            rm -rf "$dest"
+        else
+            # Se for arquivo e force_replace for false, faz nada (usado pra configs)
+            if ! $force_replace; then
+                log_info "  preservado: $desc (ja existe)"
+                return
+            fi
+            backup_path "$dest"
+            rm -f "$dest"
+        fi
     fi
 
     # Copia (cp -r funciona pra arquivos e diretorios)
@@ -430,41 +441,47 @@ EOF
     [[ -f "$src/failure-protocol.json" ]] && copy_item "$src/failure-protocol.json" "$dest/failure-protocol.json" "failure-protocol.json (3 classes + 1 fatal)"
     [[ -f "$src/README.md" ]] && copy_item "$src/README.md" "$dest/HARNESS-README.md" "README.md (renomeado pra HARNESS-README.md)"
 
-    # 4. opencode.json / opencode.jsonc (com cuidado se ja existe)
+    # 4. opencode.json / opencode.jsonc (com Smart Merge)
     if [[ -f "$src/opencode.json" ]]; then
         local existing_json="$dest/opencode.json"
         local existing_jsonc="$dest/opencode.jsonc"
 
+        # Prioridade para .jsonc se ja existe (OpenCode prefere .jsonc)
         if [[ -f "$existing_jsonc" ]]; then
-            # Usuario ja tem .jsonc (formato preferido pra config com comentarios)
-            if $PRESERVE_CONFIG; then
-                log_warn "--preserve-config: opencode.jsonc existente sera preservado"
-                log_warn "Para usar o harness, adicione manualmente ao seu $existing_jsonc:"
-                log_warn "  - agent: { orchestrator, briefing, documenter, ... } (16 agents)"
-                log_warn "  - mcp: { context7, playwright }"
-                log_warn "  - instructions: [\"~/.config/opencode/GERAIS.md\"]"
+            log_info "Detectado opencode.jsonc existente. Tentando Smart Merge..."
+            backup_path "$existing_jsonc"
+            
+            # Smart Merge via Python
+            if merge_json "$existing_jsonc" "$src/opencode.json" "${existing_jsonc}.tmp"; then
+                mv "${existing_jsonc}.tmp" "$existing_jsonc"
+                log_ok "  Smart Merge concluido: opencode.jsonc atualizado (preservando customizacoes)"
             else
-                # Backup do existente e copia o novo como .jsonc
-                backup_path "$existing_jsonc"
-                if $DRY_RUN; then
-                    log_info "  [DRY-RUN] cp $src/opencode.json $existing_jsonc (renomeando)"
+                log_warn "  Falha no Smart Merge (provavelmente JSON invalido ou com comentarios complexos)."
+                if $PRESERVE_CONFIG; then
+                    log_info "  --preserve-config: mantendo seu opencode.jsonc original."
                 else
                     cp "$src/opencode.json" "$existing_jsonc"
-                    log_ok "  copiado: opencode.jsonc (substitui o existente, com backup)"
-                    log_warn "ATENCAO: substituiu seu opencode.jsonc. Se tinha customizacoes,"
-                    log_warn "recupere do backup e mescle manualmente."
+                    log_ok "  copiado: opencode.jsonc (substituido por novo, com backup)"
                 fi
             fi
         elif [[ -f "$existing_json" ]]; then
-            # Tem .json mas nao .jsonc
-            if $PRESERVE_CONFIG; then
-                log_warn "--preserve-config: opencode.json existente preservado"
+            log_info "Detectado opencode.json existente. Tentando Smart Merge..."
+            backup_path "$existing_json"
+            
+            if merge_json "$existing_json" "$src/opencode.json" "${existing_json}.tmp"; then
+                mv "${existing_json}.tmp" "$existing_json"
+                log_ok "  Smart Merge concluido: opencode.json atualizado"
             else
-                copy_item "$src/opencode.json" "$dest/opencode.json" "opencode.json (16 agents + MCPs + permissions)"
+                log_warn "  Falha no Smart Merge."
+                if $PRESERVE_CONFIG; then
+                    log_info "  --preserve-config: mantendo seu opencode.json original."
+                else
+                    copy_item "$src/opencode.json" "$existing_json" "opencode.json (substituido, com backup)"
+                fi
             fi
         else
             # Nenhum existe, instala fresh
-            copy_item "$src/opencode.json" "$dest/opencode.json" "opencode.json (16 agents + MCPs + permissions)"
+            copy_item "$src/opencode.json" "$dest/opencode.json" "opencode.json (instalação fresh)"
         fi
     fi
 

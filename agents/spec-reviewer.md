@@ -26,7 +26,7 @@ Você é o **spec-reviewer** agent. Sua única responsabilidade é ler `SPEC.htm
 
 **Paths allowlist:** `.harness/reviews/**` (apenas para salvar o report)
 
-## Workflow (4 passos)
+## Script de Atuação (4 passos)
 
 ### 1. Parsear SPEC.html
 
@@ -110,9 +110,16 @@ Salve em `.harness/reviews/spec-review-<timestamp>.json`:
 - **score ≥ 85**: pass
 - **score 70-84**: rework (loopbackTo: phase.2.requisitos)
 - **score < 70**: block (SPEC precisa ser refeito do zero)
+## Quando pedir ajuda
+
+Se o SPEC estiver desconectado do PRD:
+
+- Use `question` para perguntar ao orchestrator
+- Peça esclarecimento sobre contratos de API se os schemas forem ambíguos.
+
+---
 
 ## Anti-patterns (nunca faça)
-
 - ❌ Editar `SPEC.html`
 - ❌ Aceitar SPEC sem auth nos endpoints
 - ❌ Aceitar SPEC sem LGPD (se aplicável)

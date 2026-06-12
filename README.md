@@ -74,7 +74,7 @@ opencode-agents-v6/
 │   ├── designer.md
 │   ├── design-reviewer.md
 │   ├── sprint-tasker.md
-│   ├── reviewer.md
+│   ├── planning-reviewer.md
 │   ├── backend.md
 │   ├── frontend.md
 │   ├── tester.md
@@ -96,7 +96,7 @@ opencode-agents-v6/
 | 1 | Documentação | `documenter` + `rag-curator` | `AGENTS.md` + `RAG/index.json` (≥3 docs) | presence-and-min |
 | 2 | Requisitos | `requirements` + `prd-reviewer` + `spec-reviewer` | `PRD.html` + `SPEC.html` | score (PRD≥80, SPEC≥85) |
 | 3 | Design | `designer` + `design-reviewer` | `PRODUCT.md` + `<page>.DESIGN.md` + `<page>.PROMPT.md` | score (design≥70) |
-| 4 | Planejamento | `sprint-tasker` + `reviewer` | `sprints/*.json` | coverage (100% SPEC) |
+| 4 | Planejamento | `sprint-tasker` + `planning-reviewer` | `sprints/*.json` | coverage (100% SPEC) |
 | 5 | Build + Quality | orchestrator + `backend`+`frontend`+`tester`+`security`+**`lgpd-officer`**+`qa-gate` | código + testes + audit | all-of (cov≥85, 0 crit/high, review≥70, **LGPD compliant**) |
 
 Security e LGPD Officer rodam **dentro** da fase 5 (fan-out paralelo), não depois.
@@ -108,7 +108,7 @@ orchestrator (primary) ─┬─ briefing
                         ├─ documenter ─── rag-curator
                         ├─ requirements ─ prd-reviewer, spec-reviewer
                         ├─ designer ───── design-reviewer
-                        ├─ sprint-tasker ─ reviewer
+                        ├─ sprint-tasker ─ planning-reviewer
                         └─ (phase 5) ──── backend, frontend, tester, security, lgpd-officer, qa-gate
                                                                           ^^^^^^^^^^^^^^
                                                                           NEW in v6.2.0
@@ -116,7 +116,7 @@ orchestrator (primary) ─┬─ briefing
                                                                            especializada)
 ```
 
-**Regra universal:** nenhum sub-agent tem tool `task` (só orchestrator delega). Nenhum reviewer/curator tem `edit` em código de feature. Nenhum implementer escreve fora do seu workstream. Nenhum agent de auditoria (security, lgpd-officer) tem `edit` em código de feature.
+**Regra universal:** nenhum sub-agent tem tool `task` (só orchestrator delega). Nenhum planning-reviewer/curator tem `edit` em código de feature. Nenhum implementer escreve fora do seu workstream. Nenhum agent de auditoria (security, lgpd-officer) tem `edit` em código de feature.
 
 ## Princípios não-negociáveis (v6.2.0+)
 
@@ -175,3 +175,4 @@ Default: **PT-BR**. Para EN: `HARNESS_LANG=en opencode`. Por sessão, não por a
 - **Akita** (akitaonrails) — metodologia vibe coding + XP practices + clean code for AI agents
 - **opencode** (sst/opencode) — runtime multi-agent
 - **v5** (Opencode_agents_v5) — predecessor direto, manteve o que prestou, reescreveu o que não
+creveu o que não

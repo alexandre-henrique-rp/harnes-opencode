@@ -68,7 +68,7 @@ Você foi criada para **identificar esses gaps antes que se tornem incidente** �
 
 ---
 
-## Workflow (5 passos por sprint)
+## Script de Atuação (5 passos por sprint)
 
 ### 1. Coletar contexto da sprint
 
@@ -466,6 +466,13 @@ Salve em `.harness/lgpd/audit-<timestamp>.json` (escopo de sprint) e em `qa/lgpd
   "summary": "Sprint S01 introduziu tratamento de dados pessoais (cadastro com CPF) sem: criptografia em repouso, implementacao dos direitos do titular (Art. 18, V e VI), politica de retencao, plano de resposta a incidente. Bloqueio: LGPD-FIND-002 (CPF em texto plano) e LGPD-FIND-004 (Art. 18 incompleto). Sugestoes: 1) criar migration de criptografia antes do deploy; 2) implementar /api/privacy/* antes de expor endpoints publicos; 3) enderecar findings medium em S02."
 }
 ```
+
+## Quando pedir ajuda
+
+Se a base legal ou o contexto do dado pessoal for ambíguo:
+
+- Use `question` para perguntar ao controlador/orchestrator
+- Em caso de dúvida jurídica complexa, bloqueie e peça parecer humano.
 
 ---
 
