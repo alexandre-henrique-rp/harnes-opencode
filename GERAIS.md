@@ -34,11 +34,12 @@ Antes de qualquer tool call, siga esta ordem:
 
 1. **Ler contexto** — verifique `.harness/state.json` para saber em qual fase estamos
 2. **Verificar capability grant** — leia a task description; ela declara o escopo permitido
-3. **Tool calls nativas do opencode** — use `todowrite` para tasks > 3 passos, `question` para ambiguidade bloqueante, `websearch`/`webfetch` para info externa
-4. **Consultar RAG** — se houver dúvida sobre padrão/lei/segurança, leia `.harness/RAG/<doc>.md` antes de improvisar. Para leis brasileiras (LGPD), comece pelo `~/.config/opencode/training/lgpd-brasil.md` *(global, instalado pelo harness)*
-5. **Respeitar path boundary** — você só escreve nos paths declarados no seu agent config (`agents/<seu-agent>.md`)
-6. **Não pular portão** — se o orchestrator declarou um gate, espere o sinal de aprovação antes de avançar
-7. **Logar em audit** — toda tool call sua é gravada automaticamente por `audit-logger.ts`
+3. **Objetividade Extrema (Economia de Tokens)** — seja extremamente objetivo em suas respostas e outputs. Evite explicações prolixas, introduções ou conclusões desnecessárias. Vá direto ao ponto técnico.
+4. **Consultar RAG e MCP Docs** — se houver dúvida sobre padrão/lei/segurança ou sobre o uso de um MCP específico, leia `.harness/RAG/<doc>.md` antes de improvisar.
+5. **Tool calls nativas do opencode** — use `todowrite` para tasks > 3 passos, `question` para ambiguidade bloqueante, `websearch`/`webfetch` para info externa
+6. **Respeitar path boundary** — você só escreve nos paths declarados no seu agent config (`agents/<seu-agent>.md`)
+7. **Não pular portão** — se o orchestrator declarou um gate, espere o sinal de aprovação antes de avançar
+8. **Logar em audit** — toda tool call sua é gravada automaticamente por `audit-logger.ts`
 
 ---
 
@@ -48,6 +49,14 @@ Antes de qualquer tool call, siga esta ordem:
 |---|---|---|
 | `context7` | `mcp_context7_*` | Buscar documentação atualizada de libs (React, Next, Vue, etc.) |
 | `playwright` | `mcp_playwright_*` | Testes E2E no browser, screenshots, navegação |
+
+**Regras de uso de MCP (Otimização):**
+- **Sempre verifique o RAG antes:** Procure por docs da categoria `mcp-doc` antes de usar um MCP pela primeira vez.
+- **Ciclo de Aprendizado (MCP e Código):** 
+    - Se você descobrir que um comando falha, que uma tool do MCP consome tokens excessivos, ou que há um "jeito certo" de chamar a tool, **você DEVE reportar isso como uma "Lesson Learned"**.
+    - **Aprendizado em Código:** O aprendizado deve ser constante. Ao gerar código, documente o que deu certo (padrões eficientes, refatorações bem-sucedidas) e o que deu errado (bugs lógicos recorrentes, antipadrões detectados, dificuldades com libs). 
+    - Solicite ao `rag-curator` que atualize a documentação correspondente no RAG (categorias `lesson`, `pattern`, `antipattern` ou `mcp-doc`).
+- **Primeiro Uso:** Se um MCP não tiver documentação no RAG, use-o com cautela e, após o sucesso, peça ao `rag-curator` para criar o doc inicial baseado na sua experiência real.
 
 Para instalar MCPs adicionais, adicione em `opencode.json → mcp` e reinicie o opencode.
 
@@ -267,3 +276,23 @@ Bloqueios do `path-boundary.ts` também são logados. Você **nunca** desativa o
 > "Make it work, make it right, make it fast — in that order." — Kent Beck (TDD)
 
 Se você é o agent, **você** é o adulto na sala. O LLM não é. O usuário é. Aja de acordo.
+
+---
+
+## 12. Regras de Ouro (12-Rule Template)
+
+Estas regras se aplicam a todas as tarefas neste projeto, a menos que explicitamente substituídas.
+**Viés:** cautela sobre velocidade em trabalhos não triviais.
+
+1.  **Regra 1 — Pense Antes de Codar:** Declare suposições explicitamente. Pergunte em vez de adivinhar. Recuse se houver uma abordagem mais simples. Pare se estiver confuso.
+2.  **Regra 2 — Simplicidade Primeiro:** Código mínimo que resolve o problema. Nada especulativo. Sem abstrações para código de uso único.
+3.  **Regra 3 — Mudanças Cirúrgicas:** Toque apenas no necessário. Não melhore código adjacente. Mantenha o estilo existente. Não refatore o que não está quebrado.
+4.  **Regra 4 — Execução Orientada a Metas:** Defina critérios de sucesso. Repita até verificar. Critérios fortes permitem loops independentes.
+5.  **Regra 5 — Use o modelo apenas para julgamentos:** Use para classificação, rascunho, sumarização, extração. NÃO use para roteamento, retries ou transformações determinísticas. Se o código pode responder, o código responde.
+6.  **Regra 6 — Orçamentos de tokens não são sugestões:** Por tarefa: 4.000 tokens. Por sessão: 30.000 tokens. Se estiver próximo do limite, sumarize e comece do zero. Exponha a quebra do limite; não exceda silenciosamente.
+7.  **Regra 7 — Exponha conflitos, não faça a média:** Se dois padrões se contradizem, escolha um (o mais recente ou mais testado). Explique o porquê. Marque o outro para limpeza.
+8.  **Regra 8 — Leia antes de escrever:** Antes de adicionar código, leia exportações, chamadores imediatos e utilitários compartilhados. Se não tiver certeza do porquê o código atual é estruturado de certa forma, pergunte.
+9.  **Regra 9 — Testes verificam intenção, não apenas comportamento:** Testes devem codificar POR QUE o comportamento importa, não apenas O QUE ele faz. Um teste que não falha quando a lógica de negócio muda está errado.
+10. **Regra 10 — Checkpoint após cada passo significativo:** Sumarize o que foi feito, o que foi verificado e o que resta. Não continue de um estado que você não consiga descrever de volta.
+11. **Regra 11 — Siga as convenções do código, mesmo se discordar:** Conformidade > gosto pessoal dentro do código. Se achar uma convenção prejudicial, exponha; não crie uma ramificação silenciosamente.
+12. **Regra 12 — Falhe alto:** "Concluído" está errado se algo foi ignorado silenciosamente. "Testes passaram" está errado se algum foi pulado. O padrão é expor a incerteza, não escondê-la.
