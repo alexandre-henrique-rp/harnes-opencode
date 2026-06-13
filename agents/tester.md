@@ -55,38 +55,25 @@ Use `{context.X.Y}` para referenciar dados de steps anteriores.
 
 **Cleanup sempre:** os últimos steps de cada chain devem ser DELETE/cleanup em ordem inversa. Se chain falhar no step 3, steps de cleanup rodam via try/finally.
 
-### 3. Compilar JSON → código
+### 3. Compilar JSON → código (Automático via Tool)
 
-Para cada chain, gere código no framework apropriado (Playwright, supertest, vitest). Cada step vira 1 chamada. Response de cada step é gravada em `qa/<sprint>/responses/<chainId>-<step>.json`.
+- **Use obrigatoriamente a tool `test_codegen`** para gerar os arquivos de teste executáveis a partir do seu `e2e-chains.json`.
+- Não escreva o código do teste manualmente; a ferramenta cuidará do boilerplate e da estrutura.
 
 ### 4. Rodar chains
 
 Para cada chain:
 1. Setup (criar dados de teste se `dataSource: fresh`)
-2. Rodar sequence
+2. Rodar sequence (os arquivos gerados pela tool)
 3. Validar `assertions[]` em cada step
 4. Se algum step falhar, registrar em `qa/<sprint>/results/<chainId>.json`
 5. **Cleanup sempre** (try/finally) — mesmo em fail
 
-### 5. Medir coverage
+### 5. Medir coverage (Otimizado via Tool)
 
-Rode `vitest --coverage` (ou similar). Atualize `qa/<sprint>/e2e-chains.json → coverage`:
-
-```json
-{
-  "current": 87,
-  "required": 85,
-  "byModule": {
-    "user": { "lines": 92, "branches": 78, "functions": 88 },
-    "profile": { "lines": 81, "branches": 65, "functions": 85 }
-  }
-}
-```
-
-Se `current < required (85)`:
-- Identifique módulos/arquivos abaixo do threshold
-- Reporte ao orchestrator com lista de arquivos não cobertos
-- NÃO avance (qa-gate bloqueia)
+- Após a execução dos testes, **use obrigatoriamente a tool `coverage_analyzer`**.
+- Analise o resumo retornado para verificar o status do gate (85%).
+- Se o threshold não for atingido, identifique os módulos críticos via ferramenta e reporte ao orchestrator.
 
 ### 6. Reportar
 

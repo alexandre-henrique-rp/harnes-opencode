@@ -1,0 +1,12 @@
+{
+  "milestoneId": "M1",
+  "name": "Nome do Marco (ex: Fundação)",
+  "description": "O que define este marco como concluído",
+  "sprints": ["S01", "S02"],
+  "uxSuccessCriteria": [
+    "Usuário consegue fazer login sem erros",
+    "Dashboard carrega em menos de 2s",
+    "Interface responsiva em mobile"
+  ],
+  "status": "pending"
+}

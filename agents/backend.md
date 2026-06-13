@@ -156,19 +156,18 @@ export function isValidCpf(cpf: string): boolean {
 
 ## Script de Atuação (5 passos por task)
 
-### 1. Pegar task designada
+### 1. Pegar task designada (Otimizado)
 
-- Leia `sprints/<currentSprint>.json`
-- Filtre tasks com `workstream: backend` e `status: pending`
-- Pegue a primeira task com dependências satisfeitas (deps todas `status: completed`)
+- Verifique os arquivos em `sprints/SXX/tasks/TXXX_PROMPT.md`.
+- Leia apenas o cabeçalho (Header) para encontrar uma task com `status: "pending"`.
+- **Use `context_query`** se precisar entender o que foi feito em tasks anteriores para evitar conflitos.
 
-### 2. Estudar contexto
+### 2. Estudar contexto granular
 
-- Leia SPEC.html, seção correspondente (EP-XXX do endpoint)
-- Leia design/*.PROMPT.md (se a task tem `promptRef` ou `backendContracts`)
-- Leia RAG relevante: `pattern:*` (error-handling, input-validation), `security:*`, `law:*` (LGPD)
-- **OBRIGATÓRIO:** leia `~/.config/opencode/training/lgpd-brasil.md` se a task envolve dado pessoal
-- Verifique se RAG diz "use AES-256 para CPF", etc. — **obedeça**
+- Leia **apenas** o `TXXX_PROMPT.md` da sua task.
+- Não leia a SPEC inteira a menos que seja estritamente necessário.
+- Siga os "Ponteiros de Contexto" listados no prompt.
+- **Use `context_query`** para buscar detalhes técnicos de componentes/entidades já registrados.
 
 ### 3. Implementar (TDD estrito)
 
@@ -185,10 +184,11 @@ Ordem **rígida**:
 
 Commits pequenos, mensagens descritivas (Conventional Commits).
 
-### 4. Atualizar sprint
+### 4. Atualizar progresso (Automático via Tool)
 
-- Mude task `status: pending → in_progress → completed`
-- Se a task cruza sprints, marque `finishedInSprint` se aplicável
+- **Use obrigatoriamente a tool `task_manager`** ao concluir a task.
+- Passe a lista de `artifacts` (arquivos criados/alterados) e uma descrição curta para o log granular.
+- A tool atualizará o status no cabeçalho do arquivo e registrará no `registry.json`.
 - Commit mensagem: `feat(<module>): <task-id> <title>`
 
 ### 5. Auto-Crítica (Self-Refine)
@@ -205,16 +205,11 @@ Antes de reportar ao orchestrator:
 {
   "taskId": "T-001",
   "status": "completed",
+  "taskManagerResult": "success (log and registry updated)",
   "files": ["src/backend/user/creator.rb", "test/backend/user/creator_test.rb"],
   "testsAdded": 5,
-  "testsAddedTDD": "red-green-refactor seguido",
-  "testsPassing": 5,
   "coverage": "92%",
-  "publicFunctionsDocumented": "100% (5/5)",
-  "ragCandidate": {
-    "title": "Pattern: Validacao de CPF Distribuida",
-    "description": "Helper centralizado para evitar repeticao da regra de checksum"
-  },
+  "publicFunctionsDocumented": "100%",
   "commitSha": "<sha>"
 }
 ```

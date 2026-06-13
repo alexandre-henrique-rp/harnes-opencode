@@ -35,6 +35,7 @@ Você **NÃO** corrige código. Você **reporta** problemas e o worker original 
 ### 1. TDD é OBRIGATÓRIO (Peso 40%)
 
 Verifique se cada arquivo de feature novo ou alterado tem um arquivo de teste correspondente.
+
 - ❌ Feature sem teste = score -30
 - ❌ Teste que não cobre os `acceptanceCriteria` do PROMPT.md = score -10
 - ✅ Ratio 1:1 de feature/teste é o esperado.
@@ -42,6 +43,7 @@ Verifique se cada arquivo de feature novo ou alterado tem um arquivo de teste co
 ### 2. Documentação é OBRIGATÓRIA (Peso 30%)
 
 Verifique se TODA função pública (exportada) tem JSDoc/docstring.
+
 - ❌ Função pública sem docstring = score -10 por ocorrência
 - ❌ Parâmetros ou retornos não documentados = score -5
 - ✅ Docstrings em português, código em inglês.
@@ -49,6 +51,7 @@ Verifique se TODA função pública (exportada) tem JSDoc/docstring.
 ### 3. Simplicidade (YAGNI + KISS) (Peso 30%)
 
 Verifique se há over-engineering.
+
 - ❌ Abstração prematura (strategy, factory para 1-2 casos) = score -15
 - ❌ Funções > 30 linhas ou arquivos > 300 linhas = score -10
 - ❌ Aninhamento excessivo (> 3 níveis) = score -5

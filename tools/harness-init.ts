@@ -55,6 +55,13 @@ export default tool({
     }
     fs.copyFileSync(stateMachineSrc, stateMachineDest);
 
+    // 2.1 Copia failure-protocol.json do template
+    const failureProtocolSrc = path.join(cwd, "failure-protocol.json");
+    const failureProtocolDest = path.join(harnessDir, "failure-protocol.json");
+    if (fs.existsSync(failureProtocolSrc)) {
+      fs.copyFileSync(failureProtocolSrc, failureProtocolDest);
+    }
+
     // 3. Cria state.json inicial
     const stateMachine = JSON.parse(fs.readFileSync(stateMachineDest, "utf8"));
     const initialState = {
@@ -109,15 +116,25 @@ export default tool({
       JSON.stringify(agentBoundaries, null, 2)
     );
 
+    // 6. Cria PROGRESS.md inicial
+    const initialProgress = `# Progresso do Projeto: ${project}\n\n` +
+      `**Status:** Iniciado\n` +
+      `**Fase Atual:** phase.0.briefing (Briefing)\n\n` +
+      `## Fases Completas\n(Nenhuma)\n\n` +
+      `## Proximos Passos\n- Executar o briefing para gerar o \`.harness/brief.md\`.`;
+    fs.writeFileSync(path.join(harnessDir, "PROGRESS.md"), initialProgress);
+
     return {
       success: true,
       project,
       harnessDir: harnessDir,
       files: [
         ".harness/state-machine.json",
+        ".harness/failure-protocol.json",
         ".harness/state.json",
         ".harness/events.jsonl",
         ".harness/agent-boundaries.json",
+        ".harness/PROGRESS.md",
         ".harness/audit/",
       ],
       currentPhase: "phase.0.briefing",
@@ -143,21 +160,21 @@ function deriveBoundaries(opencode: any): Record<string, { allow: string[]; deny
 
     // Owners de fase escrevem em paths específicos
     if (name === "briefing") {
-      allow = ["brief.md", ...allow];
+      allow = [".harness/brief.md", ...allow];
     } else if (name === "documenter") {
-      allow = ["AGENTS.md", "ARCH.md", "docs/**", ...allow];
+      allow = [".harness/AGENTS.md", ".harness/ARCH.md", ".harness/docs/**", ...allow];
     } else if (name === "rag-curator") {
-      allow = ["RAG/**", ".harness/RAG/**", "training/**", ".harness/training/**", ...allow];
+      allow = [".harness/RAG/**", ".harness/training/**", ...allow];
       deny = ["src/**"];
     } else if (name === "requirements") {
-      allow = ["PRD.html", "SPEC.html", ...allow];
+      allow = [".harness/PRD.html", ".harness/SPEC.html", ...allow];
     } else if (name === "prd-reviewer" || name === "spec-reviewer" || name === "design-reviewer") {
       allow = [".harness/reviews/**"];
       deny = ["**"]; // reviewers só escrevem em reports, nada de feature code
     } else if (name === "designer") {
-      allow = ["PRODUCT.md", "design/**", ...allow];
+      allow = [".harness/PRODUCT.md", ".harness/design/**", ...allow];
     } else if (name === "sprint-tasker") {
-      allow = ["sprints/**", ...allow];
+      allow = [".harness/sprints/**", ...allow];
     } else if (name === "reviewer") {
       allow = [".harness/reviews/**"];
       deny = ["**"];
@@ -168,10 +185,10 @@ function deriveBoundaries(opencode: any): Record<string, { allow: string[]; deny
       allow = ["src/frontend/**", "src/components/**", "src/pages/**", "test/frontend/**", "tests/frontend/**", ...allow];
       deny = ["src/backend/**", "db/**", "app/services/**"];
     } else if (name === "tester") {
-      allow = ["test/**", "tests/**", "qa/**", "e2e/**", ...allow];
+      allow = ["test/**", "tests/**", ".harness/qa/**", "e2e/**", ...allow];
       deny = ["src/**", "app/**", "db/**"];
     } else if (name === "security") {
-      allow = [".harness/security/**", "qa/security/**", ...allow];
+      allow = [".harness/security/**", ".harness/qa/security/**", ...allow];
       deny = ["src/**", "app/**", "db/**"]; // security NUNCA corrige codigo
     } else if (name === "qa-gate") {
       allow = [".harness/qa-gate/**", ...allow];
@@ -191,13 +208,13 @@ function conservativeBoundaries(): Record<string, { allow: string[]; deny: strin
   // Fallback se opencode.json não existir
   return {
     orchestrator: { allow: [".harness/**"], deny: ["src/**", "app/**", "db/**"] },
-    briefing: { allow: ["brief.md", ".harness/briefing/**"], deny: ["**"] },
-    documenter: { allow: ["AGENTS.md", "ARCH.md", "docs/**", ".harness/documenter/**"], deny: ["**"] },
-    "rag-curator": { allow: ["RAG/**", "training/**", ".harness/training/**"], deny: ["**"] },
-    requirements: { allow: ["PRD.html", "SPEC.html", ".harness/requirements/**"], deny: ["**"] },
+    briefing: { allow: [".harness/brief.md", ".harness/briefing/**"], deny: ["**"] },
+    documenter: { allow: [".harness/AGENTS.md", ".harness/ARCH.md", ".harness/docs/**", ".harness/documenter/**"], deny: ["**"] },
+    "rag-curator": { allow: [".harness/RAG/**", ".harness/training/**"], deny: ["**"] },
+    requirements: { allow: [".harness/PRD.html", ".harness/SPEC.html", ".harness/requirements/**"], deny: ["**"] },
     backend: { allow: ["src/backend/**", "db/**", "test/**"], deny: ["src/frontend/**"] },
     frontend: { allow: ["src/frontend/**", "test/frontend/**"], deny: ["src/backend/**", "db/**"] },
-    tester: { allow: ["test/**", "qa/**", "e2e/**"], deny: ["src/**", "app/**", "db/**"] },
-    security: { allow: [".harness/security/**", "qa/security/**"], deny: ["**"] },
+    tester: { allow: ["test/**", ".harness/qa/**", "e2e/**"], deny: ["src/**", "app/**", "db/**"] },
+    security: { allow: [".harness/security/**", ".harness/qa/security/**"], deny: ["**"] },
   };
 }

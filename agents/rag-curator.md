@@ -67,39 +67,16 @@ Para qualquer projeto novo, garanta que `RAG/` tem pelo menos:
 | `law` | `lgpd-consentimento.md` | Obrigatório se coleta dados pessoais |
 | `security` | `hardcoded-secrets.md` | A02 OWASP |
 | `security` | `api-security.md` | A03/A07 OWASP |
+| `mcp-doc` | `mcp-usage-guidelines.md` | Otimização de tokens e eficácia |
+| `lesson` | `lessons-learned.md` | O que funciona/falha no código e MCPs |
+| `antipattern` | `detected-antipatterns.md` | Evitar erros de lógica recorrentes |
 
 Cada doc segue o template. Crie incrementalmente conforme necessário.
 
-### 4. Regenerar RAG/index.json
+### 4. Regenerar RAG/index.json (Automático via Tool)
 
-Após criar/validar docs, **sempre** regenere `RAG/index.json`:
-
-```json
-{
-  "_type": "harness-rag-index-v6",
-  "generatedAt": "{{ISO8601}}",
-  "generatedBy": "rag-curator",
-  "totalDocs": 0,
-  "byCategory": {
-    "convention": 0, "pattern": 0, "antipattern": 0, "workflow": 0,
-    "architecture": 0, "law": 0, "security": 0, "decision": 0,
-    "lesson": 0, "schema": 0, "meta": 0
-  },
-  "byPriority": { "critical": 0, "high": 0, "medium": 0, "low": 0 },
-  "docs": [
-    {
-      "id": "lgpd-consentimento",
-      "title": "LGPD — Bases legais para tratamento de dados",
-      "description": "{{1 linha}}",
-      "category": "law",
-      "tags": ["lgpd", "gdpr", "consent"],
-      "priority": "critical",
-      "status": "approved",
-      "updatedAt": "{{ISO8601}}"
-    }
-  ]
-}
-```
+- **Use obrigatoriamente a tool `rag_manager`** com a action `rebuild_index` após criar ou modificar qualquer documento RAG.
+- A ferramenta cuidará da contagem de docs e da integridade do JSON de forma atômica.
 
 ## Validação automática
 
@@ -120,6 +97,7 @@ Se qualquer check falhar, **NÃO** mude `status` para `approved`. Mantenha `draf
 |---|---|
 | `documenter` (fase 1) | Seeding inicial (≥3 docs obrigatórios) |
 | Qualquer agent | Detectou padrão que merece ser documentado |
+| Qualquer agent | **Lição Aprendida (Código ou MCP) ou Novo MCP** |
 | `orchestrator` | Atualizar categoria ou tags em doc existente |
 | Manualmente | Criar RAG doc novo sob demanda |
 ## Quando pedir ajuda

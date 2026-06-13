@@ -40,15 +40,16 @@ Antes de iniciar o scan:
 - Quais endpoints expostos no SPEC são mais vulneráveis (A01/A03)?
 - **Estratégia:** Foque os scripts de `grep` nas áreas de maior risco identificadas no AGENTS.md.
 
-### 1. Coletar artefatos para auditoria
+### 1. Executar Scan Automatizado (Obrigatório)
 
-- `src/**` (código de feature)
-- `RAG/law:*` (leis aplicáveis — vêm do `rag-curator`)
-- `RAG/security:*` (padrões de segurança do projeto)
-- `SPEC.html` (seção 8 — Segurança declarada)
-- `package.json`, lockfile (deps)
+- **Use obrigatoriamente a tool `security_scanner`** no início da auditoria.
+- Configure os checks para incluir `secrets`, `sql_injection`, `xss`, `insecure_http`, `cors` e `dependencies`.
+- Analise o JSON de retorno da ferramenta em vez de fazer múltiplos `grep` manuais.
 
-### 2. Auditar LGPD/GDPR (se aplicável)
+### 2. Auditar LGPD/GDPR (Focado)
+
+Com base nos resultados do scan e no conhecimento da SPEC:
+...
 
 Se `RAG/law:lgpd-*` existe ou AGENTS.md indica LGPD:
 

@@ -59,7 +59,7 @@ export default tool({
     const statePath = path.join(harnessDir, "state.json");
     const eventsPath = path.join(harnessDir, "events.jsonl");
     const stateMachinePath = path.join(harnessDir, "state-machine.json");
-    const failureProtocolPath = path.join(cwd, "failure-protocol.json");
+    const failureProtocolPath = path.join(harnessDir, "failure-protocol.json");
 
     // Validacoes
     if (!fs.existsSync(statePath)) {
@@ -419,6 +419,8 @@ function transitionPhase(state: any, phase: any, stateMachine: any, harnessDir: 
   const statePath = path.join(harnessDir, "state.json");
   fs.writeFileSync(statePath, JSON.stringify(state, null, 2));
 
+  updateProgressFile(state, stateMachine, harnessDir);
+
   const eventsPath = path.join(harnessDir, "events.jsonl");
   appendEvent(eventsPath, {
     event: "phase.completed",
@@ -447,4 +449,50 @@ function transitionPhase(state: any, phase: any, stateMachine: any, harnessDir: 
 function appendEvent(eventsPath: string, event: any) {
   const entry = { ts: new Date().toISOString(), ...event };
   fs.appendFileSync(eventsPath, JSON.stringify(entry) + "\n");
+}
+
+/**
+ * Atualiza o arquivo .harness/PROGRESS.md com o estado atual.
+ */
+function updateProgressFile(state: any, stateMachine: any, harnessDir: string) {
+  const currentPhaseInfo = stateMachine.phases.find((p: any) => p.id === state.currentPhase);
+  const completedPhases = Object.entries(state.phases)
+    .filter(([_, info]: any) => info.status === "completed")
+    .map(([id, _]) => {
+      const p = stateMachine.phases.find((phase: any) => phase.id === id);
+      return `- [x] **${id}**: ${p?.name || ""}`;
+    });
+
+  const nextPhaseId = currentPhaseInfo?.next?.[0];
+  const nextPhase = nextPhaseId ? stateMachine.phases.find((p: any) => p.id === nextPhaseId)?.name || nextPhaseId : "Fim do workflow";
+
+  // Progresso da Sprint (se aplicavel)
+  let sprintProgress = "";
+  if (state.currentSprint) {
+    const sprintPath = path.join(harnessDir, "sprints", `${state.currentSprint}.json`);
+    if (fs.existsSync(sprintPath)) {
+      try {
+        const sprintData = JSON.parse(fs.readFileSync(sprintPath, "utf8"));
+        const tasks = sprintData.tasks || [];
+        const done = tasks.filter((t: any) => t.status === "completed").length;
+        sprintProgress = `\n### Progresso da Sprint: ${state.currentSprint}\n` +
+          `- Tarefas: ${done}/${tasks.length} concluídas (${tasks.length > 0 ? Math.round((done / tasks.length) * 100) : 0}%)\n`;
+      } catch (e) {
+        // Ignora erro de parse, apenas não exibe o progresso
+      }
+    }
+  }
+
+  const content = `# Progresso do Projeto: ${state.project}\n\n` +
+    `**Status:** ${state.currentPhase === "phase.5.complete" ? "Concluido" : "Em andamento"}\n` +
+    `**Fase Atual:** \`${state.currentPhase}\` (${currentPhaseInfo?.name || ""})\n` +
+    `**Owner:** ${currentPhaseInfo?.owner || "N/A"}\n` +
+    `**Attempt:** ${state.phases[state.currentPhase]?.attempt || 0}\n` +
+    sprintProgress +
+    `\n## Fases Completas\n${completedPhases.length > 0 ? completedPhases.join("\n") : "(Nenhuma)"}\n\n` +
+    `## Proximos Passos\n` +
+    `- Finalizar fase atual para transicionar para \`${nextPhase}\`.\n` +
+    (currentPhaseInfo?.outputContract?.files ? `- Entregar: ${currentPhaseInfo.outputContract.files.map((f: any) => `\`${f.path}\``).join(", ")}` : "");
+
+  fs.writeFileSync(path.join(harnessDir, "PROGRESS.md"), content);
 }

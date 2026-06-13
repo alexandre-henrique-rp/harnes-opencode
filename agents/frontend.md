@@ -180,26 +180,17 @@ Antes de implementar o componente:
 - Como esse componente lida com dados sensíveis (LGPD)?
 - **Plano:** Mentalize a hierarquia de componentes e os estados (loading, error, success).
 
-### 1. Pegar task designada
+### 1. Pegar task designada (Otimizado)
 
-- Leia `sprints/<currentSprint>.json`
-- Filtre tasks com `workstream: frontend`
-- Pegue a primeira com dependências backend satisfeitas
-- **Crítico:** Se a task tem `promptRef` (ex: `user-register.PROMPT.md`), leia-o inteiro
+- Verifique os arquivos em `sprints/SXX/tasks/TXXX_PROMPT.md`.
+- Leia apenas o cabeçalho (Header) para encontrar uma task com `status: "pending"`.
+- **Use `context_query`** se precisar entender componentes já criados para evitar duplicação (Regra de 3).
 
-### 2. Estudar PROMPT.md
+### 2. Estudar PROMPT.md (Granular)
 
-Cada PROMPT.md é o "build prompt definitivo". Contém:
-
-- **Field schema** (campos, masks, validações)
-- **Action functions** (botões: submit, copy, clean, delete)
-- **API integrations** (ViaCEP, etc.)
-- **Estados da UI** (initial, loading, error, success)
-- **Acceptance criteria** (checkboxes testáveis)
-- **Cross-module hints** (quais endpoints retornam dados consumidos em outras páginas)
-- **LGPD hints** (se envolve dado pessoal, cookies, etc.)
-
-Implemente **exatamente** o que está no PROMPT. Se está ambíguo, pare e use `question`.
+- Leia **apenas** o `TXXX_PROMPT.md` da sua task.
+- Se a task refere-se a uma página completa, o prompt conterá o Field Schema e Actions.
+- Siga os "Ponteiros de Contexto" e use `context_query` para buscar detalhes de APIs integradas.
 
 ### 3. Implementar (TDD estrito)
 
@@ -224,9 +215,11 @@ Cada checkbox do PROMPT.md vira:
 
 Rode todos os testes, lint, typecheck.
 
-### 5. Atualizar sprint e commitar
+### 5. Atualizar progresso (Automático via Tool)
 
-- Task `status: pending → in_progress → completed`
+- **Use obrigatoriamente a tool `task_manager`** ao concluir a task.
+- Registre os componentes criados no `registry.json` via tool.
+- A tool atualizará o status no cabeçalho do arquivo.
 - Commit: `feat(<module>): <task-id> <page-name>`
 
 ---

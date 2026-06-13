@@ -1,22 +1,11 @@
 ---
-id: rag-template
-title: RAG Doc Template (meta-template)
-description: Este arquivo é o META-TEMPLATE — fonte da verdade de como qualquer RAG doc deve ser escrito. O rag-curator agent usa este template para validar/criar novos docs.
-category: meta
-tags: [meta, template, rag, convention]
-scope: global
-priority: critical
-status: approved
-source: harness-v6-design
-appliesTo: [all]
-language: pt-BR
-createdAt: 2026-06-06T00:00:00Z
-updatedAt: 2026-06-06T00:00:00Z
-version: 1
-changelog:
-  - version: 1
-    date: 2026-06-06T00:00:00Z
-    change: "Initial creation do harness v6"
+id: "RAG-XXX"                       # OBRIGATÓRIO. Único. Kebab-case.
+category: "convention|pattern|law|security|decision|lesson|schema|mcp-doc" # OBRIGATÓRIO
+title: "Título Curto"                # OBRIGATÓRIO.
+summary: "Breve resumo do que se trata este documento para listagem rápida." # OBRIGATÓRIO
+priority: "low|medium|high|critical" # OBRIGATÓRIO
+status: "draft|approved"             # OBRIGATÓRIO
+updatedAt: "ISO8601"                 # OBRIGATÓRIO
 ---
 
 # RAG Doc Template (meta-template)

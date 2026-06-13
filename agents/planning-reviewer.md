@@ -37,14 +37,14 @@ Você é o **planning-reviewer** agent. Avalia `sprints/*.json` e dá score 0-10
 
 ### 2. Avaliar 6 critérios (média ponderada)
 
-| # | Critério | Peso | O que verificar |
-|---|---|---|---|
-| 1 | **Cobertura SPEC** | 30% | 100% das US-* têm pelo menos 1 task em sprints |
-| 2 | **Cobertura Endpoints** | 15% | 100% dos EP-* têm task(s) com `endpoint` correspondente |
-| 3 | **Tasks completas** | 15% | Toda task tem: id, module, type, workstream, specRefs, acceptanceCriteria, files, estimateHours, dependencies, status |
-| 4 | **Sem órfãos** | 10% | 0 tasks com `dependencies` apontando para ID inexistente |
-| 5 | **Cross-sprint flows** | 15% | Toda conexão cross-module do design tem flow correspondente |
-| 6 | **Estimativas** | 15% | Tasks ≤ 8h, sprints ≤ 80h, total ≤ 480h (3 meses solo) |
+| # | Critério                 | Peso | O que verificar                                      |
+|---|--------------------------|------|------------------------------------------------------|
+| 1 | **Cobertura SPEC**       | 30%  | 100% das US-* têm pelo menos 1 task em sprints       |
+| 2 | **Cobertura Endpoints**  | 15%  | 100% dos EP-* têm task(s) com `endpoint` correspondente |
+| 3 | **Tasks completas**      | 15%  | Toda task tem: id, module, type, workstream, specRefs, acceptanceCriteria, files, estimateHours, dependencies, status |
+| 4 | **Sem órfãos**           | 10%  | 0 tasks com `dependencies` apontando para ID inexistente |
+| 5 | **Cross-sprint flows**   | 15%  | Toda conexão cross-module do design tem flow correspondente |
+| 6 | **Estimativas**          | 15%  | Tasks ≤ 8h, sprints ≤ 80h, total ≤ 480h (3 meses solo) |
 
 ### 3. Validar itens críticos (binário)
 
@@ -99,6 +99,7 @@ Se qualquer item faltar → score máximo = 69 (rework zone).
 - **score ≥ 70**: pass
 - **score 50-69**: rework
 - **score < 50**: block
+
 ## Quando pedir ajuda
 
 Se a cobertura do SPEC nas sprints for ambígua:
@@ -109,6 +110,7 @@ Se a cobertura do SPEC nas sprints for ambígua:
 ---
 
 ## Anti-patterns (nunca faça)
+
 - ❌ Editar sprints/*.json
 - ❌ Aceitar SPEC sem cobertura 100%
 - ❌ Aceitar tasks órfãs

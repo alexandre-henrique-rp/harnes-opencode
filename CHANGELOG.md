@@ -5,6 +5,39 @@ All notable changes to OpenCode Agents v6 are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.3.0] - 2026-06-13
+
+### Added — Planejamento Fractal + Marcos de UX + Suite de Automação
+
+#### Planejamento Fractal e Marcos de UX
+- **Novo Fluxo de Planejamento**: O projeto agora é dividido em **Marcos (Milestones)** para validação de UX, contendo Sprints e Tasks granulares.
+- **Micro-Contexto**: Cada task possui seu próprio `TXXX_PROMPT.md` (Micro-PRD/SPEC), reduzindo drasticamente o consumo de tokens.
+- **Planning-First Rule**: O Orchestrator bloqueia a execução de código até que 100% do planejamento fractal esteja pronto e validado.
+- **Cabeçalho de Status YAML**: Todos os arquivos de planejamento agora possuem cabeçalhos obrigatórios (`status`, `id`, `sprint`, etc.) para parsing rápido.
+- **Portão de UX (Phase 6)**: Nova fase de aprovação humana obrigatória após a conclusão de cada Marco de entrega.
+
+#### Suite de Automação (10 novas tools/funções)
+- **`task_manager.ts`**: Automatiza a atualização de status e criação de logs de tasks.
+- **`context_query.ts`**: Busca contexto granular sobre componentes e decisões passadas para evitar conflitos.
+- **`security_scanner.ts`**: Scan automatizado de OWASP e segredos (substitui grep manual no agente Security).
+- **`pii_detector.ts`**: Identificação automática de dados pessoais para o agente LGPD Officer.
+- **`rag_manager.ts`**: Validação e reconstrução atômica do `RAG/index.json`.
+- **`git_commit_manager.ts`**: Criação de commits semânticos automáticos baseados nos logs de task.
+- **`progress_tracker.ts`**: Visão geral do progresso do projeto baseada nos headers das tasks.
+- **`test_codegen.ts`**: Geração automática de código Playwright a partir de cadeias declarativas (JSON).
+- **`coverage_analyzer.ts`**: Resumo inteligente de cobertura de testes (Vitest/Jest).
+
+### Changed
+- **`state-machine.json`**: Atualizado para incluir as fases de Planejamento Fractal e UX Gate.
+- **Agentes Otimizados**: `orchestrator`, `sprint-tasker`, `backend`, `frontend`, `security`, `lgpd-officer`, `rag-curator` e `tester` agora usam obrigatoriamente as novas tools de automação.
+- **`templates/RAG-TEMPLATE.md`**: Agora exige campo `summary` para listagem rápida.
+- **`templates/TASK-PROMPT-TEMPLATE.md`**: Novo template para prompts granulares de task.
+- **`templates/MILESTONE-TEMPLATE.json`**: Novo template para definição de marcos de UX.
+
+### Fixed
+- **Consumo de Tokens**: Redução massiva de tokens ao evitar a leitura redundante de PRD/SPEC globais por múltiplos workers paralelos.
+- **Rastreabilidade**: Todas as decisões técnicas agora são logadas em arquivos `TXXX_LOG.json` e registradas no `registry.json` global.
+
 ## [6.2.0] - 2026-06-07
 
 ### Added — LGPD Officer + RAG LGPD + 3 princípios de engenharia

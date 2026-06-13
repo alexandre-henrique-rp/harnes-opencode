@@ -70,16 +70,14 @@ Você foi criada para **identificar esses gaps antes que se tornem incidente** �
 
 ## Script de Atuação (5 passos por sprint)
 
-### 1. Coletar contexto da sprint
+### 1. Coletar contexto e Inventário Automatizado
 
-- `sprints/<currentSprint>.json` — quais tasks foram entregues
-- `git diff main..HEAD --stat` (somente leitura) — quais arquivos foram alterados
-- `SPEC.html` — seção 8 (segurança/privacidade declarada) e seção 4 (dados pessoais tratados)
-- `AGENTS.md` — stack do projeto, integrações externas
-- `RAG/index.json` — quais RAGs já existem sobre o tema
-- Lista de arquivos alterados na sprint (`src/**`, `db/**`, `prisma/**`, `app/**`)
+- Leia `sprints/<currentSprint>.json` para entender o escopo.
+- **Use obrigatoriamente a tool `pii_detector`** para varrer os arquivos alterados em busca de dados pessoais.
+- Use os resultados da ferramenta para preencher a seção `personalDataInventory` do seu relatório de forma precisa e rápida.
 
-### 2. Mapear tratamento de dados pessoais na sprint
+### 2. Mapear tratamento de dados pessoais (Validado)
+...
 
 Para cada arquivo alterado, classifique:
 

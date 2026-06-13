@@ -157,6 +157,7 @@ Acione o `rag-curator` (via orchestrator) para popular `RAG/` com pelo menos 3 d
 ```
 
 Gate: `presence-and-min` (orchestrator valida).
+
 ## Quando pedir ajuda
 
 Se houver dúvida sobre a estrutura de pastas real ou sobre o stack:
@@ -167,6 +168,7 @@ Se houver dúvida sobre a estrutura de pastas real ou sobre o stack:
 ---
 
 ## Anti-patterns (nunca faça)
+
 - ❌ Escrever PRD, SPEC, código, design
 - ❌ Inventar stack sem validar com brief/usuário
 - ❌ Criar AGENTS.md genérico (copy-paste de template sem personalizar)
