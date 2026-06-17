@@ -27,6 +27,7 @@ export default tool({
 
     const files = fs.readdirSync(ragDir).filter(f => f.endsWith(".md") && f !== "README.md");
     const docs: any[] = [];
+    const promotedDocs: string[] = [];
     const stats: any = {
       totalDocs: 0,
       byCategory: {},
@@ -60,6 +61,27 @@ export default tool({
           stats.byPriority[doc.priority] = (stats.byPriority[doc.priority] || 0) + 1;
         }
 
+        // Promoção automática para o RAG Global se scope=global e status=approved ou reviewed
+        const globalTrainingDir = path.join(
+          process.env.HOME || process.env.USERPROFILE || "~",
+          ".config",
+          "opencode",
+          "training"
+        );
+
+        if (doc.scope === "global" && (doc.status === "approved" || doc.status === "reviewed")) {
+          try {
+            if (!fs.existsSync(globalTrainingDir)) {
+              fs.mkdirSync(globalTrainingDir, { recursive: true });
+            }
+            const destPath = path.join(globalTrainingDir, file);
+            fs.copyFileSync(path.join(ragDir, file), destPath);
+            promotedDocs.push(doc.id);
+          } catch (e) {
+            // Ignora erro de cópia para não quebrar a execução local (ex: permissões)
+          }
+        }
+
         // Garante que o resumo (summary) esteja no índice para listagem rápida
         docs.push({
           id: doc.id,
@@ -90,6 +112,8 @@ export default tool({
     return {
       success: true,
       stats,
+      promotedDocs,
+      promotedCount: promotedDocs.length,
       message: action === "rebuild_index" ? "RAG/index.json reconstruido com sucesso." : "Validacao concluida.",
       invalidDocs: files.length - docs.length
     };

@@ -19,6 +19,20 @@ import { tool } from "@opencode-ai/plugin";
 import * as fs from "fs";
 import * as path from "path";
 
+function parseYamlFrontmatter(content: string): any {
+  const match = content.match(/^---\n([\s\S]*?)\n---/);
+  if (!match) return null;
+  const lines = match[1].split("\n");
+  const meta: any = {};
+  for (const line of lines) {
+    const [key, ...val] = line.split(":");
+    if (key && val.length > 0) {
+      meta[key.trim()] = val.join(":").trim().replace(/^"|"$/g, "");
+    }
+  }
+  return meta;
+}
+
 export default tool({
   name: "harness_context",
   description:
@@ -95,25 +109,67 @@ export default tool({
     };
     const relevantCategories = phaseToCategory[phase.id] || [];
 
-    let ragSnippet = "";
+    const globalTrainingDir = path.join(
+      process.env.HOME || process.env.USERPROFILE || "~",
+      ".config",
+      "opencode",
+      "training"
+    );
+
+    const allRelevantDocs: any[] = [];
+
+    // 1. Carrega local RAGs
     if (fs.existsSync(ragIndexPath)) {
       try {
         const ragIndex = JSON.parse(fs.readFileSync(ragIndexPath, "utf8"));
-        const relevant = (ragIndex.docs || []).filter((d: any) =>
+        const localRelevant = (ragIndex.docs || []).filter((d: any) =>
           relevantCategories.includes(d.category)
         );
-        if (relevant.length > 0) {
-          ragSnippet =
-            "**RAG relevante (ler antes de agir):**\n" +
-            relevant
-              .slice(0, 5)
-              .map((d: any) => `- \`${d.id}\` (${d.category}, priority=${d.priority}): ${d.title}`)
-              .join("\n") +
-            "\n\n";
+        allRelevantDocs.push(...localRelevant.map((d: any) => ({ ...d, isGlobal: false })));
+      } catch {
+        // ignore
+      }
+    }
+
+    // 2. Carrega global RAGs
+    if (fs.existsSync(globalTrainingDir)) {
+      try {
+        const globalFiles = fs.readdirSync(globalTrainingDir).filter(f => f.endsWith(".md"));
+        for (const file of globalFiles) {
+          const content = fs.readFileSync(path.join(globalTrainingDir, file), "utf8");
+          const meta = parseYamlFrontmatter(content);
+          if (meta && relevantCategories.includes(meta.category)) {
+            allRelevantDocs.push({
+              id: meta.id || file.replace(".md", ""),
+              category: meta.category,
+              title: meta.title || file.replace(".md", ""),
+              priority: meta.priority || "medium",
+              isGlobal: true
+            });
+          }
         }
       } catch {
-        // ignore parse errors
+        // ignore
       }
+    }
+
+    // Ordenar por prioridade (critical > high > medium > low)
+    const priorityWeight: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 };
+    allRelevantDocs.sort((a, b) => {
+      const wa = priorityWeight[a.priority] || 2;
+      const wb = priorityWeight[b.priority] || 2;
+      return wb - wa;
+    });
+
+    let ragSnippet = "";
+    if (allRelevantDocs.length > 0) {
+      ragSnippet =
+        "**RAG relevante (ler antes de agir):**\n" +
+        allRelevantDocs
+          .slice(0, 8)
+          .map((d: any) => `- \`${d.id}\` [${d.isGlobal ? "Global" : "Local"}] (${d.category}, priority=${d.priority}): ${d.title}`)
+          .join("\n") +
+        "\n\n";
     }
 
     // Inputs de fases anteriores

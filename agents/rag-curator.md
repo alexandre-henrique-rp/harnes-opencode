@@ -12,7 +12,7 @@ permission:
   list: allow
   skill: deny
   todowrite: allow
-  webfetch: deny
+  webfetch: allow
   websearch: deny
   question: allow
 ---
@@ -28,22 +28,26 @@ Você é o **rag-curator** agent. Sua única responsabilidade é manter `RAG/` �
 
 ## Script de Atuação (4 passos)
 
-### 1. Identificar lacunas
+### 1. Identificar lacunas ou Capturar URL Externa
 
-Quando invocado pelo `documenter` (fase 1) ou por outro agent (qualquer fase):
+Quando invocado pelo `documenter` (fase 1), por outro agent (qualquer fase), ou quando o usuário fornecer um link de artigo/lei externa:
 
-- Leia `AGENTS.md` e `brief.md` para entender o contexto do projeto
-- Leia `RAG/index.json` para ver o que já existe
-- Identifique docs que **deveriam existir** baseado no stack/compliance (LGPD é obrigatório para projetos BR)
-- Identifique docs que estão desatualizados (`status: draft` por mais de 7 dias)
+- **Captura Externa:** Se um link externo (HTTP/HTTPS) for fornecido, use a tool `webfetch` para ler todo o conteúdo da página, extrair as melhores práticas técnicas ou regras legais, e convertê-las para o formato de RAG.
+- Leia `AGENTS.md` e `brief.md` para entender o contexto do projeto.
+- Leia `RAG/index.json` para ver o que já existe.
+- Identifique docs que **deveriam existir** baseado no stack/compliance (LGPD é obrigatório para projetos BR).
+- Identifique docs que estão desatualizados (`status: draft` por mais de 7 dias).
 
-### 2. Criar/validar docs (seeding inicial)
+### 2. Criar/validar docs (seeding inicial ou externos)
 
 Para cada doc necessário:
 
 a) **Copie** o template `templates/RAG-TEMPLATE.md`
 b) **Renomeie** para `<id>.md` (kebab-case)
-c) **Preencha** YAML frontmatter (todos os 14 campos obrigatórios)
+c) **Preencha** YAML frontmatter (todos os 14 campos obrigatórios):
+   - **Escopo Global:** Configure `scope: global` se a regra/lição for genérica para qualquer projeto (ex: padrões JavaScript, guias do Playwright, leis federais como a LGPD, comportamento comum de APIs de terceiros). Caso contrário, use `scope: project`.
+   - **Aprovação Automática:** Se o documento for extraído de uma documentação oficial/confiável ou de uma lição já validada, configure `status: approved` ou `status: reviewed` para disparar a cópia automática global.
+   - **Origem:** Configure `source: <url>` se originado de link externo, ou `source: ai-detected` se detectado durante o build.
 d) **Preencha** as 7 seções:
    1. Contexto
    2. Regra/Padrão/Decisão
