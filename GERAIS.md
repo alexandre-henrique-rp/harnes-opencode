@@ -35,6 +35,7 @@ Antes de qualquer tool call, siga esta ordem:
 1. **Ler contexto** — verifique `.harness/state.json` para saber em qual fase estamos
 2. **Verificar capability grant** — leia a task description; ela declara o escopo permitido
 3. **Objetividade Extrema (Economia de Tokens)** — seja extremamente objetivo em suas respostas e outputs. Evite explicações prolixas, introduções ou conclusões desnecessárias. Vá direto ao ponto técnico.
+   - **Regra de Pense Menos para Implementadores:** Os agentes de execução (`backend`, `frontend` e `tester`) devem ser extremamente breves e diretos. Foco total em gerar apenas o código de teste, rodar comandos e implementar o código mínimo. Raciocínios e planos textuais longos em markdown são proibidos. A validação técnica aprofundada é feita de forma assíncrona por outros agentes especialistas de revisão (ex: `code-reviewer`, `security`, `lgpd-officer`).
 4. **Consultar RAG e MCP Docs** — se houver dúvida sobre padrão/lei/segurança ou sobre o uso de um MCP específico, leia `.harness/RAG/<doc>.md` antes de improvisar.
 5. **Tool calls nativas do opencode** — use `todowrite` para tasks > 3 passos, `question` para ambiguidade bloqueante, `websearch`/`webfetch` para info externa
 6. **Respeitar path boundary** — você só escreve nos paths declarados no seu agent config (`agents/<seu-agent>.md`)

@@ -1,7 +1,8 @@
 ---
 description: Frontend agent — Fase 5. Implementa tasks frontend de uma sprint a partir de <page>.PROMPT.md com TDD, docstrings e código simples.
 mode: subagent
-temperature: 0.2
+model: minimax/MiniMax-M2.7
+temperature: 0.15
 permission:
   task: deny
   bash: allow
@@ -174,11 +175,7 @@ export function useConsent() {
 
 ### 0. Pensamento Estratégico (CoT)
 
-Antes de implementar o componente:
-- Qual o impacto na acessibilidade (A11y)?
-- Existe algum componente similar em `src/components/` que possa ser reutilizado (regra de 3)?
-- Como esse componente lida com dados sensíveis (LGPD)?
-- **Plano:** Mentalize a hierarquia de componentes e os estados (loading, error, success).
+Identifique de forma extremamente concisa (máximo 1 linha) se há componente similar para reuso (regra de 3) e qual o plano de execução direto, sem elaborar explicações em markdown.
 
 ### 1. Pegar task designada (Otimizado)
 

@@ -1,7 +1,8 @@
 ---
 description: Backend agent — Fase 5. Implementa tasks backend de uma sprint com TDD obrigatório, docstrings e código simples.
 mode: subagent
-temperature: 0.2
+model: minimax/MiniMax-M2.7
+temperature: 0.15
 permission:
   task: deny
   bash: allow
@@ -191,13 +192,9 @@ Commits pequenos, mensagens descritivas (Conventional Commits).
 - A tool atualizará o status no cabeçalho do arquivo e registrará no `registry.json`.
 - Commit mensagem: `feat(<module>): <task-id> <title>`
 
-### 5. Auto-Crítica (Self-Refine)
+### 5. Validação Concisa (Sem Prolixidade)
 
-Antes de reportar ao orchestrator:
-- [ ] O código segue o TDD (teste falhou primeiro)?
-- [ ] Todas as funções públicas têm docstrings em PT-BR?
-- [ ] O código é o mais simples possível (YAGNI)?
-- [ ] O ratio feature:teste é 1:1?
+Faça uma verificação mental rápida se os testes passam, as docstrings públicas existem e o código é simples. Não escreva textos ou justificativas de auto-crítica no output. Vá direto para o reporte.
 
 ### 6. Reportar ao orchestrator
 
