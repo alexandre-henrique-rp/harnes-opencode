@@ -58,6 +58,79 @@ log_bold()   { printf "${BOLD}%s${NC}\n" "$*"; }
 die() { log_err "$*"; exit 1; }
 
 # ============================================================================
+# Menu Interativo Estilizado
+# ============================================================================
+
+show_menu() {
+    local selected="$1"
+    shift
+    local options=("$@")
+    
+    # Limpa as linhas anteriores (para redesenhar o menu no mesmo lugar)
+    # \e[F move o cursor para o início da linha anterior, \e[K limpa a linha
+    if [[ ${MENU_RENDERED:-0} -eq 1 ]]; then
+        for ((i=0; i<${#options[@]}+2; i++)); do
+            printf "\033[F\033[K"
+        done
+    fi
+    MENU_RENDERED=1
+
+    printf "${BOLD}Selecione a ação desejada:${NC}\n\n"
+    local idx=0
+    for opt in "${options[@]}"; do
+        if [[ $idx -eq $selected ]]; then
+            printf "  ${GREEN}❯${NC} ${BOLD}${GREEN}%s${NC}\n" "$opt"
+        else
+            printf "    %s\n" "$opt"
+        fi
+        idx=$idx+1
+    done
+    printf "\n"
+}
+
+select_option() {
+    local options=("$@")
+    local selected=0
+    local key=""
+    local ESC=$'\x1b'
+    
+    # Oculta o cursor do terminal
+    tput civis 2>/dev/null || printf "\033[?25l"
+    
+    # Handler para restaurar o cursor se o usuário der Ctrl+C
+    trap 'tput cnorm 2>/dev/null || printf "\033[?25h"; exit 1' INT TERM
+
+    MENU_RENDERED=0
+    show_menu "$selected" "${options[@]}"
+
+    while true; do
+        # Lê 1 caractere de entrada. Se for escape, lê mais para identificar as setas.
+        read -s -n1 key
+        
+        # Detecta sequência de escape para as setas do teclado
+        if [[ "$key" == "$ESC" ]]; then
+            read -s -n2 -t 0.05 key
+            if [[ "$key" == "[A" ]]; then # Seta para CIMA
+                selected=$(( (selected - 1 + ${#options[@]}) % ${#options[@]} ))
+                show_menu "$selected" "${options[@]}"
+            elif [[ "$key" == "[B" ]]; then # Seta para BAIXO
+                selected=$(( (selected + 1) % ${#options[@]} ))
+                show_menu "$selected" "${options[@]}"
+            fi
+        # Detecta tecla Enter
+        elif [[ "$key" == "" ]]; then
+            break
+        fi
+    done
+
+    # Restaura o cursor
+    tput cnorm 2>/dev/null || printf "\033[?25h"
+    trap - INT TERM
+    
+    return "$selected"
+}
+
+# ============================================================================
 # Deteccao de OS e paths
 # ============================================================================
 
@@ -728,19 +801,49 @@ print_summary() {
 
 main() {
     # Parse args
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --uninstall)        UNINSTALL=true; shift ;;
-            --dry-run)          DRY_RUN=true; shift ;;
-            --preserve-config)  PRESERVE_CONFIG=true; shift ;;
-            --update)           UPDATE_MODE=true; PRESERVE_CUSTOM=true; PRESERVE_CONFIG=true; shift ;;
-            --version)          echo "Harness v6 installer ${HARNESS_VERSION}"; exit 0 ;;
-            --help|-h)          print_help; exit 0 ;;
-            *)                  log_err "Opcao desconhecida: $1"; print_help; exit 1 ;;
+    if [[ $# -eq 0 ]]; then
+        print_banner
+        
+        local options=(
+            "Instalação Limpa (Fresh Install) — Sobrescreve core e reinicia configs"
+            "Atualização (Update) — Preserva suas customizações e RAGs"
+            "Desinstalação (Uninstall) — Remove o Harness v6 do OpenCode"
+            "Cancelar e Sair"
+        )
+        
+        local choice
+        select_option "${options[@]}" && choice=0 || choice=$?
+        
+        case "$choice" in
+            0) # Fresh Install
+               ;;
+            1) # Update
+               UPDATE_MODE=true
+               PRESERVE_CUSTOM=true
+               PRESERVE_CONFIG=true
+               ;;
+            2) # Uninstall
+               UNINSTALL=true
+               ;;
+            *) # Cancelar
+               log_info "Operação cancelada pelo usuário."
+               exit 0
+               ;;
         esac
-    done
-
-    print_banner
+    else
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --uninstall)        UNINSTALL=true; shift ;;
+                --dry-run)          DRY_RUN=true; shift ;;
+                --preserve-config)  PRESERVE_CONFIG=true; shift ;;
+                --update)           UPDATE_MODE=true; PRESERVE_CUSTOM=true; PRESERVE_CONFIG=true; shift ;;
+                --version)          echo "Harness v6 installer ${HARNESS_VERSION}"; exit 0 ;;
+                --help|-h)          print_help; exit 0 ;;
+                *)                  log_err "Opcao desconhecida: $1"; print_help; exit 1 ;;
+            esac
+        done
+        print_banner
+    fi
 
     # Deteccao
     OS=$(detect_os)
