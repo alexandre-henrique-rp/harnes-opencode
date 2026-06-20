@@ -429,7 +429,7 @@ EOF
                 [[ ! -f "$rag_doc" ]] && continue
                 local doc_name
                 doc_name="$(basename "$rag_doc")"
-                copy_item "$rag_doc" "$training_dest/$doc_name" "training/$doc_name (global RAG)"
+                copy_item "$rag_doc" "$training_dest/$doc_name" "training/$doc_name (global RAG)" "$([ "$PRESERVE_CUSTOM" = true ] && echo "false" || echo "true")"
             done
         fi
         log_ok "  global RAGs instalados em: $dest/training/ (disponiveis em todos os projetos)"
