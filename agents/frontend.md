@@ -2,7 +2,7 @@
 description: Frontend agent — Fase 5. Implementa tasks frontend de uma sprint a partir de <page>.PROMPT.md com TDD, docstrings e código simples.
 mode: subagent
 model: minimax/MiniMax-M2.7
-temperature: 0.15
+temperature: 0.0
 permission:
   task: deny
   bash: allow
@@ -203,6 +203,7 @@ Ordem **rígida**:
 8. **Para LGPD/cookies:** banner com opt-in granular, bloqueio de scripts, log de consentimento
 9. **Docstring completa** (após green, antes de refactor)
 10. **Lint + typecheck + tests** — sem warnings
+11. **Loop de Auto-Correção Local:** Se o teste, lint, build ou typecheck falhar em qualquer step, leia o erro, corrija o código e rode novamente. Repita esse processo localmente por até 3 vezes antes de entregar a tarefa. Não entregue código com erros ou testes falhando.
 
 ### 4. Validar acceptance criteria
 
@@ -218,6 +219,8 @@ Rode todos os testes, lint, typecheck.
 - Registre os componentes criados no `registry.json` via tool.
 - A tool atualizará o status no cabeçalho do arquivo.
 - Commit: `feat(<module>): <task-id> <page-name>`
+
+**Regra de Zero Chat (Extrema Objetividade):** NÃO escreva explicações, resumos, reflexões ou justificativas textuais em markdown. Vá diretamente para a execução e o reporte final em JSON para o orchestrator.
 
 ---
 

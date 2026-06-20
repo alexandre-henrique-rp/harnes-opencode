@@ -17,10 +17,11 @@ Um sistema de **17 agents** (1 primary + 16 sub) organizados em **6 fases** (bri
 # 1. Copie o harness para ~/.config/opencode/ (Linux/macOS)
 cp -r ~/Downloads/Opencode_agents_v6 ~/.config/opencode/
 
-# 2. Em um projeto novo, inicialize o workflow
+# 2. Em um projeto novo, inicialize o workflow (perfil Strict padrão ou Lean simplificado)
 cd /caminho/do/seu/projeto
 opencode /harness
-# O orchestrator vai pedir: nome do projeto, problema, restrições
+# OU para fluxo simplificado e rápido (sem burocracia de revisões):
+# opencode /harness-init --project meu-projeto --profile lean
 
 # 3. Veja o estado atual
 opencode /harness-status
@@ -100,6 +101,9 @@ opencode-agents-v6/
 | 5 | Build + Quality | orchestrator + `backend`+`frontend`+`tester`+`security`+**`lgpd-officer`**+`qa-gate` | código + testes + audit | all-of (cov≥85, 0 crit/high, review≥70, **LGPD compliant**) |
 
 Security e LGPD Officer rodam **dentro** da fase 5 (fan-out paralelo), não depois.
+
+> [!TIP]
+> **Perfil Lean:** Se você deseja um desenvolvimento mais objetivo e rápido (especialmente para projetos pequenos ou protótipos), use o perfil `lean` na inicialização. Ele reduz o fluxo de trabalho para apenas 3 fases (Briefing, Planejamento Simplificado e Build+Quality), desativa os agentes revisores adicionais por padrão e reduz o portão de build para exigir apenas cobertura de testes >= 70% (sem bloqueio por LGPD/Security ou JSDoc).
 
 ## Roster (17 agents — v6.2.0+)
 

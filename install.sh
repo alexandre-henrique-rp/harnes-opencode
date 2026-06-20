@@ -438,6 +438,7 @@ EOF
     # 3. Copia arquivos de raiz
     [[ -f "$src/GERAIS.md" ]] && copy_item "$src/GERAIS.md" "$dest/GERAIS.md" "GERAIS.md (system prompt global)"
     [[ -f "$src/state-machine.json" ]] && copy_item "$src/state-machine.json" "$dest/state-machine.json" "state-machine.json (contrato)"
+    [[ -f "$src/state-machine-lean.json" ]] && copy_item "$src/state-machine-lean.json" "$dest/state-machine-lean.json" "state-machine-lean.json (contrato simplificado)"
     [[ -f "$src/failure-protocol.json" ]] && copy_item "$src/failure-protocol.json" "$dest/failure-protocol.json" "failure-protocol.json (3 classes + 1 fatal)"
     [[ -f "$src/README.md" ]] && copy_item "$src/README.md" "$dest/HARNESS-README.md" "README.md (renomeado pra HARNESS-README.md)"
 
@@ -555,7 +556,7 @@ do_uninstall() {
     if ! $DRY_RUN; then
         mkdir -p "$backup_root"
         log_info "Backup completo em: $backup_root"
-        for item in agents commands templates tools plugins examples GERAIS.md state-machine.json failure-protocol.json HARNESS-README.md package.json harness-allowlist.json; do
+        for item in agents commands templates tools plugins examples GERAIS.md state-machine.json state-machine-lean.json failure-protocol.json HARNESS-README.md package.json harness-allowlist.json; do
             if [[ -e "$dest/$item" ]]; then
                 cp -r "$dest/$item" "$backup_root/" 2>/dev/null || true
             fi
@@ -563,7 +564,7 @@ do_uninstall() {
     fi
 
     # Remove arquivos do harness
-    for item in agents commands templates tools plugins examples GERAIS.md state-machine.json failure-protocol.json HARNESS-README.md package.json harness-allowlist.json .harness-version; do
+    for item in agents commands templates tools plugins examples GERAIS.md state-machine.json state-machine-lean.json failure-protocol.json HARNESS-README.md package.json harness-allowlist.json .harness-version; do
         if [[ -e "$dest/$item" ]]; then
             if $DRY_RUN; then
                 log_info "  [DRY-RUN] rm -rf $dest/$item"
@@ -615,6 +616,7 @@ post_install_check() {
         "$dest/agents/briefing.md"
         "$dest/agents/backend.md"
         "$dest/commands/harness.md"
+        "$dest/state-machine-lean.json"
     )
 
     # opencode.json/jsonc é opcional (pode ter sido preservado)

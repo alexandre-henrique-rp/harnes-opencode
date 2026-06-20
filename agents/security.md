@@ -71,7 +71,7 @@ Verifique:
 |---|---|---|---|
 | A01 | Broken Access Control | Endpoints sem auth check, IDOR | critical |
 | A02 | Cryptographic Failures | HTTP em vez de HTTPS, MD5/SHA1, sem TLS 1.3 | critical |
-| A03 | Injection (SQL/XSS/Command) | Concatenação de SQL, eval, innerHTML sem escape | critical |
+| A03 | Injection (SQL/XSS/Prompt) | Concatenação de SQL/HTML, interpolação de variáveis de usuário em templates de prompt sem sanitização (OWASP LLM01) | critical |
 | A04 | Insecure Design | Falta de rate limit, falta de validação | high |
 | A05 | Security Misconfiguration | Debug mode em prod, default creds, CORS aberto | high |
 | A06 | Vulnerable Components | `npm audit`, `bundler-audit` com findings | high (critical se exploitable) |
@@ -97,6 +97,9 @@ grep -rE "http://" src/ --include="*.ts" --include="*.tsx" --include="*.js"
 
 # CORS aberto
 grep -rE "Access-Control-Allow-Origin.*\\*" src/
+
+# Prompt Injection (OWASP LLM01)
+grep -rE "(prompt|instruction|template|system_message|user_message).*\+.*\b(input|user|text|msg|param|body|req)\b" src/
 ```
 
 ### 5. Gerar relatório

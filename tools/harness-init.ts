@@ -27,8 +27,13 @@ export default tool({
       .boolean()
       .optional()
       .describe("Se true, sobrescreve .harness/ existente (CUIDADO: apaga state.json)"),
+    profile: tool.schema
+      .enum(["strict", "lean"])
+      .optional()
+      .default("strict")
+      .describe("Perfil do workflow: 'strict' (todas as 6 fases e revisores) ou 'lean' (3 fases simplificadas)"),
   },
-  async execute({ project, force = false }, context) {
+  async execute({ project, force = false, profile = "strict" }, context) {
     const cwd = context?.directory || process.cwd();
     const harnessDir = path.join(cwd, ".harness");
     const auditDir = path.join(harnessDir, "audit");
@@ -44,19 +49,29 @@ export default tool({
     fs.mkdirSync(harnessDir, { recursive: true });
     fs.mkdirSync(auditDir, { recursive: true });
 
-    // 2. Copia state-machine.json do template
-    const stateMachineSrc = path.join(cwd, "state-machine.json");
+    // 2. Copia state-machine.json do template correspondente ao perfil
+    const fileName = profile === "lean" ? "state-machine-lean.json" : "state-machine.json";
+    let stateMachineSrc = path.join(cwd, fileName);
+    
+    // Fallback: se não estiver no cwd, busca no diretório da instalação do harness (um nível acima do diretório da tool)
+    if (!fs.existsSync(stateMachineSrc)) {
+      stateMachineSrc = path.join(__dirname, "..", fileName);
+    }
+
     const stateMachineDest = path.join(harnessDir, "state-machine.json");
     if (!fs.existsSync(stateMachineSrc)) {
       return {
         success: false,
-        error: `state-machine.json nao encontrado em ${cwd}. Verifique se o harness v6 foi copiado para a raiz do projeto.`,
+        error: `${fileName} nao encontrado no local (${cwd}) ou global (${path.join(__dirname, "..")}). Verifique a instalacao do harness v6.`,
       };
     }
     fs.copyFileSync(stateMachineSrc, stateMachineDest);
 
     // 2.1 Copia failure-protocol.json do template
-    const failureProtocolSrc = path.join(cwd, "failure-protocol.json");
+    let failureProtocolSrc = path.join(cwd, "failure-protocol.json");
+    if (!fs.existsSync(failureProtocolSrc)) {
+      failureProtocolSrc = path.join(__dirname, "..", "failure-protocol.json");
+    }
     const failureProtocolDest = path.join(harnessDir, "failure-protocol.json");
     if (fs.existsSync(failureProtocolSrc)) {
       fs.copyFileSync(failureProtocolSrc, failureProtocolDest);

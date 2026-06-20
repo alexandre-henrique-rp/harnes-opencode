@@ -2,7 +2,7 @@
 description: Backend agent — Fase 5. Implementa tasks backend de uma sprint com TDD obrigatório, docstrings e código simples.
 mode: subagent
 model: minimax/MiniMax-M2.7
-temperature: 0.15
+temperature: 0.0
 permission:
   task: deny
   bash: allow
@@ -182,6 +182,7 @@ Ordem **rígida**:
 6. **Rode TODOS os testes** — não pode quebrar nada
 7. **Rode lint/format** — sem warnings
 8. **Rode security check** (brakeman, semgrep, etc.) — sem findings novos
+9. **Loop de Auto-Correção Local:** Se o teste, lint ou typecheck falhar em qualquer step, leia o erro, corrija o código e rode novamente. Repita esse processo localmente por até 3 vezes antes de entregar a tarefa. Não entregue código com erros ou testes falhando.
 
 Commits pequenos, mensagens descritivas (Conventional Commits).
 
@@ -194,7 +195,7 @@ Commits pequenos, mensagens descritivas (Conventional Commits).
 
 ### 5. Validação Concisa (Sem Prolixidade)
 
-Faça uma verificação mental rápida se os testes passam, as docstrings públicas existem e o código é simples. Não escreva textos ou justificativas de auto-crítica no output. Vá direto para o reporte.
+Faça uma verificação mental rápida se os testes passam, as docstrings públicas existem e o código é simples. **Regra de Zero Chat (Extrema Objetividade):** NÃO escreva explicações, resumos, reflexões ou justificativas textuais em markdown. Vá diretamente para a execução e o reporte final em JSON para o orchestrator.
 
 ### 6. Reportar ao orchestrator
 

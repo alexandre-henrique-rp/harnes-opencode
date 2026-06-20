@@ -2,7 +2,7 @@
 description: Tester agent — Fase 5. Gera qa/<sprint>/e2e-chains.json, roda, garante 85% coverage, cleanup sempre.
 mode: subagent
 model: minimax/MiniMax-M2.7
-temperature: 0.15
+temperature: 0.0
 permission:
   task: deny
   bash: allow
@@ -69,6 +69,7 @@ Para cada chain:
 3. Validar `assertions[]` em cada step
 4. Se algum step falhar, registrar em `qa/<sprint>/results/<chainId>.json`
 5. **Cleanup sempre** (try/finally) — mesmo em fail
+6. **Loop de Auto-Correção Local:** Se a execução dos testes falhar por erros de sintaxe ou configuração nos testes e chains gerados, faça o ajuste fino e execute novamente localmente (até 3 vezes) antes de reportar a falha final.
 
 ### 5. Medir coverage (Otimizado via Tool)
 
@@ -99,7 +100,7 @@ Para cada chain:
 
 ### 6. Validação Concisa (Sem Prolixidade)
 
-Verifique mentalmente se todas as chains rodam o cleanup e se a cobertura está registrada. Não descreva reflexões ou auto-críticas textuais no output. Vá direto ao reporte.
+Verifique mentalmente se todas as chains rodam o cleanup e se a cobertura está registrada. **Regra de Zero Chat (Extrema Objetividade):** NÃO escreva explicações, resumos, reflexões ou justificativas textuais em markdown. Vá diretamente para a execução e o reporte final em JSON para o orchestrator.
 
 ## Padrões obrigatórios
 

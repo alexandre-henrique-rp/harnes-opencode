@@ -15,8 +15,8 @@ export default tool({
   description: "Executa scans de segurança automatizados (Regex e auditoria de dependências) no código-fonte.",
   args: {
     targetDir: tool.schema.string().default("src").describe("Diretório alvo para o scan"),
-    checks: tool.schema.array(tool.schema.enum(["secrets", "sql_injection", "xss", "insecure_http", "cors", "dependencies"]))
-      .default(["secrets", "sql_injection", "xss", "insecure_http", "cors"])
+    checks: tool.schema.array(tool.schema.enum(["secrets", "sql_injection", "xss", "insecure_http", "cors", "dependencies", "prompt_injection"]))
+      .default(["secrets", "sql_injection", "xss", "insecure_http", "cors", "prompt_injection"])
       .describe("Tipos de verificações a realizar"),
   },
   async execute({ targetDir, checks }, context) {
@@ -57,6 +57,12 @@ export default tool({
         pattern: /Access-Control-Allow-Origin.*\*/i,
         category: "A05: Security Misconfiguration",
         title: "CORS Permitindo Qualquer Origem (*)",
+        severity: "high"
+      },
+      prompt_injection: {
+        pattern: /(prompt|instruction|template|system_message|user_message).*\+.*\b(input|user|text|msg|param|body|req)\b/i,
+        category: "A03: Injection (LLM01: Prompt Injection)",
+        title: "Possível Vulnerabilidade de Prompt Injection",
         severity: "high"
       }
     };
