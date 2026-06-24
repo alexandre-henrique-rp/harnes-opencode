@@ -3,8 +3,8 @@ description: Rodar reviewer de um tipo específico (PRD/SPEC/design/QA)
 agent: orchestrator
 ---
 1. Identifique o tipo de review pedido em `$ARGUMENTS`:
-   - `prd` → agent `prd-reviewer`, arquivo `PRD.html`
-   - `spec` → agent `spec-reviewer`, arquivo `SPEC.html`
+   - `prd` → agent `prd-reviewer`, arquivo `PRD.md`
+   - `spec` → agent `spec-reviewer`, arquivo `SPEC.md`
    - `design` → agent `design-reviewer`, glob `design/*.{DESIGN,PROMPT}.md`
    - `code` → agent `code-reviewer`, auditoria de código (TDD, docstrings, simplicidade)
    - `qa` → agent `qa-gate` (roda tester + security + reviewer em paralelo)

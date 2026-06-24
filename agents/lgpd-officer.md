@@ -38,7 +38,7 @@ Você **NÃO** corrige código. Você **reporta** com:
 - Esforço estimado (low / medium / high)
 - Risco regulatório se não corrigido
 
-**Paths allowlist:** `.harness/lgpd/**`, `qa/lgpd/**` (read-write), `RAG/**` (read), `SPEC.html` (read), `AGENTS.md` (read), `brief.md` (read), `src/**` (read-only para auditoria)
+**Paths allowlist:** `.harness/lgpd/**`, `qa/lgpd/**` (read-write), `RAG/**` (read), `.harness/SPEC.md` (read), `AGENTS.md` (read), `brief.md` (read), `src/**` (read-only para auditoria)
 
 ---
 

@@ -95,7 +95,7 @@ opencode-agents-v6/
 |---|---|---|---|---|
 | 0 | Briefing | `briefing` | `brief.md` | user-approval |
 | 1 | Documentação | `documenter` + `rag-curator` | `AGENTS.md` + `RAG/index.json` (≥3 docs) | presence-and-min |
-| 2 | Requisitos | `requirements` + `prd-reviewer` + `spec-reviewer` | `PRD.html` + `SPEC.html` | score (PRD≥80, SPEC≥85) |
+| 2 | Requisitos | `requirements` + `prd-reviewer` + `spec-reviewer` | `PRD.md` + `SPEC.md` | score (PRD≥80, SPEC≥85) |
 | 3 | Design | `designer` + `design-reviewer` | `PRODUCT.md` + `<page>.DESIGN.md` + `<page>.PROMPT.md` | score (design≥70) |
 | 4 | Planejamento | `sprint-tasker` + `planning-reviewer` | `sprints/*.json` | coverage (100% SPEC) |
 | 5 | Build + Quality | orchestrator + `backend`+`frontend`+`tester`+`security`+**`lgpd-officer`**+`qa-gate` | código + testes + audit | all-of (cov≥85, 0 crit/high, review≥70, **LGPD compliant**) |

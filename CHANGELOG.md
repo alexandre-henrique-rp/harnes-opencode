@@ -5,6 +5,18 @@ All notable changes to OpenCode Agents v6 are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.3.1] - 2026-06-24
+
+### Fixed — Correções Críticas de Segurança & Sandboxing
+- **Sandboxing de Escrita (`path-boundary.ts`)**: Corrigida falha grave onde ferramentas nativas de escrita de arquivos (`write_to_file`, `replace_file_content`, `multi_replace_file_content`) e o parâmetro `TargetFile` burlavam silenciosamente o plugin de path boundary.
+- **Validação de Gates de Score (`harness-advance.ts`)**: Impedida fraude e bypass pelo orquestrador LLM. A ferramenta agora valida a pontuação diretamente nos arquivos físicos de relatório salvos na pasta `.harness/reviews/`.
+- **Command Injection (`pii-detector.ts`)**: Corrigido risco crítico de execução de comandos arbitrários (RCE) via `execSync` com injeção de parâmetros. A busca por PII foi reescrita em Node.js nativo puro (multiplataforma, sem grep do terminal).
+- **Instalador de Skills (`install.sh`)**: Corrigido instalador para copiar corretamente a pasta de `skills/` no diretório global de configuração do opencode, incluindo as regras de `"skills/**"` na allowlist padrão do projeto.
+
+### Added — Google Stitch & Automação de Frontend
+- **Design Tokens & Stitch (`designer.md`, `orchestrator.md`)**: Integração e geração automática de prompts de UI em prompt único robusto com base no Google Stitch MCP e incorporação de `web-design-guidelines` e `impeccable`.
+- **Validação com Playwright local (`playwright-runner.ts`, `tester.md`)**: Validador automatizado local rodando Playwright no root para gerar vídeos e relatórios de falhas de UI sem gastar tokens com o MCP.
+
 ## [6.3.0] - 2026-06-13
 
 ### Added — Planejamento Fractal + Marcos de UX + Suite de Automação

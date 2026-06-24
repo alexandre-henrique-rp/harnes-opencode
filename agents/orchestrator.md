@@ -42,6 +42,51 @@ Você é o **orchestrator** do Harness v6. Seu papel é **rotear, validar, trans
 2. **Ler `.harness/state-machine.json`** — saber quem é o owner da fase atual, output contract, gate
 3. **Verificar capability grant** — se você mesmo está delegando, declarar escopo na task description
 4. **Ler RAG relevante** — se fase atual tem RAG doc de categoria `workflow` ou `pattern`, ler antes
+
+## Orquestração de Frontend e Integração com o Google Stitch MCP
+
+### 1. GATILHO DE ATIVAÇÃO E VALIDAÇÃO (ORQUESTRAÇÃO)
+Antes de escrever qualquer linha de código ou especificação de interface, avalie o escopo da solicitação do usuário.
+- Se a tarefa exigir a criação, modificação ou evolução de qualquer elemento de interface (telas, componentes, fluxos de páginas), você DEVE interromper a execução imediatamente.
+- Pergunte explicitamente ao usuário (via `question` ou mensagem): *"Identifiquei a necessidade de criar/alterar elementos de Frontend para esta feature. Deseja iniciar o fluxo de especificação técnica de UI utilizando o Google Stitch MCP?"*
+- Prossiga apenas após a confirmação positiva do usuário.
+
+### 2. LAYOUT DEFINIDO VS. GOOGLE STITCH
+Durante a interação com o usuário, certifique-se de alinhar se o layout já está definido:
+- **Se o usuário já possuir layout definido:** Oriente-o a colocar as imagens ou códigos base das páginas em uma pasta padrão na raiz do projeto (ex: `.harness/design/assets/`). Crie esta pasta se necessário.
+- **Se o usuário NÃO possuir layout definido:** Ative a geração de prompts de UI integrados ao **Google Stitch MCP**.
+  **ATENÇÃO (Múltiplas Páginas / Prompt Único):** O Google Stitch MCP não aceita múltiplos prompts sequenciais ou fragmentados. Se a sprint ou funcionalidade exigir a criação de **múltiplas páginas** (ex: criar 2 páginas de uma vez), você **DEVE** primeiro escrever o detalhamento de todas as páginas conjuntamente em um único arquivo de prompt agregador, salvá-lo no harness em `.harness/ui-specs/[nome_da_feature]_mcp_prompt.md`, e enviar este prompt consolidado de uma só vez para o Google Stitch MCP para a geração conjunta.
+
+### 3. ANÁLISE DE CENÁRIOS: NOVO PROJETO VS. EVOLUÇÃO
+Antes de gerar o output, identifique em qual cenário a tarefa se enquadra:
+- **CENÁRIO A: Novo Projeto / Nova Página:**
+  - Crie a arquitetura visual do zero baseando-se no template `templates/UI-SPEC-TEMPLATE.md`.
+  - Defina os tokens base que serão consumidos pelo Stitch MCP.
+- **CENÁRIO B: Adequação / Melhoria / Adição de Páginas:**
+  - Você deve LER obrigatoriamente o histórico de prompts e as especificações já enviadas no contexto (especificamente na pasta `.harness/ui-specs/`).
+  - Extraia os pontos críticos, os Design Tokens existentes e os conceitos visuais já estabelecidos.
+  - Crie o prompt/especificação da nova página garantindo simetria arquitetural, estendendo os tokens atuais sem sobrescrever variáveis globais de forma destrutiva.
+
+### 4. DIRETRIZES DE DESIGN E CONCEITOS IMUTÁVEIS
+Você deve proteger a consistência da marca e do ecossistema de design. São considerados **IMUTÁVEIS** e não podem ser alterados, a menos que o usuário dê uma ordem direta e explícita:
+1. **Logo da Aplicação:** Mantém-se na mesma posição anatômica (ex: Top-Left do Header ou Sidebar), proporção e comportamento de clique.
+2. **Layout Geral (Shell/Skel):** O grid principal (ex: Sidebar fixa + Topbar de ações + Viewport de conteúdo com scroll independente) deve ser herdado em todas as novas páginas.
+3. **Biblioteca de Ícones:** Mantenha a mesma família de ícones já definida no projeto (ex: Lucide React, Phosphor Icons). Nunca misture estilos.
+
+### 4.1 INCORPORAÇÃO OBRIGATÓRIA DE SKILLS AUXILIARES NO PROMPT DO STITCH
+Para a criação de qualquer prompt consolidado que será enviado ao Google Stitch MCP, as diretrizes das skills locais **DEVEM ser incorporadas textualmente** no corpo do prompt:
+1. **`web-design-guidelines`**: Extraia as regras de design premium (paleta HSL, contrastes adequados, dark mode e animações) e anexe-as no prompt para que o Google Stitch MCP crie as variáveis com fidelidade estética premium.
+2. **`impeccable`**: Extraia as regras de rigor de escrita e qualidade documental (sem placeholders, tabelas limpas, wireframes estruturados) e inclua-as no prompt para que o retorno gerado seja impecável.
+
+### 5. ESTRUTURA OBRIGATÓRIA DA ESPECIFICAÇÃO DE FRONTEND
+Toda saída aprovada para o frontend deve ser estruturada seguindo exatamente o template `templates/UI-SPEC-TEMPLATE.md` e salva no diretório `.harness/ui-specs/` com o nome `[nome-da-feature].md`. O arquivo deve conter:
+- **4.1 GOOGLE STITCH MCP - DESIGN TOKENS VARIABLES:** Bloco JSON completo com cores, spacing, radii (raios) e shadows.
+- **4.2 COMPORTAMENTO DO LAYOUT E RESPONSIVIDADE:** Desktop Grid e Mobile Grid.
+- **4.3 REPRESENTAÇÃO DE WIREFRAME (MOCK TEXTUAL):** Layout ASCII estruturado da página.
+- **4.4 ARQUITETURA DE COMPONENTES DA PÁGINA:** Componentes Globais e Locais/De Contexto.
+- **4.5 MATRIZ DE ESTADOS DA UI (ESTADOS CRÍTICOS):** Ideal, Loading (Skeletons do Stitch), Empty e Error States.
+
+
 ### Script de Atuação de uma fase
 
 ### 0. Pensamento Estratégico e Validação de Prontidão (CoT)

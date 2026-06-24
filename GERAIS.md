@@ -42,6 +42,7 @@ Antes de qualquer tool call, siga esta ordem:
 6. **Respeitar path boundary** — você só escreve nos paths declarados no seu agent config (`agents/<seu-agent>.md`)
 7. **Não pular portão** — se o orchestrator declarou um gate, espere o sinal de aprovação antes de avançar
 8. **Logar em audit** — toda tool call sua é gravada automaticamente por `audit-logger.ts`
+9. **Manutenção do AGENTS.md local:** Se a sua tarefa criar, renomear ou remover arquivos em algum subdiretório do projeto, você **DEVE** editar e atualizar o arquivo `AGENTS.md` desse subdiretório para manter a documentação e resumos em perfeita sintonia com a estrutura real de arquivos.
 
 ---
 
@@ -61,6 +62,21 @@ Antes de qualquer tool call, siga esta ordem:
 - **Primeiro Uso:** Se um MCP não tiver documentação no RAG, use-o com cautela e, após o sucesso, peça ao `rag-curator` para criar o doc inicial baseado na sua experiência real.
 
 Para instalar MCPs adicionais, adicione em `opencode.json → mcp` e reinicie o opencode.
+
+---
+
+## 3.1. Skills locais disponíveis (todos os agents)
+
+O harness possui skills personalizadas no diretório `skills/` que podem ser acionadas automaticamente pelo runtime do OpenCode ou sugeridas pelos agentes. Quando ativadas, leia o arquivo `SKILL.md` correspondente usando a tool `view_file` para seguir o script de execução:
+
+| Skill | Quando usar (Acionamento) |
+|---|---|
+| `grill-me` | Usada por `orchestrator` ou `briefing` no discovery inicial para alinhar o escopo técnico com o usuário. |
+| `find-docs` / `context7-mcp` | Usada por agentes de requisitos/código quando for necessário consultar a documentação de frameworks ou bibliotecas atuais via API Context7. |
+| `grill-with-docs` | Usada nas discussões técnicas que envolvem a stack tecnológica e documentações de suporte. |
+| `impeccable` | Usada para revisar e garantir a formatação impecável de entregas formais como SPEC e PRD. |
+| `web-design-guidelines` | Usada pelo `designer` e `frontend` para mapear layouts modernos de alta fidelidade e estética premium. |
+| `google-stitch-frontend` | Ativada quando houver tarefas de criação ou modificação de Frontend (telas, componentes, fluxos de UI), integrando-se com o Google Stitch MCP. |
 
 ---
 
@@ -109,37 +125,27 @@ Workers não se chamam entre si — toda comunicação volta pro orchestrator.
 ## 6. Princípios de engenharia (v6.2.0 — OBRIGATÓRIOS)
 
 > [!NOTE]
-> Os princípios e regras de TDD e documentação a seguir são obrigatórios e passíveis de bloqueio por agentes de revisão apenas no **Perfil Strict**. Sob o **Perfil Lean**, eles são fortemente recomendados para garantir a manutenibilidade, mas não bloqueiam a sprint e os requisitos do portão são flexibilizados (cobertura mínima de testes reduzida para 70% e sem bloqueio por falta de JSDoc).
+> Os princípios e regras de TDD e documentação a seguir são obrigatórios e passíveis de bloqueio por agentes de revisão apenas no **Perfil Strict**. 
+> Sob o **Perfil Lean**, para maximizar a velocidade e precisão das IAs, o TDD estrito é desativado em favor do **Direct Coding** (implementação direta do código da feature junto com seus testes funcionais e de contrato em uma única iteração de geração). A cobertura mínima de testes é reduzida para 70%, JSDocs não bloqueiam a sprint e o foco é a entrega rápida e funcional.
 
-### 6.1 TDD — Test-Driven Development
+### 6.1 TDD e Direct Coding (Diferença de Perfis)
 
-**TDD é OBRIGATÓRIO em todo código de feature.** Ciclo:
+*   **No Perfil Strict:** O TDD clássico é obrigatório (Ciclo: Red → Green → Refactor). Nunca crie código de feature antes do teste.
+*   **No Perfil Lean (Alta Velocidade):** Aplica-se o **Direct Coding**. O agente escreve o código da feature e o respectivo teste de validação funcional conjuntamente na mesma iteração. Isso reduz o número de iterações de LLM e acelera a entrega em mais de 60%, mantendo a segurança do teste.
 
-1. **Red** — Escreva UM teste que falha (define comportamento desejado)
-2. **Green** — Escreva o código MÍNIMO que faz o teste passar
-3. **Refactor** — Melhore o código sem quebrar o teste
-
-**Regras:**
-- ❌ **Nunca** escreva código de feature antes do teste
-- ❌ **Nunca** commite código sem teste correspondente
-- ❌ **Nunca** pule o red (não vale escrever teste + código de uma vez)
-- ✅ Testes vêm **antes** do código, sempre
-- ✅ Um teste por comportamento, não um teste por método
-- ✅ Nome do teste diz o comportamento: `it('should reject cpf with all same digits', ...)`
-- ✅ Roda o teste antes de commitar — tem que passar
-- ✅ Roda TODOS os testes da feature — não pode quebrar nada
-- ✅ Coverage mínimo de 85% por sprint (gate do phase 5)
-
-**Exceções legítimas (comentar no commit):**
-- Prototipagem descartável (spike)
-- Configuração de ambiente (não é código de feature)
-- Glue code entre libs externas já testadas (mas exercitado por teste de integração)
+**Regras de Teste Gerais:**
+- ❌ **Nunca** commite código sem teste correspondente (em ambos os perfis).
+- ✅ Um teste por comportamento, não por método.
+- ✅ Nome do teste diz o comportamento.
+- ✅ Roda o teste antes de commitar — tem que passar.
+- ✅ Coverage mínimo de 85% por sprint no Strict, e 70% no Lean.
 
 ### 6.2 Documentação obrigatória
 
-**TODA função pública DEVE ter JSDoc/docstring.** Funções internas (helpers privados) podem ter comentário de 1 linha.
+**No Perfil Strict, toda função pública DEVE ter JSDoc/docstring.** No Perfil Lean, a documentação é recomendada, mas opcional e não bloqueante.
 
-**Schema mínimo para função pública:**
+**Schema mínimo para função pública (Strict):**
+
 
 ```typescript
 /**

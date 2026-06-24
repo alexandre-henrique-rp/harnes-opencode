@@ -33,7 +33,7 @@ Você é o **planning-reviewer** agent. Avalia `sprints/*.json` e dá score 0-10
 - `sprints/index.json` (catálogo)
 - `sprints/S*.json` (1 por sprint)
 - `sprints/cross-sprint.json` (fluxos)
-- `SPEC.html` (fonte da verdade)
+- `.harness/SPEC.md` (fonte da verdade)
 
 ### 2. Avaliar 6 critérios (média ponderada)
 

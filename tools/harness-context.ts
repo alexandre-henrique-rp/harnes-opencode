@@ -16,6 +16,7 @@
  */
 
 import { tool } from "@opencode-ai/plugin";
+import { execFileSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -47,7 +48,7 @@ export default tool({
     includeFiles: tool.schema
       .array(tool.schema.string())
       .optional()
-      .describe("Paths adicionais para incluir no contexto (ex: ['PRD.html', 'design/user-register.PROMPT.md'])"),
+      .describe("Paths adicionais para incluir no contexto (ex: ['PRD.md', 'design/user-register.PROMPT.md'])"),
     extraContext: tool.schema
       .string()
       .optional()
@@ -116,23 +117,87 @@ export default tool({
       "training"
     );
 
-    const allRelevantDocs: any[] = [];
+    const dbPath = path.join(globalTrainingDir, "rag.db");
 
-    // 1. Carrega local RAGs
+    const allRelevantDocs: any[] = [];
+    let usedSQLite = false;
+
+    // 1. Carrega local RAGs (sempre via index.json local)
     if (fs.existsSync(ragIndexPath)) {
       try {
         const ragIndex = JSON.parse(fs.readFileSync(ragIndexPath, "utf8"));
         const localRelevant = (ragIndex.docs || []).filter((d: any) =>
           relevantCategories.includes(d.category)
         );
-        allRelevantDocs.push(...localRelevant.map((d: any) => ({ ...d, isGlobal: false })));
+        allRelevantDocs.push(...localRelevant.map((d: any) => ({
+          id: d.id,
+          category: d.category,
+          title: d.title,
+          priority: d.priority,
+          isGlobal: false
+        })));
       } catch {
         // ignore
       }
     }
 
-    // 2. Carrega global RAGs
-    if (fs.existsSync(globalTrainingDir)) {
+    // 2. Carrega global RAGs (via global SQLite rag.db se existir, senão via JSON fallback)
+    if (fs.existsSync(dbPath)) {
+      try {
+        // Extrai palavras-chave da descrição do escopo da tarefa para o filtro inteligente
+        const words = scope
+          .toLowerCase()
+          .replace(/[^a-z0-9à-ú\s]/g, "")
+          .split(/\s+/)
+          .filter(w => w.length > 3);
+
+        let relevanceSelect = "0";
+        if (words.length > 0) {
+          relevanceSelect = words
+            .map(w => {
+              const escaped = w.replace(/'/g, "''");
+              return `(CASE WHEN title LIKE '%${escaped}%' THEN 5 ELSE 0 END +
+                       CASE WHEN summary LIKE '%${escaped}%' THEN 3 ELSE 0 END +
+                       CASE WHEN tags LIKE '%${escaped}%' THEN 4 ELSE 0 END)`;
+            })
+            .join(" + ");
+        }
+
+        const categoryFilter = relevantCategories.map(c => `'${c.replace(/'/g, "''")}'`).join(",");
+        const sqlQuery = `
+          SELECT id, category, title, priority, (${relevanceSelect}) as relevance
+          FROM rag_docs
+          WHERE category IN (${categoryFilter}) AND (status = 'approved' OR status = 'reviewed')
+          ORDER BY relevance DESC,
+                   (CASE priority WHEN 'critical' THEN 4 WHEN 'high' THEN 3 WHEN 'medium' THEN 2 ELSE 1 END) DESC
+          LIMIT 8;
+        `;
+
+        const output = execFileSync("sqlite3", [dbPath, "-json"], {
+          input: sqlQuery,
+          encoding: "utf8"
+        });
+
+        if (output && output.trim()) {
+          const results = JSON.parse(output);
+          for (const row of results) {
+            allRelevantDocs.push({
+              id: row.id,
+              category: row.category,
+              title: row.title,
+              priority: row.priority,
+              isGlobal: true
+            });
+          }
+          usedSQLite = true;
+        }
+      } catch (err) {
+        // Ignora silenciosamente, fará fallback para JSON
+      }
+    }
+
+    // 3. Fallback para JSON caso o SQLite global não tenha sido usado
+    if (!usedSQLite && fs.existsSync(globalTrainingDir)) {
       try {
         const globalFiles = fs.readdirSync(globalTrainingDir).filter(f => f.endsWith(".md"));
         for (const file of globalFiles) {
@@ -153,7 +218,7 @@ export default tool({
       }
     }
 
-    // Ordenar por prioridade (critical > high > medium > low)
+    // 4. Ordenar a lista unificada por prioridade (critical > high > medium > low)
     const priorityWeight: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 };
     allRelevantDocs.sort((a, b) => {
       const wa = priorityWeight[a.priority] || 2;
@@ -191,11 +256,17 @@ export default tool({
           "\n\n"
         : "";
 
-    // Files adicionais a incluir
+    // Files adicionais a incluir (com context pruning ativado para arquivos de suporte)
     const extraFilesSection =
       includeFiles.length > 0
-        ? "**Files adicionais a ler:**\n" +
-          includeFiles.map((f: string) => `- \`${f}\``).join("\n") +
+        ? "**Files adicionais a ler (assinaturas e esqueleto):**\n" +
+          includeFiles.map((f: string) => {
+            const prunedPath = pruneFileForContext(cwd, f);
+            if (prunedPath !== f) {
+              return `- \`${f}\` (Versao esqueleto em: \`${prunedPath}\`)`;
+            }
+            return `- \`${f}\``;
+          }).join("\n") +
           "\n\n"
         : "";
 
@@ -248,3 +319,66 @@ export default tool({
     };
   },
 });
+
+/**
+ * Poda estaticamente arquivos de codigo TS/JS para extrair assinaturas e interfaces
+ * salvando em .harness/temp-context/ para economizar tokens do agente.
+ */
+function pruneFileForContext(cwd: string, sourceFile: string): string {
+  const fullPath = path.isAbsolute(sourceFile) ? sourceFile : path.join(cwd, sourceFile);
+  if (!fs.existsSync(fullPath)) return sourceFile;
+  const extension = path.extname(fullPath);
+  if (![".ts", ".tsx", ".js", ".jsx"].includes(extension)) return sourceFile;
+
+  try {
+    const content = fs.readFileSync(fullPath, "utf8");
+    const lines = content.split("\n");
+    const prunedLines: string[] = [];
+    let inFunction = false;
+    let braceCount = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
+
+      if (inFunction) {
+        const openMatches = (line.match(/{/g) || []).length;
+        const closeMatches = (line.match(/}/g) || []).length;
+        braceCount += openMatches - closeMatches;
+        if (braceCount <= 0) {
+          prunedLines.push(line.replace(/.*}/, "  }"));
+          inFunction = false;
+          braceCount = 0;
+        }
+        continue;
+      }
+
+      const isExportOrMethod =
+        trimmed.startsWith("export ") ||
+        trimmed.startsWith("class ") ||
+        trimmed.startsWith("interface ") ||
+        trimmed.startsWith("type ") ||
+        (trimmed.includes("(") && trimmed.endsWith("{")) ||
+        (trimmed.startsWith("public ") || trimmed.startsWith("private ") || trimmed.startsWith("static "));
+
+      if (isExportOrMethod && (trimmed.includes("function") || (trimmed.includes("(") && trimmed.endsWith("{")))) {
+        const header = line.substring(0, line.indexOf("{"));
+        prunedLines.push(`${header}{ /* ... codigo ocultado para economizar contexto ... */ }`);
+        if (trimmed.endsWith("}")) continue;
+        inFunction = true;
+        braceCount = 1;
+        continue;
+      }
+      prunedLines.push(line);
+    }
+
+    const destRelative = path.join(".harness", "temp-context", path.relative(cwd, fullPath));
+    const destPath = path.join(cwd, destRelative);
+    fs.mkdirSync(path.dirname(destPath), { recursive: true });
+    fs.writeFileSync(destPath, prunedLines.join("\n"));
+    return destRelative;
+  } catch {
+    return sourceFile;
+  }
+}
+

@@ -22,7 +22,7 @@ set -euo pipefail
 # Configuracao
 # ============================================================================
 
-HARNESS_VERSION="6.1.0"
+HARNESS_VERSION="6.3.1"
 HARNESS_NAME="harness-v6"
 DRY_RUN=false
 PRESERVE_CONFIG=false
@@ -407,6 +407,11 @@ do_install() {
         copy_item "$src/examples" "$dest/examples" "examples/ (1 end-to-end)"
     fi
 
+    # Skills (skills do harness)
+    if [[ -d "$src/skills" ]]; then
+        copy_item "$src/skills" "$dest/skills" "skills/ (skills do harness)"
+    fi
+
     # Cria package.json (necessario para opencode resolver @opencode-ai/plugin)
     if ! $DRY_RUN; then
         local pkg_json="$dest/package.json"
@@ -472,6 +477,7 @@ EOF
     "HARNESS-README.md",
     "CHANGELOG.md",
     "examples/**",
+    "skills/**",
     "harness-allowlist.json"
   ],
   "deny": [
@@ -609,6 +615,7 @@ do_uninstall() {
         printf "  - $dest/tools/\n"
         printf "  - $dest/plugins/\n"
         printf "  - $dest/examples/\n"
+        printf "  - $dest/skills/\n"
         printf "  - $dest/GERAIS.md\n"
         printf "  - $dest/state-machine.json\n"
         printf "  - $dest/failure-protocol.json\n"
@@ -629,7 +636,7 @@ do_uninstall() {
     if ! $DRY_RUN; then
         mkdir -p "$backup_root"
         log_info "Backup completo em: $backup_root"
-        for item in agents commands templates tools plugins examples GERAIS.md state-machine.json state-machine-lean.json failure-protocol.json HARNESS-README.md package.json harness-allowlist.json; do
+        for item in agents commands templates tools plugins examples skills GERAIS.md state-machine.json state-machine-lean.json failure-protocol.json HARNESS-README.md package.json harness-allowlist.json; do
             if [[ -e "$dest/$item" ]]; then
                 cp -r "$dest/$item" "$backup_root/" 2>/dev/null || true
             fi
@@ -637,7 +644,7 @@ do_uninstall() {
     fi
 
     # Remove arquivos do harness
-    for item in agents commands templates tools plugins examples GERAIS.md state-machine.json state-machine-lean.json failure-protocol.json HARNESS-README.md package.json harness-allowlist.json .harness-version; do
+    for item in agents commands templates tools plugins examples skills GERAIS.md state-machine.json state-machine-lean.json failure-protocol.json HARNESS-README.md package.json harness-allowlist.json .harness-version; do
         if [[ -e "$dest/$item" ]]; then
             if $DRY_RUN; then
                 log_info "  [DRY-RUN] rm -rf $dest/$item"

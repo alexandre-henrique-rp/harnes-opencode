@@ -67,33 +67,61 @@ export default tool({
       }
     };
 
-    // 1. Executar Scans de Regex
-    for (const check of checks) {
-      if (check === "dependencies") continue;
-      const config = (scanPatterns as any)[check];
-      
+    // 1. Executar Scans de Regex nativamente em Node.js
+    const scanDirRecursive = (dir: string) => {
+      let entries: fs.Dirent[] = [];
       try {
-        // Usando grep via shell para performance em arquivos grandes
-        const cmd = `grep -rEn "${config.pattern.source.replace(/"/g, '\\"')}" "${fullTargetDir}" || true`;
-        const output = execSync(cmd).toString();
+        entries = fs.readdirSync(dir, { withFileTypes: true });
+      } catch (err) {
+        return; // Diretório inacessível
+      }
+
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
         
-        if (output) {
-          const lines = output.split("\n").filter(l => l.trim());
-          for (const line of lines) {
-            const [filePath, lineNum, ...evidence] = line.split(":");
-            findings.push({
-              category: config.category,
-              title: config.title,
-              severity: config.severity,
-              file: path.relative(cwd, filePath),
-              line: parseInt(lineNum),
-              evidence: evidence.join(":").trim()
-            });
+        if (entry.isDirectory()) {
+          // Ignora pastas de controle conhecidas
+          if (entry.name === "node_modules" || entry.name === ".git" || entry.name === ".harness") {
+            continue;
+          }
+          scanDirRecursive(fullPath);
+        } else if (entry.isFile()) {
+          // Ignora extensões de arquivos binários ou estáticos grandes
+          const ext = path.extname(entry.name).toLowerCase();
+          if ([".png", ".jpg", ".jpeg", ".gif", ".ico", ".pdf", ".zip", ".db", ".sqlite", ".woff", ".woff2", ".ttf"].includes(ext)) {
+            continue;
+          }
+
+          try {
+            const content = fs.readFileSync(fullPath, "utf8");
+            const lines = content.split("\n");
+
+            for (const check of checks) {
+              if (check === "dependencies") continue;
+              const config = (scanPatterns as any)[check];
+
+              lines.forEach((lineText, idx) => {
+                if (config.pattern.test(lineText)) {
+                  findings.push({
+                    category: config.category,
+                    title: config.title,
+                    severity: config.severity,
+                    file: path.relative(cwd, fullPath),
+                    line: idx + 1,
+                    evidence: lineText.trim()
+                  });
+                }
+              });
+            }
+          } catch (err) {
+            // Ignora arquivos ilegíveis
           }
         }
-      } catch (e) {
-        // ignore errors from grep (often just "not found")
       }
+    };
+
+    if (checks.some(c => c !== "dependencies")) {
+      scanDirRecursive(fullTargetDir);
     }
 
     // 2. Auditoria de Dependências (Opcional)

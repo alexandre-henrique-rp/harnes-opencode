@@ -82,16 +82,16 @@
       "inputFrom": ["phase.1.documentacao"],
       "outputContract": {
         "files": [
-          { "path": ".harness/PRD.html", "required": true, "minSections": 5, "maxCharsPerSection": 3000 },
-          { "path": ".harness/SPEC.html", "required": true, "minSections": 10, "maxCharsPerSection": 3000 }
+          { "path": ".harness/PRD.md", "required": true, "minSections": 5, "maxCharsPerSection": 3000 },
+          { "path": ".harness/SPEC.md", "required": true, "minSections": 10, "maxCharsPerSection": 3000 }
         ],
-        "schema": "html-with-embedded-json"
+        "schema": "markdown-with-embedded-json"
       },
       "gate": {
         "type": "score-threshold",
         "checks": [
-          { "agent": "prd-reviewer", "file": ".harness/PRD.html", "minScore": 80 },
-          { "agent": "spec-reviewer", "file": ".harness/SPEC.html", "minScore": 85 }
+          { "agent": "prd-reviewer", "file": ".harness/PRD.md", "minScore": 80 },
+          { "agent": "spec-reviewer", "file": ".harness/SPEC.md", "minScore": 85 }
         ],
         "onFail": { "action": "rework", "loopbackTo": "phase.2.requisitos", "message": "PRD ou SPEC abaixo do score minimo" }
       },

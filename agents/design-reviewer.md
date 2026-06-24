@@ -48,7 +48,7 @@ Use `glob: "design/*.DESIGN.md"` e `glob: "design/*.PROMPT.md"`. Cada página de
 Estes, se faltarem, são `critical`:
 
 - [ ] PROMPT.md tem `sprint` definido
-- [ ] PROMPT.md tem `specRefs` linkando para SPEC.html
+- [ ] PROMPT.md tem `specRefs` linkando para SPEC.md
 - [ ] Field schema tem `validation` em todos campos `required: true`
 - [ ] Action submit tem `endpoint` que existe no SPEC
 - [ ] Cross-module hints têm `dataFlow` (qual campo flui de onde pra onde)

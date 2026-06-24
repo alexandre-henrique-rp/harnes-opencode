@@ -277,22 +277,36 @@ function validateGate(phase: any, params: any): any {
 
     case "score-threshold": {
       const failures: string[] = [];
+      const actualScores: Record<string, number> = {};
+
       for (const check of gate.checks || []) {
-        const score = scores?.[check.agent];
-        if (score === undefined) {
-          failures.push(`Score para agent '${check.agent}' nao foi fornecido`);
+        // Busca score real no arquivo físico de review mais recente
+        const realScore = getRealReviewScore(cwd, check.agent);
+        const paramScore = scores?.[check.agent];
+
+        if (realScore === null) {
+          failures.push(`Arquivo de auditoria fisica para o agent '${check.agent}' nao encontrado em .harness/reviews/. Execute o review antes de avancar.`);
           continue;
         }
-        if (score < check.minScore) {
-          failures.push(`${check.agent} score ${score} < ${check.minScore} (em ${check.file || check.glob})`);
+
+        actualScores[check.agent] = realScore;
+
+        // Compara se o score passado como parâmetro é diferente do gravado fisicamente (antifraude)
+        if (paramScore !== undefined && paramScore !== realScore) {
+          failures.push(`Fraude ou divergencia detectada para '${check.agent}': score fornecido (${paramScore}) nao bate com o score real do relatorio (${realScore})`);
+          continue;
+        }
+
+        if (realScore < check.minScore) {
+          failures.push(`${check.agent} score real ${realScore} < ${check.minScore} (em ${check.file || check.glob})`);
         }
       }
       const passed = failures.length === 0;
       return {
         passed,
         failureClass: passed ? null : "quality",
-        reason: passed ? "All scores above threshold" : failures.join("; "),
-        details: { checks: gate.checks, scores },
+        reason: passed ? "All scores above threshold (validado fisicamente)" : failures.join("; "),
+        details: { checks: gate.checks, scores: actualScores },
       };
     }
 
@@ -417,7 +431,9 @@ function transitionPhase(state: any, phase: any, stateMachine: any, harnessDir: 
   state.updatedAt = new Date().toISOString();
 
   const statePath = path.join(harnessDir, "state.json");
-  fs.writeFileSync(statePath, JSON.stringify(state, null, 2));
+  const tmpStatePath = `${statePath}.tmp`;
+  fs.writeFileSync(tmpStatePath, JSON.stringify(state, null, 2));
+  fs.renameSync(tmpStatePath, statePath);
 
   updateProgressFile(state, stateMachine, harnessDir);
 
@@ -496,3 +512,36 @@ function updateProgressFile(state: any, stateMachine: any, harnessDir: string) {
 
   fs.writeFileSync(path.join(harnessDir, "PROGRESS.md"), content);
 }
+
+/**
+ * Busca o score real de um revisor no arquivo JSON mais recente gravado em .harness/reviews/
+ */
+function getRealReviewScore(cwd: string, agentName: string): number | null {
+  try {
+    const reviewsDir = path.join(cwd, ".harness", "reviews");
+    if (!fs.existsSync(reviewsDir)) return null;
+
+    const files = fs.readdirSync(reviewsDir);
+    // Identifica prefixo esperado: ex: prd-reviewer -> prd-review- ou prd-reviewer-review-
+    const prefix1 = `${agentName}-review-`;
+    const prefix2 = `${agentName.replace("-reviewer", "")}-review-`;
+
+    const reviewFiles = files
+      .filter(f => (f.startsWith(prefix1) || f.startsWith(prefix2)) && f.endsWith(".json"))
+      .map(f => {
+        const filePath = path.join(reviewsDir, f);
+        const stat = fs.statSync(filePath);
+        return { path: filePath, mtime: stat.mtimeMs };
+      })
+      .sort((a, b) => b.mtime - a.mtime); // Mais recente primeiro
+
+    if (reviewFiles.length === 0) return null;
+
+    const content = fs.readFileSync(reviewFiles[0].path, "utf8");
+    const report = JSON.parse(content);
+    return typeof report.score === "number" ? report.score : null;
+  } catch (err) {
+    return null;
+  }
+}
+

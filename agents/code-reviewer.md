@@ -65,7 +65,7 @@ Verifique se há over-engineering.
 
 - `git diff main..HEAD --stat` (quais arquivos mudaram)
 - `src/**` (leitura do código e testes)
-- `SPEC.html` e `design/*.PROMPT.md` (o que deveria ter sido implementado)
+- `.harness/SPEC.md` e `.harness/design/*.PROMPT.md` (o que deveria ter sido implementado)
 
 ### 2. Avaliar arquivos
 

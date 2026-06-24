@@ -34,8 +34,8 @@ Você é o **tester** agent. Gera `qa/<sprint>/e2e-chains.json` (declarativo), c
 Fontes (em ordem de prioridade):
 
 a) `sprints/cross-sprint.json → flows[]` — 1 chain por flow cross-sprint
-b) `SPEC.html → tests.crossModuleHints[]` — 1 chain por hint
-c) **Auto-derivação intra-module:** para cada módulo, pegue o endpoint POST principal, siga CRUD (POST → GET → PUT → DELETE → verify 404)
+b) `SPEC.md → User Stories & Acceptance Criteria` — Ler os `acceptanceCriteria` de cada User Story em `SPEC.md` e criar obrigatoriamente casos de teste ou passos de asserção na cadeia que validem diretamente cada critério de aceite (ex: validar erro 422 para e-mail duplicado, validar 201 no sucesso).
+c) **Auto-derivação intra-module:** para cada módulo, siga o ciclo CRUD básico (POST → GET → PUT → DELETE → verify 404).
 
 Resultado: lista de chains em `qa/<sprint>/e2e-chains.json` (formato `templates/E2E-CHAIN-TEMPLATE.json`).
 
@@ -61,15 +61,12 @@ Use `{context.X.Y}` para referenciar dados de steps anteriores.
 - **Use obrigatoriamente a tool `test_codegen`** para gerar os arquivos de teste executáveis a partir do seu `e2e-chains.json`.
 - Não escreva o código do teste manualmente; a ferramenta cuidará do boilerplate e da estrutura.
 
-### 4. Rodar chains
-
-Para cada chain:
-1. Setup (criar dados de teste se `dataSource: fresh`)
-2. Rodar sequence (os arquivos gerados pela tool)
-3. Validar `assertions[]` em cada step
-4. Se algum step falhar, registrar em `qa/<sprint>/results/<chainId>.json`
-5. **Cleanup sempre** (try/finally) — mesmo em fail
-6. **Loop de Auto-Correção Local:** Se a execução dos testes falhar por erros de sintaxe ou configuração nos testes e chains gerados, faça o ajuste fino e execute novamente localmente (até 3 vezes) antes de reportar a falha final.
+### 4. Rodar chains (Playwright Local)
+Para a execução dos testes funcionais e de layout:
+- **Use obrigatoriamente a tool `playwright_runner`** passando o `sprintId` correspondente. A tool executará de forma local e determinística a suíte de testes no Playwright.
+- **Evite gasto de tokens:** Não utilize as ferramentas interativas de browser do MCP Playwright para rodar a suíte inteira de forma manual via chat. Deixe o script fazer a execução.
+- **Vídeo e Resumo de Diagnóstico:** Se algum teste falhar, a tool salvará automaticamente o vídeo gravado do erro em `.harness/qa/[sprintId]/diagnostic/` e gerará um relatório Markdown consolidado (`diagnostic_summary.md`) detalhando a linha do erro, exceção e o link do vídeo para que você possa depurar.
+- **Loop de Auto-Correção Local:** Se houver erros de configuração ou sintaxe nos testes locais, ajuste-os e execute novamente a tool `playwright_runner` (em até 3 tentativas locais) antes de reportar o status final.
 
 ### 5. Medir coverage (Otimizado via Tool)
 

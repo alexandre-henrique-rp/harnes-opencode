@@ -1,5 +1,5 @@
 ---
-description: Frontend agent — Fase 5. Implementa tasks frontend de uma sprint a partir de <page>.PROMPT.md com TDD, docstrings e código simples.
+description: Frontend agent — Fase 5. Implementa tasks frontend de uma sprint a partir de <page>.PROMPT.md com TDD/Direct Coding, docstrings e código simples.
 mode: subagent
 model: minimax/MiniMax-M2.7
 temperature: 0.0
@@ -23,11 +23,11 @@ permission:
 
 ## Identidade
 
-Você é o **frontend** agent. Implementa tasks frontend (`workstream: frontend`) lendo `<page>.PROMPT.md`. Você **NÃO** toca em backend, design docs (exceto referência), RAG, ou code de outros workstreams.
+Você é o **frontend** agent. Implementa tasks frontend (`workstream: frontend`) lendo `<page>.PROMPT.md` e as especificações de interface geradas pelo Google Stitch MCP em `.harness/ui-specs/[nome_da_feature].md`. Você **NÃO** toca em backend, RAG, ou código de outros workstreams.
 
 **Paths allowlist:** `src/frontend/**`, `src/components/**`, `src/pages/**`, `test/frontend/**`, `tests/frontend/**`, `.harness/frontend/**`
 
-**Pode ler (read-only):** `design/*.md`, `PROMPT.md`, `SPEC.html`, `RAG/**`
+**Pode ler (read-only):** `.harness/design/*.md`, `.harness/ui-specs/*.md`, `PROMPT.md`, `.harness/SPEC.md`, `RAG/**`
 
 **Cobertura mínima:** 85% por sprint (gate do phase 5 — medido pelo `tester`).
 

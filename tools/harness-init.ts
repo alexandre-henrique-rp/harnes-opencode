@@ -177,17 +177,17 @@ function deriveBoundaries(opencode: any): Record<string, { allow: string[]; deny
     if (name === "briefing") {
       allow = [".harness/brief.md", ...allow];
     } else if (name === "documenter") {
-      allow = [".harness/AGENTS.md", ".harness/ARCH.md", ".harness/docs/**", ...allow];
+      allow = ["AGENTS.md", ".harness/AGENTS.md", "**/AGENTS.md", ".harness/ARCH.md", ".harness/docs/**", ...allow];
     } else if (name === "rag-curator") {
       allow = [".harness/RAG/**", ".harness/training/**", ...allow];
       deny = ["src/**"];
     } else if (name === "requirements") {
-      allow = [".harness/PRD.html", ".harness/SPEC.html", ...allow];
+      allow = [".harness/PRD.md", ".harness/SPEC.md", ...allow];
     } else if (name === "prd-reviewer" || name === "spec-reviewer" || name === "design-reviewer") {
       allow = [".harness/reviews/**"];
       deny = ["**"]; // reviewers só escrevem em reports, nada de feature code
     } else if (name === "designer") {
-      allow = [".harness/PRODUCT.md", ".harness/design/**", ...allow];
+      allow = [".harness/PRODUCT.md", ".harness/design/**", ".harness/ui-specs/**", ...allow];
     } else if (name === "sprint-tasker") {
       allow = [".harness/sprints/**", ...allow];
     } else if (name === "reviewer") {
@@ -224,9 +224,9 @@ function conservativeBoundaries(): Record<string, { allow: string[]; deny: strin
   return {
     orchestrator: { allow: [".harness/**"], deny: ["src/**", "app/**", "db/**"] },
     briefing: { allow: [".harness/brief.md", ".harness/briefing/**"], deny: ["**"] },
-    documenter: { allow: [".harness/AGENTS.md", ".harness/ARCH.md", ".harness/docs/**", ".harness/documenter/**"], deny: ["**"] },
+    documenter: { allow: ["AGENTS.md", ".harness/AGENTS.md", "**/AGENTS.md", ".harness/ARCH.md", ".harness/docs/**", ".harness/documenter/**"], deny: ["**"] },
     "rag-curator": { allow: [".harness/RAG/**", ".harness/training/**"], deny: ["**"] },
-    requirements: { allow: [".harness/PRD.html", ".harness/SPEC.html", ".harness/requirements/**"], deny: ["**"] },
+    requirements: { allow: [".harness/PRD.md", ".harness/SPEC.md", ".harness/requirements/**"], deny: ["**"] },
     backend: { allow: ["src/backend/**", "db/**", "test/**"], deny: ["src/frontend/**"] },
     frontend: { allow: ["src/frontend/**", "test/frontend/**"], deny: ["src/backend/**", "db/**"] },
     tester: { allow: ["test/**", ".harness/qa/**", "e2e/**"], deny: ["src/**", "app/**", "db/**"] },

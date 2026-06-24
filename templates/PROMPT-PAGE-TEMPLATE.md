@@ -4,7 +4,7 @@ route: /<caminho>
 module: <NomeModulo>
 parentPage: <paginaPai>          # ou null
 sprint: NN                        # número da sprint (preenchido na fase 4)
-specRefs: [<id-do-item-no-SPEC.html>]    # ex: ["US-001", "EP-005"]
+specRefs: [<id-do-item-no-SPEC.md>]    # ex: ["US-001", "EP-005"]
 designRef: <page>.DESIGN.md       # arquivo de design associado
 backendContracts: [<endpoint-method-path>]  # ex: ["POST /api/v1/users"]
 createdAt: <ISO8601>

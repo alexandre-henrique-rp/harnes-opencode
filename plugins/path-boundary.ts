@@ -78,15 +78,43 @@ export const PathBoundaryPlugin: Plugin = async ({ directory, worktree }) => {
     (isValidPath(directory) ? directory : null) ??
     process.cwd();
 
+  let cachedAllowlist: any = null;
+  let cachedMtime: number = 0;
+
+  function getAllowlist() {
+    try {
+      if (fs.existsSync(ALLOWLIST_PATH)) {
+        const stat = fs.statSync(ALLOWLIST_PATH);
+        if (!cachedAllowlist || stat.mtimeMs !== cachedMtime) {
+          cachedAllowlist = JSON.parse(fs.readFileSync(ALLOWLIST_PATH, "utf8"));
+          cachedMtime = stat.mtimeMs;
+        }
+        return cachedAllowlist;
+      }
+    } catch (err) {
+      // ignore
+    }
+    return null;
+  }
+
   return {
     "tool.execute.before": async (input, output) => {
-      // So intercepta edit e write
-      if (input.tool !== "edit" && input.tool !== "write") {
+      // Intercepta todas as ferramentas conhecidas de escrita/edição de arquivos
+      const writeTools = [
+        "write_to_file",
+        "replace_file_content",
+        "multi_replace_file_content",
+        "edit",
+        "write"
+      ];
+
+      if (!writeTools.includes(input.tool)) {
         return;
       }
 
+      const args = input?.args || output?.args || {};
       const filePath: string =
-        output?.args?.filePath || output?.args?.path || output?.args?.file || "";
+        args.TargetFile || args.filePath || args.path || args.file || "";
 
       if (!filePath) {
         return;
@@ -116,8 +144,8 @@ export const PathBoundaryPlugin: Plugin = async ({ directory, worktree }) => {
 
       // 3. Checar allowlist (custom do projeto)
       try {
-        if (fs.existsSync(ALLOWLIST_PATH)) {
-          const allowlist = JSON.parse(fs.readFileSync(ALLOWLIST_PATH, "utf8"));
+        const allowlist = getAllowlist();
+        if (allowlist) {
           const relPath = path.relative(projectRoot, absPath);
 
           const projectAllow: string[] = allowlist.allow || [];

@@ -6,7 +6,7 @@
   "project": "{{project}}",
   "generatedAt": "{{ISO8601}}",
   "generatedBy": "sprint-tasker",
-  "specRef": "SPEC.html",
+  "specRef": "SPEC.md",
   "totalSprints": 0,
   "sprints": [
     {

@@ -27,7 +27,7 @@ opencode /harness-help      # este cheatsheet
 |---|---|---|---|---|
 | 0 | Briefing | `briefing` | "começar projeto", "brief", "ideia" | `brief.md` |
 | 1 | Documentação | `documenter` | "documentar", "criar AGENTS.md" | `AGENTS.md` + `ARCH.md` + `RAG/index.json` |
-| 2 | Requisitos | `requirements` | "PRD", "SPEC", "requisitos" | `PRD.html` + `SPEC.html` |
+| 2 | Requisitos | `requirements` | "PRD", "SPEC", "requisitos" | `PRD.md` + `SPEC.md` |
 | 3 | Design | `designer` | "design", "PROMPT", "tela" | `PRODUCT.md` + `design/*.md` |
 | 4 | Planejamento | `sprint-tasker` | "planejar sprint", "tasks" | `sprints/*.json` |
 | 5 | Build + Quality | orchestrator coordena | "implementar", "build", "code" | código + testes + audit |
@@ -90,7 +90,7 @@ opencode /harness-help      # este cheatsheet
 | `.harness/RAG/` | RAG docs do projeto (criado pelo rag-curator) |
 | `brief.md` | Output fase 0 |
 | `AGENTS.md` | Output fase 1 (contexto longo prazo) |
-| `PRD.html` + `SPEC.html` | Output fase 2 |
+| `PRD.md` + `SPEC.md` | Output fase 2 |
 | `design/` | Output fase 3 (PRODUCT + DESIGN + PROMPT por página) |
 | `sprints/` | Output fase 4 |
 | `qa/<sprint>/` | Output fase 5 (e2e chains + reports) |

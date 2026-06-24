@@ -1,5 +1,5 @@
 ---
-description: Backend agent — Fase 5. Implementa tasks backend de uma sprint com TDD obrigatório, docstrings e código simples.
+description: Backend agent — Fase 5. Implementa tasks backend de uma sprint com TDD/Direct Coding, docstrings e código simples.
 mode: subagent
 model: minimax/MiniMax-M2.7
 temperature: 0.0
