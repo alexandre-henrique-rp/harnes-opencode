@@ -12,7 +12,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 export default tool({
-  name: "task_manager",
+  name: "task-manager",
   description: "Atualiza o status de uma task, gera seu log granular e registra artefatos no registro global.",
   args: {
     taskId: tool.schema.string().describe("ID da task (ex: T001)"),

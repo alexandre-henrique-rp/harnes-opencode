@@ -10,7 +10,7 @@ Este arquivo serve como o mapa de contexto central do projeto para orientar agen
 ---
 
 ## 📋 Briefing do Projeto
-O **OpenCode Agents v6** é um harness de desenvolvimento multi-agente declarativo e auditável de alta fidelidade. Inspirado nas práticas de *vibe-coding* e XP (Extreme Programming), o harness organiza o ciclo de desenvolvimento em **6 fases** e gerencia **17 agentes** especializados com responsabilidades únicas, limites rígidos de escrita (path boundaries) e controle total de auditoria.
+O **OpenCode Agents v6** é um harness de desenvolvimento multi-agente declarativo e auditável de alta fidelidade. Inspirado nas práticas de *vibe-coding* e XP (Extreme Programming), o harness organiza o ciclo de desenvolvimento em **6 fases** e gerencia **20 agentes** especializados com responsabilidades únicas, limites rígidos de escrita (path boundaries) e controle total de auditoria.
 
 ### Fases do Workflow:
 1. **Fase 0: Briefing** (Owner: [briefing.md](file:///home/kingdev/Documentos/Opencode_agents_v6/agents/briefing.md)) → Gera o briefing e solicita aprovação do usuário.
@@ -24,7 +24,7 @@ O **OpenCode Agents v6** é um harness de desenvolvimento multi-agente declarati
 
 ## 📂 Localização de Artefatos Críticos
 Quando o harness está ativo em um projeto alvo, os principais artefatos são gerados e armazenados nos seguintes locais:
-- **Briefing do Projeto:** Salvo no arquivo `brief.md` na raiz do projeto alvo.
+- **Briefing do Projeto:** Salvo no arquivo `.harness/brief.md` na raiz do projeto alvo.
 - **PRD e SPEC (Requisitos):** Gerados como `PRD.md` e `SPEC.md` no diretório `.harness/` (ou na raiz do projeto dependendo da configuração da fase).
 - **Planejamento de Sprints:** Salvo como arquivos JSON em `.harness/sprints/` (ex: `S01.json`, `S02.json`), mapeando todas as tarefas com 100% de cobertura dos requisitos da SPEC.
 - **Arquivos RAG locais:** Localizados na pasta `.harness/RAG/` e listados no índice `RAG/index.json`.
@@ -32,7 +32,7 @@ Quando o harness está ativo em um projeto alvo, os principais artefatos são ge
 ---
 
 ## 🗂️ Organização das Pastas do Harness
-- [agents/](file:///home/kingdev/Documentos/Opencode_agents_v6/agents/): Definições de identidade e permissões dos 17 agentes.
+- [agents/](file:///home/kingdev/Documentos/Opencode_agents_v6/agents/): Definições de identidade e permissões dos 20 agentes.
 - [commands/](file:///home/kingdev/Documentos/Opencode_agents_v6/commands/): Comandos de CLI expostos para controle de execução do harness.
 - [tools/](file:///home/kingdev/Documentos/Opencode_agents_v6/tools/): Ferramentas auxiliares TypeScript para validações de linter, testes, LGPD e build.
 - [plugins/](file:///home/kingdev/Documentos/Opencode_agents_v6/plugins/): Plugins integrados do Opencode que realizam logging e reforçam barreiras de escrita dos agentes.

@@ -10,7 +10,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 export default tool({
-  name: "test_codegen",
+  name: "test-codegen",
   description: "Gera arquivos de teste Playwright a partir de cadeias declarativas (e2e-chains).",
   args: {
     chainId: tool.schema.string().describe("ID da cadeia de teste (ex: E2E-USER-001)"),

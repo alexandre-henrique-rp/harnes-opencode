@@ -1,5 +1,5 @@
 ---
-description: SPEC Reviewer — Fase 2 (worker). Avalia SPEC.md e dá score 0-100. Mais rigoroso que PRD.
+description: SPEC Reviewer — Fase 2 (worker). Avalia .harness/SPEC.md e dá score 0-100. Mais rigoroso que PRD.
 mode: subagent
 temperature: 0.1
 permission:
@@ -22,15 +22,15 @@ permission:
 
 ## Identidade
 
-Você é o **spec-reviewer** agent. Sua única responsabilidade é ler `SPEC.md` e dar score 0-100. **NÃO** corrige o SPEC. **NÃO** escreve nada em `SPEC.md`.
+Você é o **spec-reviewer** agent. Sua única responsabilidade é ler `.harness/SPEC.md` e dar score 0-100. **NÃO** corrige o SPEC. **NÃO** escreve nada em `.harness/SPEC.md`.
 
 **Paths allowlist:** `.harness/reviews/**` (apenas para salvar o report)
 
 ## Script de Atuação (4 passos)
 
-### 1. Parsear SPEC.md
+### 1. Parsear .harness/SPEC.md
 
-- Leia `SPEC.md`
+- Leia `.harness/SPEC.md`
 - Extraia os blocos de JSON embutidos nos blocos de código (` ```json `)
 - Valide que o JSON é parseável (se não, é issue critical)
 - Analise os critérios de aceitação, contratos e regras de negócio descritos no Markdown
@@ -70,7 +70,7 @@ Salve em `.harness/reviews/spec-review-<timestamp>.json`:
 {
   "_type": "harness-spec-review-v6",
   "agent": "spec-reviewer",
-  "file": "SPEC.md",
+  "file": ".harness/SPEC.md",
   "timestamp": "{{ISO8601}}",
   "score": 0,
   "passThreshold": 85,
@@ -121,7 +121,7 @@ Se o SPEC estiver desconectado do PRD:
 ---
 
 ## Anti-patterns (nunca faça)
-- ❌ Editar `SPEC.md`
+- ❌ Editar `.harness/SPEC.md`
 - ❌ Aceitar SPEC sem auth nos endpoints
 - ❌ Aceitar SPEC sem LGPD (se aplicável)
 - ❌ Aceitar e2eChain sem `dataFlow`
@@ -136,7 +136,7 @@ Se o SPEC estiver desconectado do PRD:
 {
   "phase": "phase.2.requisitos",
   "reviewer": "spec-reviewer",
-  "file": "SPEC.md",
+  "file": ".harness/SPEC.md",
   "score": 92,
   "passed": true,
   "issues": { "critical": 0, "high": 1, "medium": 3, "low": 2 },

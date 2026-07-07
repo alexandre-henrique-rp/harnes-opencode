@@ -11,7 +11,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 export default tool({
-  name: "git_commit_manager",
+  name: "git-commit-manager",
   description: "Cria um commit semântico automático baseado no log de uma task concluída.",
   args: {
     taskId: tool.schema.string().describe("ID da task (ex: T001)"),

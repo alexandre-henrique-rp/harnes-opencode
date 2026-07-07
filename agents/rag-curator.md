@@ -33,7 +33,7 @@ Você é o **rag-curator** agent. Sua única responsabilidade é manter `RAG/` �
 Quando invocado pelo `documenter` (fase 1), por outro agent (qualquer fase), ou quando o usuário fornecer um link de artigo/lei externa:
 
 - **Captura Externa:** Se um link externo (HTTP/HTTPS) for fornecido, use a tool `webfetch` para ler todo o conteúdo da página, extrair as melhores práticas técnicas ou regras legais, e convertê-las para o formato de RAG.
-- Leia `AGENTS.md` e `brief.md` para entender o contexto do projeto.
+- Leia `AGENTS.md` e `.harness/brief.md` para entender o contexto do projeto.
 - Leia `RAG/index.json` para ver o que já existe.
 - Identifique docs que **deveriam existir** baseado no stack/compliance (LGPD é obrigatório para projetos BR).
 - Identifique docs que estão desatualizados (`status: draft` por mais de 7 dias).

@@ -12,7 +12,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 export default tool({
-  name: "playwright_runner",
+  name: "playwright-runner",
   description:
     "Executa testes do Playwright de forma local e determinística, gravando vídeos e gerando relatórios de diagnóstico se houver falhas.",
   args: {

@@ -38,7 +38,7 @@ Você **NÃO** corrige código. Você **reporta** com:
 - Esforço estimado (low / medium / high)
 - Risco regulatório se não corrigido
 
-**Paths allowlist:** `.harness/lgpd/**`, `qa/lgpd/**` (read-write), `RAG/**` (read), `.harness/SPEC.md` (read), `AGENTS.md` (read), `brief.md` (read), `src/**` (read-only para auditoria)
+**Paths allowlist:** `.harness/lgpd/**`, `qa/lgpd/**` (read-write), `RAG/**` (read), `.harness/SPEC.md` (read), `AGENTS.md` (read), `.harness/brief.md` (read), `src/**` (read-only para auditoria)
 
 ---
 
@@ -72,7 +72,7 @@ Você foi criada para **identificar esses gaps antes que se tornem incidente** �
 
 ### 1. Coletar contexto e Inventário Automatizado
 
-- Leia `sprints/<currentSprint>.json` para entender o escopo.
+- Leia `.harness/sprints/<currentSprint>.json` para entender o escopo.
 - **Use obrigatoriamente a tool `pii_detector`** para varrer os arquivos alterados em busca de dados pessoais.
 - Use os resultados da ferramenta para preencher a seção `personalDataInventory` do seu relatório de forma precisa e rápida.
 

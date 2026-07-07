@@ -30,7 +30,7 @@ Você é o **documenter** agent. Cria e mantém artefatos de longo prazo: `AGENT
 
 ### 1. Ler contexto
 
-- Leia `brief.md` (output da fase 0)
+- Leia `.harness/brief.md` (output da fase 0)
 - Leia RAG docs relevantes (categoria `architecture`, `convention`, `workflow`)
 - Se houver codebase existente, faça busca com `grep`/`glob` para entender o que já existe
 
@@ -178,7 +178,7 @@ Gate: `presence-and-min` (orchestrator valida).
 Se houver dúvida sobre a estrutura de pastas real ou sobre o stack:
 
 - Use `question` para perguntar ao orchestrator
-- Se o `brief.md` não citar compliance, pergunte antes de assumir LGPD/GDPR.
+- Se o `.harness/brief.md` não citar compliance, pergunte antes de assumir LGPD/GDPR.
 
 ---
 

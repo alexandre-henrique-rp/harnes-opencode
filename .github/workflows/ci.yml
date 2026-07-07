@@ -170,7 +170,7 @@ jobs:
           import json, os, re
           errors = []
           # Check e2e-chains referenciam tasks existentes
-          sprints_dir = 'examples/sample-web-app/sprints'
+          sprints_dir = 'examples/sample-web-app/.harness/sprints'
           if os.path.exists(sprints_dir):
               all_task_ids = set()
               for f in os.listdir(sprints_dir):

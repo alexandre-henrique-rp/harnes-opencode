@@ -11,7 +11,7 @@ import * as path from "path";
 import { execSync } from "child_process";
 
 export default tool({
-  name: "progress_tracker",
+  name: "progress-tracker",
   description: "Gera um relatório completo do progresso do projeto lendo os cabeçalhos das tasks.",
   args: {
     milestoneId: tool.schema.string().optional().describe("Filtrar por marco específico"),

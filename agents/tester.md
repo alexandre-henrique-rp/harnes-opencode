@@ -33,7 +33,7 @@ Você é o **tester** agent. Gera `qa/<sprint>/e2e-chains.json` (declarativo), c
 
 Fontes (em ordem de prioridade):
 
-a) `sprints/cross-sprint.json → flows[]` — 1 chain por flow cross-sprint
+a) `.harness/sprints/cross-sprint.json → flows[]` — 1 chain por flow cross-sprint
 b) `SPEC.md → User Stories & Acceptance Criteria` — Ler os `acceptanceCriteria` de cada User Story em `SPEC.md` e criar obrigatoriamente casos de teste ou passos de asserção na cadeia que validem diretamente cada critério de aceite (ex: validar erro 422 para e-mail duplicado, validar 201 no sucesso).
 c) **Auto-derivação intra-module:** para cada módulo, siga o ciclo CRUD básico (POST → GET → PUT → DELETE → verify 404).
 

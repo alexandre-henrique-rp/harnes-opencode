@@ -20,7 +20,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 export default tool({
-  name: "harness_advance",
+  name: "harness-advance",
   description:
     "Valida o gate da fase atual. Se passar, transiciona fase, atualiza state.json, loga em events.jsonl. Se falhar, classifica falha e dispara retry/rework/escalation.",
   args: {

@@ -57,6 +57,40 @@ log_bold()   { printf "${BOLD}%s${NC}\n" "$*"; }
 
 die() { log_err "$*"; exit 1; }
 
+install_bun_if_needed() {
+    log_info "Verificando se o Bun está instalado..."
+    if command -v bun >/dev/null 2>&1; then
+        log_ok "Bun detectado: \$(bun --version)"
+        return 0
+    fi
+
+    log_warn "Bun não foi detectado no sistema."
+    
+    local resp="y"
+    # Se for terminal interativo, pergunta ao usuário
+    if [[ -t 0 ]]; then
+        printf "\n\${YELLOW}O Bun é altamente recomendado para executar os plugins do Harness e o sqlite-vec com máxima performance.\${NC}\n"
+        read -rp "Deseja instalar o Bun agora automaticamente? [Y/n] " resp
+        if [[ -z "\$resp" || "\$resp" =~ ^[Yy]\$ ]]; then
+            log_info "Instalando o Bun..."
+            if curl -fsSL https://bun.sh/install | bash; then
+                log_ok "Bun instalado com sucesso!"
+                # Carrega o Bun no PATH do script atual
+                export BUN_INSTALL="\${HOME}/.bun"
+                export PATH="\${BUN_INSTALL}/bin:\${PATH}"
+                return 0
+            else
+                log_err "Falha ao instalar o Bun automaticamente."
+                return 1
+            fi
+        fi
+    else
+        log_info "Instalação não interativa. Pulando instalação do Bun."
+    fi
+
+    return 1
+}
+
 # ============================================================================
 # Menu Interativo Estilizado
 # ============================================================================
@@ -412,7 +446,7 @@ do_install() {
         copy_item "$src/skills" "$dest/skills" "skills/ (skills do harness)"
     fi
 
-    # Cria package.json (necessario para opencode resolver @opencode-ai/plugin)
+    # Cria package.json (necessario para opencode resolver @opencode-ai/plugin e sqlite-vec)
     if ! $DRY_RUN; then
         local pkg_json="$dest/package.json"
         if [[ ! -f "$pkg_json" ]] || ! $PRESERVE_CONFIG; then
@@ -424,11 +458,12 @@ do_install() {
   "description": "Harness v6 - opencode config dir",
   "type": "module",
   "dependencies": {
-    "@opencode-ai/plugin": "latest"
+    "@opencode-ai/plugin": "latest",
+    "sqlite-vec": "latest"
   }
 }
 EOF
-            log_ok "  criado: package.json (com @opencode-ai/plugin dep)"
+            log_ok "  criado: package.json (com @opencode-ai/plugin e sqlite-vec deps)"
         else
             log_info "  preservado: package.json (ja existe)"
         fi
@@ -453,8 +488,8 @@ EOF
     "PRD.html",
     "SPEC.html",
     "PRODUCT.md",
-    "brief.md",
-    "sprints/**",
+    ".harness/brief.md",
+    ".harness/sprints/**",
     "qa/**",
     ".harness/RAG/**",
     ".harness/reviews/**",
@@ -586,6 +621,23 @@ EOF
         find "$dest" -type f -size 0 ! -name "*.bak*" -delete 2>/dev/null
         # Remove backups antigos (.bak.*)
         find "$dest" -type f -name "*.bak.*" -delete 2>/dev/null
+    fi
+
+    # 7. Instalação automática das dependências NPM/Bun
+    if ! $DRY_RUN; then
+        log_bold ""
+        log_bold "Instalando dependências de plugins do Harness..."
+        log_bold ""
+        if install_bun_if_needed; then
+            log_info "Executando 'bun install' em $dest..."
+            (cd "$dest" && bun install) || log_warn "Falha ao rodar bun install. Você pode tentar rodar manualmente."
+        elif command -v npm >/dev/null 2>&1; then
+            log_warn "Bun não disponível. Fazendo fallback para NPM..."
+            log_info "Executando 'npm install' em $dest..."
+            (cd "$dest" && npm install) || log_warn "Falha ao rodar npm install. Você pode tentar rodar manualmente."
+        else
+            log_err "Nenhum gerenciador de pacotes (Bun ou NPM) disponível para instalar as dependências."
+        fi
     fi
 }
 
@@ -722,8 +774,8 @@ post_install_check() {
     if [[ -d "$dest/agents" ]]; then
         local agent_count
         agent_count=$(find "$dest/agents" -name "*.md" -type f | wc -l)
-        log_info "  agents: $agent_count (esperado: 16)"
-        if [[ "$agent_count" -ne 16 ]]; then
+        log_info "  agents: $agent_count (esperado: 20)"
+        if [[ "$agent_count" -ne 20 ]]; then
             log_warn "  contagem de agents diferente do esperado"
         fi
     fi

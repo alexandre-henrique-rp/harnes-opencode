@@ -10,7 +10,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 export default tool({
-  name: "pii_detector",
+  name: "pii-detector",
   description: "Varre o código em busca de campos que contenham dados pessoais (CPF, e-mail, etc) e verifica riscos de conformidade.",
   args: {
     targetDir: tool.schema.string().default("src").describe("Diretório alvo para o scan"),

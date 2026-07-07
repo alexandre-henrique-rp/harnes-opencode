@@ -11,7 +11,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 export default tool({
-  name: "security_scanner",
+  name: "security-scanner",
   description: "Executa scans de segurança automatizados (Regex e auditoria de dependências) no código-fonte.",
   args: {
     targetDir: tool.schema.string().default("src").describe("Diretório alvo para o scan"),

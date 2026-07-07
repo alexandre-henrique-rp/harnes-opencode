@@ -2,7 +2,7 @@
   "_type": "harness-e2e-chains-v6",
   "version": 1,
   "schema": "e2e-chains",
-  "description": "Chains de teste E2E declarativas. Gerado pelo tester agent na fase 5, a partir de SPEC.html e2eChains[] + sprints/cross-sprint.json flows[]. Compilado para código de teste (Playwright, supertest, etc).",
+  "description": "Chains de teste E2E declarativas. Gerado pelo tester agent na fase 5, a partir de SPEC.html e2eChains[] + .harness/sprints/cross-sprint.json flows[]. Compilado para código de teste (Playwright, supertest, etc).",
   "project": "{{project}}",
   "sprint": "S01",
   "generatedAt": "{{ISO8601}}",

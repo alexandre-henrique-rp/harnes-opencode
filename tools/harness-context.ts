@@ -35,7 +35,7 @@ function parseYamlFrontmatter(content: string): any {
 }
 
 export default tool({
-  name: "harness_context",
+  name: "harness-context",
   description:
     "Constroi task description para sub-agent. Junta capability grant + estado + RAG + output contract. Retorna markdown pronto para task().",
   args: {

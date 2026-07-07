@@ -16,7 +16,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 export default tool({
-  name: "harness_status",
+  name: "harness-status",
   description:
     "Mostra o estado atual do workflow Harness v6. Le .harness/state.json + events.jsonl, retorna fase, progresso, sprint, ultimo evento.",
   args: {

@@ -12,7 +12,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 export default tool({
-  name: "context_query",
+  name: "context-query",
   description: "Busca contexto granular sobre componentes, APIs ou decisões tomadas em tasks anteriores.",
   args: {
     query: tool.schema.string().optional().describe("Termo de busca (ex: nome de um componente ou endpoint)"),

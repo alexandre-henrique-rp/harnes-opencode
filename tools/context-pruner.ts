@@ -11,7 +11,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 export default tool({
-  name: "context_pruner",
+  name: "context-pruner",
   description:
     "Gera a assinatura/esqueleto de um arquivo de codigo TypeScript/JavaScript para economizar janela de contexto da IA.",
   args: {

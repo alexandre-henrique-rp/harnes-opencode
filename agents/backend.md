@@ -159,7 +159,7 @@ export function isValidCpf(cpf: string): boolean {
 
 ### 1. Pegar task designada (Otimizado)
 
-- Verifique os arquivos em `sprints/SXX/tasks/TXXX_PROMPT.md`.
+- Verifique os arquivos em `.harness/sprints/SXX/tasks/TXXX_PROMPT.md`.
 - Leia apenas o cabeçalho (Header) para encontrar uma task com `status: "pending"`.
 - **Use `context_query`** se precisar entender o que foi feito em tasks anteriores para evitar conflitos.
 

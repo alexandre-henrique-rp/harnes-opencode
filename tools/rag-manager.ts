@@ -27,7 +27,7 @@ function parseYaml(content: string): any {
 }
 
 export default tool({
-  name: "rag_manager",
+  name: "rag-manager",
   description: "Valida documentos RAG locais, reconstrói o index.json local e atualiza a base SQLite global rag.db.",
   args: {
     action: tool.schema.enum(["validate", "rebuild_index"]).default("rebuild_index"),

@@ -179,7 +179,7 @@ Identifique de forma extremamente concisa (máximo 1 linha) se há componente si
 
 ### 1. Pegar task designada (Otimizado)
 
-- Verifique os arquivos em `sprints/SXX/tasks/TXXX_PROMPT.md`.
+- Verifique os arquivos em `.harness/sprints/SXX/tasks/TXXX_PROMPT.md`.
 - Leia apenas o cabeçalho (Header) para encontrar uma task com `status: "pending"`.
 - **Use `context_query`** se precisar entender componentes já criados para evitar duplicação (Regra de 3).
 

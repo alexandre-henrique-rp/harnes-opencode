@@ -10,7 +10,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 export default tool({
-  name: "sprint_builder",
+  name: "sprint-builder",
   description:
     "Inicializa diretórios de sprints de forma física e cria esqueletos de tarefas TXXX_PROMPT.md de forma determinística.",
   args: {

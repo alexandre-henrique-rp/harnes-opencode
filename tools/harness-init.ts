@@ -16,7 +16,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 export default tool({
-  name: "harness_init",
+  name: "harness-init",
   description:
     "Inicializa um projeto Harness v6. Cria .harness/ com state-machine.json, state.json, events.jsonl, agent-boundaries.json. Idempotente (use --force para resetar).",
   args: {
@@ -38,7 +38,17 @@ export default tool({
     const harnessDir = path.join(cwd, ".harness");
     const auditDir = path.join(harnessDir, "audit");
 
+    // Realiza a migração automática de arquivos legados se existirem na raiz
+    const migrated = migrateLegacyFiles(cwd, harnessDir);
+
     if (fs.existsSync(harnessDir) && !force) {
+      if (migrated.length > 0) {
+        return {
+          success: true,
+          migrated,
+          message: `Migracao concluida: os seguintes itens foram movidos para dentro de .harness/: ${migrated.join(", ")}`,
+        };
+      }
       return {
         success: false,
         error: `.harness/ ja existe em ${cwd}. Use --force para resetar (CUIDADO: apaga state.json e events.jsonl).`,
@@ -232,4 +242,85 @@ function conservativeBoundaries(): Record<string, { allow: string[]; deny: strin
     tester: { allow: ["test/**", ".harness/qa/**", "e2e/**"], deny: ["src/**", "app/**", "db/**"] },
     security: { allow: [".harness/security/**", ".harness/qa/security/**"], deny: ["**"] },
   };
+}
+
+/**
+ * Função utilitária para mover automaticamente arquivos e pastas legados (fora da pasta .harness/)
+ * para dentro da pasta .harness/.
+ */
+function migrateLegacyFiles(cwd: string, harnessDir: string): string[] {
+  const migrated: string[] = [];
+  const legacyBrief = path.join(cwd, "brief.md");
+  const newBrief = path.join(harnessDir, "brief.md");
+  const legacySprints = path.join(cwd, "sprints");
+  const newSprints = path.join(harnessDir, "sprints");
+
+  const hasLegacyBrief = fs.existsSync(legacyBrief);
+  const hasLegacySprints = fs.existsSync(legacySprints);
+
+  if (hasLegacyBrief || hasLegacySprints) {
+    if (!fs.existsSync(harnessDir)) {
+      fs.mkdirSync(harnessDir, { recursive: true });
+    }
+  }
+
+  // Migra brief.md se ele estiver na raiz
+  if (hasLegacyBrief) {
+    if (!fs.existsSync(newBrief)) {
+      fs.renameSync(legacyBrief, newBrief);
+      migrated.push("brief.md");
+    } else {
+      // Sobrescreve o novo com o legado para preservar o trabalho do usuário
+      fs.copyFileSync(legacyBrief, newBrief);
+      fs.unlinkSync(legacyBrief);
+      migrated.push("brief.md (sobrescreveu o existente)");
+    }
+  }
+
+  // Migra a pasta sprints se ela estiver na raiz
+  if (hasLegacySprints) {
+    if (!fs.existsSync(newSprints)) {
+      fs.renameSync(legacySprints, newSprints);
+      migrated.push("sprints/");
+    } else {
+      // Mescla conteúdos se ambas existirem
+      const files = fs.readdirSync(legacySprints);
+      for (const file of files) {
+        const srcFile = path.join(legacySprints, file);
+        const destFile = path.join(newSprints, file);
+        if (fs.statSync(srcFile).isDirectory()) {
+          moveDirectoryRecursive(srcFile, destFile);
+        } else {
+          fs.copyFileSync(srcFile, destFile);
+          fs.unlinkSync(srcFile);
+        }
+      }
+      try {
+        fs.rmSync(legacySprints, { recursive: true, force: true });
+      } catch (e) {}
+      migrated.push("sprints/ (conteudo mesclado)");
+    }
+  }
+
+  return migrated;
+}
+
+function moveDirectoryRecursive(src: string, dest: string) {
+  if (!fs.existsSync(dest)) {
+    fs.mkdirSync(dest, { recursive: true });
+  }
+  const entries = fs.readdirSync(src, { withFileTypes: true });
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    if (entry.isDirectory()) {
+      moveDirectoryRecursive(srcPath, destPath);
+    } else {
+      fs.copyFileSync(srcPath, destPath);
+      fs.unlinkSync(srcPath);
+    }
+  }
+  try {
+    fs.rmdirSync(src);
+  } catch (e) {}
 }

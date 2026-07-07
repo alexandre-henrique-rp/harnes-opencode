@@ -10,7 +10,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 export default tool({
-  name: "ui_spec_manager",
+  name: "ui-spec-manager",
   description:
     "Inicializa pastas de UI/Design e cria esqueletos de especificações de UI ou prompts consolidados para o Google Stitch MCP.",
   args: {

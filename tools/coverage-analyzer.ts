@@ -10,7 +10,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 export default tool({
-  name: "coverage_analyzer",
+  name: "coverage-analyzer",
   description: "Analisa o relatório de cobertura do Vitest/Jest e retorna um resumo de conformidade.",
   args: {
     reportPath: tool.schema.string().default("coverage/coverage-summary.json").describe("Caminho para o JSON de cobertura"),

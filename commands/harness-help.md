@@ -25,11 +25,11 @@ opencode /harness-help      # este cheatsheet
 
 | # | Fase | Owner | Quando você me chama assim | Output esperado |
 |---|---|---|---|---|
-| 0 | Briefing | `briefing` | "começar projeto", "brief", "ideia" | `brief.md` |
+| 0 | Briefing | `briefing` | "começar projeto", "brief", "ideia" | `.harness/brief.md` |
 | 1 | Documentação | `documenter` | "documentar", "criar AGENTS.md" | `AGENTS.md` + `ARCH.md` + `RAG/index.json` |
 | 2 | Requisitos | `requirements` | "PRD", "SPEC", "requisitos" | `PRD.md` + `SPEC.md` |
 | 3 | Design | `designer` | "design", "PROMPT", "tela" | `PRODUCT.md` + `design/*.md` |
-| 4 | Planejamento | `sprint-tasker` | "planejar sprint", "tasks" | `sprints/*.json` |
+| 4 | Planejamento | `sprint-tasker` | "planejar sprint", "tasks" | `.harness/sprints/*.json` |
 | 5 | Build + Quality | orchestrator coordena | "implementar", "build", "code" | código + testes + audit |
 
 ## Roster (16 agents)
@@ -88,11 +88,11 @@ opencode /harness-help      # este cheatsheet
 | `.harness/audit/<agent>.jsonl` | Log de tool calls |
 | `.harness/agent-boundaries.json` | Allowlist/denylist por agent |
 | `.harness/RAG/` | RAG docs do projeto (criado pelo rag-curator) |
-| `brief.md` | Output fase 0 |
+| `.harness/brief.md` | Output fase 0 |
 | `AGENTS.md` | Output fase 1 (contexto longo prazo) |
 | `PRD.md` + `SPEC.md` | Output fase 2 |
 | `design/` | Output fase 3 (PRODUCT + DESIGN + PROMPT por página) |
-| `sprints/` | Output fase 4 |
+| `.harness/sprints/` | Output fase 4 |
 | `qa/<sprint>/` | Output fase 5 (e2e chains + reports) |
 
 ## Idioma
