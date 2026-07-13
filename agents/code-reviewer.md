@@ -30,9 +30,9 @@ Você **NÃO** corrige código. Você **reporta** problemas e o worker original 
 
 ---
 
-## 3 pilares da auditoria (v6.2.0)
+## Pilares da auditoria (v6.3.0)
 
-### 1. TDD é OBRIGATÓRIO (Peso 40%)
+### 1. TDD é OBRIGATÓRIO (Peso 30%)
 
 Verifique se cada arquivo de feature novo ou alterado tem um arquivo de teste correspondente.
 
@@ -40,7 +40,7 @@ Verifique se cada arquivo de feature novo ou alterado tem um arquivo de teste co
 - ❌ Teste que não cobre os `acceptanceCriteria` do PROMPT.md = score -10
 - ✅ Ratio 1:1 de feature/teste é o esperado.
 
-### 2. Documentação é OBRIGATÓRIA (Peso 30%)
+### 2. Documentação de Código (Peso 20%)
 
 Verifique se TODA função pública (exportada) tem JSDoc/docstring.
 
@@ -48,7 +48,16 @@ Verifique se TODA função pública (exportada) tem JSDoc/docstring.
 - ❌ Parâmetros ou retornos não documentados = score -5
 - ✅ Docstrings em português, código em inglês.
 
-### 3. Simplicidade (YAGNI + KISS) (Peso 30%)
+### 3. Documentação Distribuída & Skills (Peso 20%)
+
+Verifique o alinhamento de contexto distribuído e uso correto de skills locais/sistema.
+
+- ❌ `AGENTS.md` local ausente ou não atualizado na pasta modificada = score -15
+- ❌ `AGENTS.md` local ultrapassando 40 linhas (limite estrito) = score -10
+- ❌ Não utilização/inconformidade com a skill recomendada descrita na task = score -15
+- ✅ Mantém documentação leve e consulta ativamente skills de suporte.
+
+### 4. Simplicidade (YAGNI + KISS) (Peso 30%)
 
 Verifique se há over-engineering.
 

@@ -63,6 +63,7 @@ O arquivo de cada task deve conter:
 1. **Descrição:** O que deve ser feito.
 2. **Acceptance Criteria:** Checkbox com os critérios de aceitação específicos daquela tarefa.
 3. **Ponteiros de Contexto:** Liste quais arquivos existentes o agente deve ler (evita conflitos).
+4. **Skills Recomendadas:** Liste obrigatoriamente as skills locais em `.harness/skills/` (ex: `tanstack-query`, `laravel-tdd`) ou as de sistema (ex: `modern-web-guidance`, `a11y-debugging`) recomendadas para aquela tarefa.
 
 ## Output contract (do state-machine.json)
 

@@ -29,6 +29,7 @@ PRESERVE_CONFIG=false
 PRESERVE_CUSTOM=false
 UPDATE_MODE=false
 UNINSTALL=false
+INTERACTIVE=false
 
 # ============================================================================
 # Cores (se terminal suportar)
@@ -556,44 +557,73 @@ EOF
     [[ -f "$src/failure-protocol.json" ]] && copy_item "$src/failure-protocol.json" "$dest/failure-protocol.json" "failure-protocol.json (3 classes + 1 fatal)"
     [[ -f "$src/README.md" ]] && copy_item "$src/README.md" "$dest/HARNESS-README.md" "README.md (renomeado pra HARNESS-README.md)"
 
-    # 4. opencode.json / opencode.jsonc (com Smart Merge)
+    # 4. opencode.json / opencode.jsonc (com Smart Merge e suporte interativo)
     if [[ -f "$src/opencode.json" ]]; then
         local existing_json="$dest/opencode.json"
         local existing_jsonc="$dest/opencode.jsonc"
+        local config_file=""
+        [[ -f "$existing_json" ]] && config_file="$existing_json"
+        [[ -f "$existing_jsonc" ]] && config_file="$existing_jsonc"
 
-        # Prioridade para .jsonc se ja existe (OpenCode prefere .jsonc)
-        if [[ -f "$existing_jsonc" ]]; then
-            log_info "Detectado opencode.jsonc existente. Tentando Smart Merge..."
-            backup_path "$existing_jsonc"
-            
-            # Smart Merge via Python
-            if merge_json "$existing_jsonc" "$src/opencode.json" "${existing_jsonc}.tmp"; then
-                mv "${existing_jsonc}.tmp" "$existing_jsonc"
-                log_ok "  Smart Merge concluido: opencode.jsonc atualizado (preservando customizacoes)"
+        if [[ -n "$config_file" ]]; then
+            local action_choice=0
+            if $INTERACTIVE; then
+                printf "\n"
+                log_warn "O arquivo de configuração $(basename "$config_file") já existe no destino."
+                local cfg_options=(
+                    "Mesclar (Smart Merge) — Recomendado, integra agentes preservando suas customizações"
+                    "Sobrescrever (Overwrite) — Substitui completamente pelo padrão do Harness v6 (com backup)"
+                    "Preservar (Skip) — Mantém o seu arquivo de configuração atual sem alterações"
+                )
+                select_option "${cfg_options[@]}" && action_choice=0 || action_choice=$?
             else
-                log_warn "  Falha no Smart Merge (provavelmente JSON invalido ou com comentarios complexos)."
                 if $PRESERVE_CONFIG; then
-                    log_info "  --preserve-config: mantendo seu opencode.jsonc original."
+                    action_choice=2
                 else
-                    cp "$src/opencode.json" "$existing_jsonc"
-                    log_ok "  copiado: opencode.jsonc (substituido por novo, com backup)"
+                    action_choice=0
                 fi
             fi
-        elif [[ -f "$existing_json" ]]; then
-            log_info "Detectado opencode.json existente. Tentando Smart Merge..."
-            backup_path "$existing_json"
-            
-            if merge_json "$existing_json" "$src/opencode.json" "${existing_json}.tmp"; then
-                mv "${existing_json}.tmp" "$existing_json"
-                log_ok "  Smart Merge concluido: opencode.json atualizado"
-            else
-                log_warn "  Falha no Smart Merge."
-                if $PRESERVE_CONFIG; then
-                    log_info "  --preserve-config: mantendo seu opencode.json original."
-                else
-                    copy_item "$src/opencode.json" "$existing_json" "opencode.json (substituido, com backup)"
-                fi
-            fi
+
+            case "$action_choice" in
+                0) # Smart Merge
+                   log_info "Tentando Smart Merge em $config_file..."
+                   backup_path "$config_file"
+                   if merge_json "$config_file" "$src/opencode.json" "${config_file}.tmp"; then
+                       mv "${config_file}.tmp" "$config_file"
+                       log_ok "  Smart Merge concluído com sucesso!"
+                   else
+                       log_warn "  Falha no Smart Merge (provavelmente JSON inválido ou comentários complexos)."
+                       if $INTERACTIVE; then
+                           local fail_options=(
+                               "Sobrescrever pelo padrão do Harness (com backup)"
+                               "Cancelar e manter original"
+                           )
+                           local fail_choice=0
+                           select_option "${fail_options[@]}" && fail_choice=0 || fail_choice=$?
+                           if [[ $fail_choice -eq 0 ]]; then
+                               cp "$src/opencode.json" "$config_file"
+                               log_ok "  Substituído com sucesso."
+                           else
+                               log_info "  Mantido original."
+                           fi
+                       else
+                           if ! $PRESERVE_CONFIG; then
+                               cp "$src/opencode.json" "$config_file"
+                               log_ok "  copiado: $(basename "$config_file") (substituído por falha no merge, com backup)"
+                           fi
+                       fi
+                   fi
+                   ;;
+                1) # Overwrite
+                   log_info "Sobrescrevendo $config_file..."
+                   backup_path "$config_file"
+                   cp "$src/opencode.json" "$config_file"
+                   log_ok "  Arquivo sobrescrito com sucesso."
+                   ;;
+                *) # Skip
+                   log_info "Preservando arquivo existente em $config_file."
+                   ;;
+            esac
         else
             # Nenhum existe, instala fresh
             copy_item "$src/opencode.json" "$dest/opencode.json" "opencode.json (instalação fresh)"
@@ -858,72 +888,85 @@ print_summary() {
 # Main
 # ============================================================================
 
-main() {
-    # Parse args
-    if [[ $# -eq 0 ]]; then
-        print_banner
-        
-        local options=(
-            "Instalação Limpa (Fresh Install) — Sobrescreve core e reinicia configs"
-            "Atualização (Update) — Preserva suas customizações e RAGs"
-            "Desinstalação (Uninstall) — Remove o Harness v6 do OpenCode"
-            "Cancelar e Sair"
-        )
-        
-        local choice
-        select_option "${options[@]}" && choice=0 || choice=$?
-        
-        case "$choice" in
-            0) # Fresh Install
-               ;;
-            1) # Update
-               UPDATE_MODE=true
-               PRESERVE_CUSTOM=true
-               PRESERVE_CONFIG=true
-               ;;
-            2) # Uninstall
-               UNINSTALL=true
-               ;;
-            *) # Cancelar
-               log_info "Operação cancelada pelo usuário."
-               exit 0
-               ;;
-        esac
-    else
-        while [[ $# -gt 0 ]]; do
-            case "$1" in
-                --uninstall)        UNINSTALL=true; shift ;;
-                --dry-run)          DRY_RUN=true; shift ;;
-                --preserve-config)  PRESERVE_CONFIG=true; shift ;;
-                --update)           UPDATE_MODE=true; PRESERVE_CUSTOM=true; PRESERVE_CONFIG=true; shift ;;
-                --version)          echo "Harness v6 installer ${HARNESS_VERSION}"; exit 0 ;;
-                --help|-h)          print_help; exit 0 ;;
-                *)                  log_err "Opcao desconhecida: $1"; print_help; exit 1 ;;
-            esac
-        done
-        print_banner
-    fi
-
-    # Deteccao
-    OS=$(detect_os)
-    SOURCE_DIR=$(get_source_dir)
-    INSTALL_DIR=$(get_install_dir "$OS")
-
-    # Pre-checks
-    check_prerequisites "$OS" "$SOURCE_DIR"
-
-    # Executa
-    if $UNINSTALL; then
-        do_uninstall "$INSTALL_DIR"
-    else
-        do_install "$SOURCE_DIR" "$INSTALL_DIR"
-
-        if ! $DRY_RUN; then
-            post_install_check "$INSTALL_DIR" || true
-        fi
-
-        print_summary "$INSTALL_DIR" "$OS"
-    fi
-}
+891: main() {
+892:     # Parse args
+893:     if [[ $# -eq 0 ]]; then
+894:         INTERACTIVE=true
+895:         print_banner
+896:         
+897:         local options=(
+898:             "Instalação Limpa (Fresh Install) — Sobrescreve core e reinicia configs"
+899:             "Atualização (Update) — Preserva suas customizações e RAGs"
+900:             "Desinstalação (Uninstall) — Remove o Harness v6 do OpenCode"
+901:             "Cancelar e Sair"
+902:         )
+903:         
+904:         local choice
+905:         select_option "${options[@]}" && choice=0 || choice=$?
+906:         
+907:         case "$choice" in
+908:             0) # Fresh Install
+909:                ;;
+910:             1) # Update
+911:                UPDATE_MODE=true
+912:                PRESERVE_CUSTOM=true
+913:                PRESERVE_CONFIG=true
+914:                ;;
+915:             2) # Uninstall
+916:                UNINSTALL=true
+917:                ;;
+918:             *) # Cancelar
+919:                log_info "Operação cancelada pelo usuário."
+920:                exit 0
+921:                ;;
+922:         esac
+923:     else
+924:         while [[ $# -gt 0 ]]; do
+925:             case "$1" in
+926:                 --uninstall)        UNINSTALL=true; shift ;;
+927:                 --dry-run)          DRY_RUN=true; shift ;;
+928:                 --preserve-config)  PRESERVE_CONFIG=true; shift ;;
+929:                 --update)           UPDATE_MODE=true; PRESERVE_CUSTOM=true; PRESERVE_CONFIG=true; shift ;;
+930:                 --version)          echo "Harness v6 installer ${HARNESS_VERSION}"; exit 0 ;;
+931:                 --help|-h)          print_help; exit 0 ;;
+932:                 *)                  log_err "Opcao desconhecida: $1"; print_help; exit 1 ;;
+933:             esac
+934:         done
+935:         print_banner
+936:     fi
+937: 
+938:     # Deteccao
+939:     OS=$(detect_os)
+940:     SOURCE_DIR=$(get_source_dir)
+941:     INSTALL_DIR=$(get_install_dir "$OS")
+942: 
+943:     # Confirmação do diretório de instalação em modo interativo
+944:     if $INTERACTIVE && [[ "$UNINSTALL" = false ]]; then
+945:         printf "\n"
+946:         log_bold "Configuração do Caminho de Destino:"
+947:         printf "Caminho padrão detectado: ${BLUE}$INSTALL_DIR${NC}\n"
+948:         read -rp "Pressione Enter para confirmar ou digite outro caminho: " user_dir
+949:         if [[ -n "$user_dir" ]]; then
+950:             # Expande ~ se necessário
+951:             INSTALL_DIR="${user_dir/#\~/$HOME}"
+952:         fi
+953:     fi
+954: 
+955:     # Pre-checks
+956:     check_prerequisites "$OS" "$SOURCE_DIR"
+957: 
+958:     # Executa
+959:     if $UNINSTALL; then
+960:         do_uninstall "$INSTALL_DIR"
+961:     else
+962:         do_install "$SOURCE_DIR" "$INSTALL_DIR"
+963: 
+964:         if ! $DRY_RUN; then
+965:             post_install_check "$INSTALL_DIR" || true
+966:         fi
+967: 
+968:         print_summary "$INSTALL_DIR" "$OS"
+969:     fi
+970: }
 
 main "$@"

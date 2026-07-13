@@ -34,15 +34,16 @@ Antes de qualquer tool call, siga esta ordem:
 
 1. **Ler contexto** — verifique `.harness/state.json` para saber em qual fase estamos
 2. **Verificar capability grant** — leia a task description; ela declara o escopo permitido
-3. **Objetividade Extrema (Zero Chat & Economia de Tokens):** Evite explicações textuais prolixas, introduções, saídas ou conclusões desnecessárias em markdown. Subagentes técnicos não devem debater ou justificar escolhas; devem agir diretamente via chamadas de ferramentas e retornar apenas o JSON de reporte de conclusão.
+3. **Prospecção de Skills** — Antes de escrever qualquer código, liste o diretório `.harness/skills/` (ou verifique as skills de sistema disponíveis) e use `view_file` para ler o `SKILL.md` relevante, garantindo conformidade técnica de primeira iteração.
+4. **Objetividade Extrema (Zero Chat & Economia de Tokens):** Evite explicações textuais prolixas, introduções, saídas ou conclusões desnecessárias em markdown. Subagentes técnicos não devem debater ou justificar escolhas; devem agir diretamente via chamadas de ferramentas e retornar apenas o JSON de reporte de conclusão.
    - **Regra de Pense Menos para Implementadores:** Os agentes de execução (`backend`, `frontend` e `tester`) devem ser extremamente breves e diretos. Foco total em gerar o código mínimo, rodar comandos e retornar os resultados em JSON. Raciocínios e planos textuais em markdown são terminantemente proibidos.
    - **Regra de Loop de Auto-Correção Local:** Se a execução de testes, validações de linter ou typecheck falharem, o subagente deve analisar a saída do erro, efetuar o ajuste no código e executar os testes novamente (em até 3 tentativas locais) antes de devolver a tarefa como concluída ou falhada. Não entregue código com erros que podem ser corrigidos localmente.
-4. **Consultar RAG e MCP Docs** — se houver dúvida sobre padrão/lei/segurança ou sobre o uso de um MCP específico, leia `.harness/RAG/<doc>.md` antes de improvisar.
-5. **Tool calls nativas do opencode** — use `todowrite` para tasks > 3 passos, `question` para ambiguidade bloqueante, `websearch`/`webfetch` para info externa
-6. **Respeitar path boundary** — você só escreve nos paths declarados no seu agent config (`agents/<seu-agent>.md`)
-7. **Não pular portão** — se o orchestrator declarou um gate, espere o sinal de aprovação antes de avançar
-8. **Logar em audit** — toda tool call sua é gravada automaticamente por `audit-logger.ts`
-9. **Manutenção do AGENTS.md local:** Se a sua tarefa criar, renomear ou remover arquivos em algum subdiretório do projeto, você **DEVE** editar e atualizar o arquivo `AGENTS.md` desse subdiretório para manter a documentação e resumos em perfeita sintonia com a estrutura real de arquivos.
+5. **Consultar RAG e MCP Docs** — se houver dúvida sobre padrão/lei/segurança ou sobre o uso de um MCP específico, leia `.harness/RAG/<doc>.md` antes de improvisar.
+6. **Tool calls nativas do opencode** — use `todowrite` para tasks > 3 passos, `question` para ambiguidade bloqueante, `websearch`/`webfetch` para info externa
+7. **Respeitar path boundary** — você só escreve nos paths declarados no seu agent config (`agents/<seu-agent>.md`)
+8. **Não pular portão** — se o orchestrator declarou um gate, espere o sinal de aprovação antes de avançar
+9. **Logar em audit** — toda tool call sua é gravada automaticamente por `audit-logger.ts`
+10. **Manutenção Gradual do AGENTS.md local:** Se a sua tarefa criar, modificar ou remover arquivos em qualquer subdiretório, você **DEVE** criar (se não existir) ou atualizar o arquivo `AGENTS.md` dessa pasta. Mantenha-o extremamente curto e focado: Propósito, Dependências e Mapa de Arquivos com links absolutos (`file:///`). O arquivo **NÃO DEVE** ultrapassar 40 linhas (limite estrito para economizar tokens).
 
 ---
 
