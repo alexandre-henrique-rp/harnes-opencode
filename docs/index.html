@@ -11,14 +11,14 @@
   <meta property="og:url" content="https://alexandre-henrique-rp.github.io/harnes-opencode/">
   <meta property="og:title" content="OpenCode Agents v6 — O Harness Multi-Agente Declarativo e Auditável">
   <meta property="og:description" content="20 agentes especializados coordenados sob 6 fases rígidas baseadas em TDD, Smart Merge de segurança e auditoria total.">
-  <meta property="og:image" content="https://raw.githubusercontent.com/alexandre-henrique-rp/harnes-opencode/main/assets/logo-harness.png">
+  <meta property="og:image" content="https://raw.githubusercontent.com/alexandre-henrique-rp/harnes-opencode/main/docs/assets/logo-harness.png">
 
   <!-- Twitter -->
   <meta property="twitter:card" content="summary_large_image">
   <meta property="twitter:url" content="https://alexandre-henrique-rp.github.io/harnes-opencode/">
   <meta property="twitter:title" content="OpenCode Agents v6 — O Harness Multi-Agente Declarativo e Auditável">
   <meta property="twitter:description" content="20 agentes especializados coordenados sob 6 fases rígidas baseadas em TDD, Smart Merge de segurança e auditoria total.">
-  <meta property="twitter:image" content="https://raw.githubusercontent.com/alexandre-henrique-rp/harnes-opencode/main/assets/logo-harness.png">
+  <meta property="twitter:image" content="https://raw.githubusercontent.com/alexandre-henrique-rp/harnes-opencode/main/docs/assets/logo-harness.png">
   
   <!-- Fontes Premium -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -28,16 +28,16 @@
   <!-- Estilos Avançados -->
   <style>
     :root {
-      --bg: #0b0f19;
-      --bg-card: rgba(17, 24, 39, 0.7);
-      --border-card: rgba(255, 255, 255, 0.08);
-      --primary: #6366f1;
-      --primary-hover: #4f46e5;
-      --accent: #a855f7;
-      --text: #f3f4f6;
-      --text-muted: #9ca3af;
-      --terminal-bg: #030712;
-      --success: #10b981;
+      --bg: #1a1919;
+      --bg-card: rgba(38, 36, 36, 0.85);
+      --border-card: rgba(170, 150, 132, 0.2);
+      --primary: #aa9684;
+      --primary-hover: #928070;
+      --accent: #c5b3a3;
+      --text: #f2efe9;
+      --text-muted: #9c9791;
+      --terminal-bg: #111010;
+      --success: #aa9684;
     }
 
     * {
@@ -53,8 +53,8 @@
       line-height: 1.6;
       overflow-x: hidden;
       background-image: 
-        radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 40%),
-        radial-gradient(circle at 90% 80%, rgba(168, 85, 247, 0.15) 0%, transparent 40%);
+        radial-gradient(circle at 10% 20%, rgba(170, 150, 132, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(197, 179, 163, 0.08) 0%, transparent 40%);
       background-attachment: fixed;
     }
 
@@ -73,17 +73,9 @@
       gap: 0.8rem;
     }
 
-    .brand svg {
-      height: 32px;
+    .brand img {
+      height: 42px;
       width: auto;
-    }
-
-    .brand span {
-      font-family: 'Outfit', sans-serif;
-      font-size: 1.5rem;
-      font-weight: 700;
-      letter-spacing: -0.5px;
-      color: var(--text);
     }
 
     .github-link {
@@ -107,6 +99,31 @@
       transform: translateY(-2px);
     }
 
+    /* Seletor de Idioma */
+    .lang-select {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-card);
+      color: var(--text);
+      padding: 0.5rem 1rem;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      outline: none;
+      transition: all 0.3s ease;
+    }
+
+    .lang-select:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .lang-select option {
+      background: var(--bg);
+      color: var(--text);
+    }
+
     /* Hero Section */
     .hero {
       max-width: 1000px;
@@ -115,13 +132,18 @@
       text-align: center;
     }
 
+    .hero img.hero-logo {
+      margin-bottom: 2rem;
+      filter: drop-shadow(0 0 20px rgba(170, 150, 132, 0.15));
+    }
+
     .badge {
       display: inline-flex;
       align-items: center;
       gap: 0.5rem;
       padding: 0.4rem 1rem;
-      background: rgba(99, 102, 241, 0.1);
-      border: 1px solid rgba(99, 102, 241, 0.2);
+      background: rgba(170, 150, 132, 0.1);
+      border: 1px solid rgba(170, 150, 132, 0.2);
       border-radius: 9999px;
       font-size: 0.85rem;
       font-weight: 600;
@@ -139,7 +161,7 @@
       line-height: 1.15;
       letter-spacing: -1.5px;
       margin-bottom: 1.5rem;
-      background: linear-gradient(135deg, #fff 30%, #a855f7 100%);
+      background: linear-gradient(135deg, #fff 30%, var(--accent) 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
@@ -262,8 +284,8 @@
 
     .card:hover {
       transform: translateY(-5px);
-      border-color: rgba(99, 102, 241, 0.3);
-      box-shadow: 0 10px 30px rgba(99, 102, 241, 0.05);
+      border-color: rgba(170, 150, 132, 0.4);
+      box-shadow: 0 10px 30px rgba(170, 150, 132, 0.05);
     }
 
     .card-icon {
@@ -342,12 +364,12 @@
       gap: 0.35rem;
       font-size: 0.8rem;
       font-weight: 600;
-      color: var(--success);
-      background: rgba(16, 185, 129, 0.08);
+      color: var(--primary);
+      background: rgba(170, 150, 132, 0.08);
       padding: 0.2rem 0.6rem;
       border-radius: 4px;
       margin-top: 0.75rem;
-      border: 1px solid rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(170, 150, 132, 0.15);
     }
 
     /* Footer */
@@ -372,6 +394,10 @@
     @media (max-width: 768px) {
       h1 { font-size: 2.5rem; }
       .features-grid { grid-template-columns: 1fr; }
+      header {
+        flex-direction: column;
+        gap: 1.5rem;
+      }
     }
   </style>
 </head>
@@ -380,23 +406,31 @@
   <!-- Menu do Cabeçalho -->
   <header>
     <div class="brand">
-      <img src="assets/logo-harness.png" alt="OpenCode Harness Logo" height="36" style="vertical-align: middle;">
+      <img src="assets/logo-harness.png" alt="OpenCode Harness Logo" height="42" style="vertical-align: middle;">
     </div>
     
-    <a href="https://github.com/alexandre-henrique-rp/harnes-opencode" class="github-link" target="_blank">
-      <!-- Ícone GitHub -->
-      <svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor">
-        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
-      </svg>
-      GitHub
-    </a>
+    <!-- Idioma e GitHub -->
+    <div style="display: flex; align-items: center; gap: 1rem;">
+      <select id="langSelect" class="lang-select" onchange="changeLanguage(this.value)" aria-label="Selecione o Idioma / Select Language">
+        <option value="pt">Português</option>
+        <option value="en">English</option>
+      </select>
+
+      <a href="https://github.com/alexandre-henrique-rp/harnes-opencode" class="github-link" target="_blank">
+        <svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+        GitHub
+      </a>
+    </div>
   </header>
 
   <!-- Hero Section -->
   <section class="hero">
-    <div class="badge">Versão 6.3.2 Lançada</div>
-    <h1>Desenvolvimento Multi-Agente Declarativo de Alta Fidelidade</h1>
-    <p>O harness estruturado para o OpenCode. 20 agentes especializados coordenados sob 6 fases rígidas baseadas em TDD, Smart Merge de segurança e auditoria total.</p>
+    <img src="assets/logo-harness.png" alt="OpenCode Harness Logo" width="340" class="hero-logo">
+    <div class="badge" data-i18n="badge">Versão 6.3.2 Lançada</div>
+    <h1 data-i18n="hero_title">Desenvolvimento Multi-Agente Declarativo de Alta Fidelidade</h1>
+    <p data-i18n="hero_desc">O harness estruturado para o OpenCode. 20 agentes especializados coordenados sob 6 fases rígidas baseadas em TDD, Smart Merge de segurança e auditoria total.</p>
     
     <!-- Painel de Instalação -->
     <div class="terminal-container">
@@ -414,12 +448,10 @@
           <span class="cmd-text" id="installCmd">curl -fsSL https://raw.githubusercontent.com/alexandre-henrique-rp/harnes-opencode/main/install.sh | bash</span>
         </div>
         <button class="copy-btn" onclick="copyCommand()" title="Copiar Comando">
-          <!-- Ícone de Copiar -->
           <svg id="copyIcon" height="16" width="16" fill="currentColor" viewBox="0 0 16 16">
             <path fill-rule="evenodd" d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h1v1a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1v1z"/>
           </svg>
-          <!-- Ícone de Check (Inicialmente oculto) -->
-          <svg id="checkIcon" height="16" width="16" fill="currentColor" viewBox="0 0 16 16" style="display: none; color: #10b981;">
+          <svg id="checkIcon" height="16" width="16" fill="currentColor" viewBox="0 0 16 16" style="display: none; color: #aa9684;">
             <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425a.247.247 0 0 1 .02-.022z"/>
           </svg>
         </button>
@@ -429,76 +461,181 @@
 
   <!-- Diferenciais Principais -->
   <section style="max-width: 1200px; margin: 0 auto;">
-    <h2 class="section-title">Pilares do Harness</h2>
+    <h2 class="section-title" data-i18n="pillars_title">Pilares do Harness</h2>
     <div class="features-grid">
       <div class="card">
         <div class="card-icon">🛡️</div>
-        <h3>boundaries Rígidos</h3>
-        <p>Modelo de segurança baseado em 3 camadas (tool whitelist, path boundary e capability grant). IAs não escrevem fora de seu escopo.</p>
+        <h3 data-i18n="pilar1_title">boundaries Rígidos</h3>
+        <p data-i18n="pilar1_desc">Modelo de segurança baseado em 3 camadas (tool whitelist, path boundary e capability grant). IAs não escrevem fora de seu escopo.</p>
       </div>
       <div class="card">
         <div class="card-icon">🧪</div>
-        <h3>TDD Obrigatório</h3>
-        <p>Ciclo estrito de Red-Green-Refactor. Código de funcionalidade sem caso de teste falhando antes é bloqueado no portão de build.</p>
+        <h3 data-i18n="pilar2_title">TDD Obrigatório</h3>
+        <p data-i18n="pilar2_desc">Ciclo estrito de Red-Green-Refactor. Código de funcionalidade sem caso de teste falhando antes é bloqueado no portão de build.</p>
       </div>
       <div class="card">
         <div class="card-icon">⚖️</div>
-        <h3>Auditoria LGPD/DPO</h3>
-        <p>Um agente DPO dedicado que inspeciona de forma autônoma a infraestrutura de dados e a arquitetura contra vazamento de dados pessoais.</p>
+        <h3 data-i18n="pilar3_title">Auditoria LGPD/DPO</h3>
+        <p data-i18n="pilar3_desc">Um agente DPO dedicado que inspeciona de forma autônoma a infraestrutura de dados e a arquitetura contra vazamento de dados pessoais.</p>
       </div>
     </div>
   </section>
 
   <!-- Ciclo de 6 Fases -->
   <section class="timeline-container">
-    <h2 class="section-title">O Workflow de 6 Fases</h2>
+    <h2 class="section-title" data-i18n="workflow_title">O Workflow de 6 Fases</h2>
     <div class="timeline">
       <div class="timeline-item">
         <div class="timeline-phase">Fase 0</div>
-        <h3 class="timeline-title-item">Briefing e Definição</h3>
-        <p class="timeline-desc">O agente briefing analisa o escopo do software proposto, mapeia funcionalidades e solicita a aprovação explícita do desenvolvedor humano.</p>
-        <span class="timeline-gate">Aprovação Manual do Usuário</span>
+        <h3 class="timeline-title-item" data-i18n="fase0_title">Briefing e Definição</h3>
+        <p class="timeline-desc" data-i18n="fase0_desc">O agente briefing analisa o escopo do software proposto, mapeia funcionalidades e solicita a aprovação explícita do desenvolvedor humano.</p>
+        <span class="timeline-gate" data-i18n="gate0">Aprovação Manual do Usuário</span>
       </div>
       <div class="timeline-item">
         <div class="timeline-phase">Fase 1</div>
-        <h3 class="timeline-title-item">Documentação e RAG</h3>
-        <p class="timeline-desc">Construção do mapa de contexto do projeto e catalogação de RAGs locais e documentações. Criação do arquivo central de atalhos AGENTS.md.</p>
-        <span class="timeline-gate">Presença de ≥3 Docs Relevantes</span>
+        <h3 class="timeline-title-item" data-i18n="fase1_title">Documentação e RAG</h3>
+        <p class="timeline-desc" data-i18n="fase1_desc">Construção do mapa de contexto do projeto e catalogação de RAGs locais e documentações. Criação do arquivo central de atalhos AGENTS.md.</p>
+        <span class="timeline-gate" data-i18n="gate1">Presença de ≥3 Docs Relevantes</span>
       </div>
       <div class="timeline-item">
         <div class="timeline-phase">Fase 2</div>
-        <h3 class="timeline-title-item">Requisitos Técnicos</h3>
-        <p class="timeline-desc">Elaboração do PRD (Requisitos de Produto) e da SPEC técnica (Especificação de Código) com auditoria de agentes de revisão adicionais.</p>
-        <span class="timeline-gate">Score de PRD ≥ 80 e SPEC ≥ 85</span>
+        <h3 class="timeline-title-item" data-i18n="fase2_title">Requisitos Técnicos</h3>
+        <p class="timeline-desc" data-i18n="fase2_desc">Elaboração do PRD (Requisitos de Produto) e da SPEC técnica (Especificação de Código) com auditoria de agentes de revisão adicionais.</p>
+        <span class="timeline-gate" data-i18n="gate2">Score de PRD ≥ 80 e SPEC ≥ 85</span>
       </div>
       <div class="timeline-item">
         <div class="timeline-phase">Fase 3</div>
-        <h3 class="timeline-title-item">Design e Componentização</h3>
-        <p class="timeline-desc">Mapeamento de telas, layouts e designs de UI. Integração com as 14 novas skills do Google Stitch para geração rápida de interfaces.</p>
-        <span class="timeline-gate">Pontuação Estética ≥ 70</span>
+        <h3 class="timeline-title-item" data-i18n="fase3_title">Design e Componentização</h3>
+        <p class="timeline-desc" data-i18n="fase3_desc">Mapeamento de telas, layouts e designs de UI. Integração com as 14 novas skills do Google Stitch para geração rápida de interfaces.</p>
+        <span class="timeline-gate" data-i18n="gate3">Pontuação Estética ≥ 70</span>
       </div>
       <div class="timeline-item">
         <div class="timeline-phase">Fase 4</div>
-        <h3 class="timeline-title-item">Planejamento de Sprints</h3>
-        <p class="timeline-desc">Decomposição das especificações em tarefas gerenciáveis de Sprints. Cobertura de 100% dos requisitos de código da especificação.</p>
-        <span class="timeline-gate">Mapeamento de 100% dos Itens da SPEC</span>
+        <h3 class="timeline-title-item" data-i18n="fase4_title">Planejamento de Sprints</h3>
+        <p class="timeline-desc" data-i18n="fase4_desc">Decomposição das especificações em tarefas gerenciáveis de Sprints. Cobertura de 100% dos requisitos de código da especificação.</p>
+        <span class="timeline-gate" data-i18n="gate4">Mapeamento de 100% dos Itens da SPEC</span>
       </div>
       <div class="timeline-item">
         <div class="timeline-phase">Fase 5</div>
-        <h3 class="timeline-title-item">Build + Quality</h3>
-        <p class="timeline-desc">Codificação paralela de Backend/Frontend, criação e execução de testes TDD, varreduras automatizadas de segurança e DPO/LGPD.</p>
-        <span class="timeline-gate">Cobertura de Testes ≥ 85% & 0 Falhas Graves</span>
+        <h3 class="timeline-title-item" data-i18n="fase5_title">Build + Quality</h3>
+        <p class="timeline-desc" data-i18n="fase5_desc">Codificação paralela de Backend/Frontend, criação e execução de testes TDD, varreduras automatizadas de segurança e DPO/LGPD.</p>
+        <span class="timeline-gate" data-i18n="gate5">Cobertura de Testes ≥ 85% & 0 Falhas Graves</span>
       </div>
     </div>
   </section>
 
   <!-- Rodapé -->
   <footer>
-    <p>© 2026 OpenCode Agents v6. Desenvolvido para a CLI oficial do OpenCode. Licença MIT.</p>
+    <p data-i18n="footer">© 2026 OpenCode Agents v6. Desenvolvido para a CLI oficial do OpenCode. Licença MIT.</p>
   </footer>
 
-  <!-- Lógica de Cópia -->
+  <!-- Lógica de Cópia e Idioma -->
   <script>
+    // Dicionário de Traduções
+    const translations = {
+      pt: {
+        title: "OpenCode Agents v6 — O Harness Multi-Agente Declarativo e Auditável",
+        badge: "Versão 6.3.2 Lançada",
+        hero_title: "Desenvolvimento Multi-Agente Declarativo de Alta Fidelidade",
+        hero_desc: "O harness estruturado para o OpenCode. 20 agentes especializados coordenados sob 6 fases rígidas baseadas em TDD, Smart Merge de segurança e auditoria total.",
+        pillars_title: "Pilares do Harness",
+        pilar1_title: "boundaries Rígidos",
+        pilar1_desc: "Modelo de segurança baseado em 3 camadas (tool whitelist, path boundary e capability grant). IAs não escrevem fora de seu escopo.",
+        pilar2_title: "TDD Obrigatório",
+        pilar2_desc: "Ciclo estrito de Red-Green-Refactor. Código de funcionalidade sem caso de teste falhando antes é bloqueado no portão de build.",
+        pilar3_title: "Auditoria LGPD/DPO",
+        pilar3_desc: "Um agente DPO dedicado que inspeciona de forma autônoma a infraestrutura de dados e a arquitetura contra vazamento de dados pessoais.",
+        workflow_title: "O Workflow de 6 Fases",
+        fase0_title: "Briefing e Definição",
+        fase0_desc: "O agente briefing analisa o escopo do software proposto, mapeia funcionalidades e solicita a aprovação explícita do desenvolvedor humano.",
+        gate0: "Aprovação Manual do Usuário",
+        fase1_title: "Documentação e RAG",
+        fase1_desc: "Construção do mapa de contexto do projeto e catalogação de RAGs locais e documentações. Criação do arquivo central de atalhos AGENTS.md.",
+        gate1: "Presença de ≥3 Docs Relevantes",
+        fase2_title: "Requisitos Técnicos",
+        fase2_desc: "Elaboração do PRD (Requisitos de Produto) e da SPEC técnica (Especificação de Código) com auditoria de agentes de revisão adicionais.",
+        gate2: "Score de PRD ≥ 80 e SPEC ≥ 85",
+        fase3_title: "Design e Componentização",
+        fase3_desc: "Mapeamento de telas, layouts e designs de UI. Integração com as 14 novas skills do Google Stitch para geração rápida de interfaces.",
+        gate3: "Pontuação Estética ≥ 70",
+        fase4_title: "Planejamento de Sprints",
+        fase4_desc: "Decomposição das especificações em tarefas gerenciáveis de Sprints. Cobertura de 100% dos requisitos de código da especificação.",
+        gate4: "Mapeamento de 100% dos Itens da SPEC",
+        fase5_title: "Build + Quality",
+        fase5_desc: "Codificação paralela de Backend/Frontend, criação e execução de testes TDD, varreduras automatizadas de segurança e DPO/LGPD.",
+        gate5: "Cobertura de Testes ≥ 85% & 0 Falhas Graves",
+        footer: "© 2026 OpenCode Agents v6. Desenvolvido para a CLI oficial do OpenCode. Licença MIT."
+      },
+      en: {
+        title: "OpenCode Agents v6 — The Declarative & Auditable Multi-Agent Harness",
+        badge: "Version 6.3.2 Released",
+        hero_title: "High-Fidelity Declarative Multi-Agent Development",
+        hero_desc: "The structured workflow harness for OpenCode. 20 specialized agents coordinated across 6 rigid phases based on TDD, security Smart Merge, and total audit log.",
+        pillars_title: "Harness Pillars",
+        pilar1_title: "Hard Boundaries",
+        pilar1_desc: "Security model based on 3 layers (tool whitelist, path boundary, and capability grant). AIs never write outside their boundaries.",
+        pilar2_title: "Mandatory TDD",
+        pilar2_desc: "Strict Red-Green-Refactor cycle. Feature code without a failing test case is blocked at the build gate.",
+        pilar3_title: "LGPD/DPO Audits",
+        pilar3_desc: "A dedicated DPO agent that autonomously inspects data infrastructure and database architecture against leaks of personal data.",
+        workflow_title: "The 6-Phase Workflow",
+        fase0_title: "Briefing and Definition",
+        fase0_desc: "The briefing agent analyzes the scope of the proposed software, maps features, and requests explicit approval from the human developer.",
+        gate0: "Manual User Approval",
+        fase1_title: "Documentation and RAG",
+        fase1_desc: "Context map creation and cataloging of local RAGs and documentations. Generation of the central AGENTS.md shortcut file.",
+        gate1: "Presence of ≥3 Relevant Docs",
+        fase2_title: "Technical Requirements",
+        fase2_desc: "Drafting the PRD (Product Requirements) and the technical SPEC (Code Specification) with additional reviewer agent audits.",
+        gate2: "PRD Score ≥ 80 & SPEC ≥ 85",
+        fase3_title: "Design and Components",
+        fase3_desc: "Mapping screens, layouts, and UI designs. Integration with 14 new Google Stitch skills for rapid interface generation.",
+        gate3: "Aesthetic Score ≥ 70",
+        fase4_title: "Sprint Planning",
+        fase4_desc: "Decomposition of specifications into manageable sprint tasks. Mapped with 100% coverage of SPEC technical requirements.",
+        gate4: "100% SPEC Coverage Mapping",
+        fase5_title: "Build & Quality",
+        fase5_desc: "Parallel Backend/Frontend coding, creation and execution of TDD tests, automated security scans, and DPO/LGPD compliance.",
+        gate5: "Test Coverage ≥ 85% & 0 Severe Flaws",
+        footer: "© 2026 OpenCode Agents v6. Developed for the official OpenCode CLI. MIT License."
+      }
+    };
+
+    function applyTranslations(lang) {
+      document.title = translations[lang].title;
+      
+      const elements = document.querySelectorAll('[data-i18n]');
+      elements.forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (translations[lang][key]) {
+          el.innerText = translations[lang][key];
+        }
+      });
+      
+      document.getElementById('langSelect').value = lang;
+    }
+
+    function initLanguage() {
+      let lang = localStorage.getItem('harness-lang');
+      
+      if (!lang) {
+        const userLang = navigator.language || navigator.userLanguage;
+        if (userLang && userLang.toLowerCase().startsWith('pt')) {
+          lang = 'pt';
+        } else {
+          lang = 'en';
+        }
+      }
+      
+      applyTranslations(lang);
+    }
+
+    function changeLanguage(lang) {
+      localStorage.setItem('harness-lang', lang);
+      applyTranslations(lang);
+    }
+
+    // Lógica do botão de Copiar
     function copyCommand() {
       const cmdText = document.getElementById('installCmd').innerText;
       
@@ -506,11 +643,9 @@
         const copyIcon = document.getElementById('copyIcon');
         const checkIcon = document.getElementById('checkIcon');
         
-        // Troca de Ícone
         copyIcon.style.display = 'none';
         checkIcon.style.display = 'block';
         
-        // Retorna ao estado inicial após 2 segundos
         setTimeout(() => {
           copyIcon.style.display = 'block';
           checkIcon.style.display = 'none';
@@ -519,6 +654,9 @@
         console.error('Falha ao copiar comando: ', err);
       });
     }
+
+    // Inicializa idioma no carregamento do DOM
+    window.addEventListener('DOMContentLoaded', initLanguage);
   </script>
 </body>
 </html>
