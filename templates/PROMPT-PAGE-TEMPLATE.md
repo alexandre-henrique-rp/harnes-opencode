@@ -180,8 +180,10 @@ states:
 - [ ] Submit chama `POST /api/v1/users` com payload exato
 - [ ] `copy` copia valor de `<field>` pro clipboard com toast de feedback
 - [ ] Testes cobrem: render, validação, integração, submit, copy, error states
-- [ ] Página é responsiva (mobile-first)
-- [ ] Acessibilidade: labels associados, aria-*, navegação por teclado
+- [ ] Página é responsiva (mobile-first) e não há text overflow em containers
+- [ ] Acessibilidade: labels associados, aria-*, navegação por teclado e contraste de cores ≥ 4.5:1 (Impeccable a11y)
+- [ ] Suporte a acessibilidade de movimento: animações e transições curtas (150-250ms) e respeito estrito a `@media (prefers-reduced-motion: reduce)`
+- [ ] Ausência de Bans Absolutos do Impeccable (sem textos com gradiente, sem listras laterais em cartões >1px, sem kickers repetidos, z-indexes lógicos)
 
 ## 7. Cross-Module Hints
 

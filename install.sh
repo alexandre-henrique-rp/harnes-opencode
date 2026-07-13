@@ -22,7 +22,7 @@ set -euo pipefail
 # Configuracao
 # ============================================================================
 
-HARNESS_VERSION="6.3.1"
+HARNESS_VERSION="6.3.2"
 HARNESS_NAME="harness-v6"
 DRY_RUN=false
 PRESERVE_CONFIG=false
@@ -30,6 +30,15 @@ PRESERVE_CUSTOM=false
 UPDATE_MODE=false
 UNINSTALL=false
 INTERACTIVE=false
+
+# Limpeza de diretórios temporários na saída do script
+TEMP_SOURCE_DIR=""
+cleanup_temp_dir() {
+    if [[ -n "$TEMP_SOURCE_DIR" && -d "$TEMP_SOURCE_DIR" ]]; then
+        rm -rf "$TEMP_SOURCE_DIR"
+    fi
+}
+trap cleanup_temp_dir EXIT
 
 # ============================================================================
 # Cores (se terminal suportar)
@@ -61,24 +70,24 @@ die() { log_err "$*"; exit 1; }
 install_bun_if_needed() {
     log_info "Verificando se o Bun está instalado..."
     if command -v bun >/dev/null 2>&1; then
-        log_ok "Bun detectado: \$(bun --version)"
+        log_ok "Bun detectado: $(bun --version)"
         return 0
     fi
 
     log_warn "Bun não foi detectado no sistema."
     
     local resp="y"
-    # Se for terminal interativo, pergunta ao usuário
-    if [[ -t 0 ]]; then
-        printf "\n\${YELLOW}O Bun é altamente recomendado para executar os plugins do Harness e o sqlite-vec com máxima performance.\${NC}\n"
-        read -rp "Deseja instalar o Bun agora automaticamente? [Y/n] " resp
-        if [[ -z "\$resp" || "\$resp" =~ ^[Yy]\$ ]]; then
+    # Se for terminal interativo ou /dev/tty estiver disponível, pergunta ao usuário
+    if [[ -t 0 || -c /dev/tty ]]; then
+        printf "\n${YELLOW}O Bun é altamente recomendado para executar os plugins do Harness e o sqlite-vec com máxima performance.${NC}\n"
+        read -rp "Deseja instalar o Bun agora automaticamente? [Y/n] " resp < /dev/tty
+        if [[ -z "$resp" || "$resp" =~ ^[Yy]$ ]]; then
             log_info "Instalando o Bun..."
             if curl -fsSL https://bun.sh/install | bash; then
                 log_ok "Bun instalado com sucesso!"
                 # Carrega o Bun no PATH do script atual
-                export BUN_INSTALL="\${HOME}/.bun"
-                export PATH="\${BUN_INSTALL}/bin:\${PATH}"
+                export BUN_INSTALL="${HOME}/.bun"
+                export PATH="${BUN_INSTALL}/bin:${PATH}"
                 return 0
             else
                 log_err "Falha ao instalar o Bun automaticamente."
@@ -139,12 +148,12 @@ select_option() {
     show_menu "$selected" "${options[@]}"
 
     while true; do
-        # Lê 1 caractere de entrada. Se for escape, lê mais para identificar as setas.
-        read -s -n1 key
+        # Lê 1 caractere de entrada de /dev/tty. Se for escape, lê mais para identificar as setas.
+        read -s -n1 key < /dev/tty
         
         # Detecta sequência de escape para as setas do teclado
         if [[ "$key" == "$ESC" ]]; then
-            read -s -n2 -t 0.05 key
+            read -s -n2 -t 0.05 key < /dev/tty
             if [[ "$key" == "[A" ]]; then # Seta para CIMA
                 selected=$(( (selected - 1 + ${#options[@]}) % ${#options[@]} ))
                 show_menu "$selected" "${options[@]}"
@@ -204,10 +213,47 @@ get_install_dir() {
 }
 
 get_source_dir() {
-    # Diretorio onde o install.sh esta localizado
-    local src
-    src="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    echo "$src"
+    local script_dir
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd 2>/dev/null || pwd)"
+
+    # Se os arquivos básicos existirem no diretório do script, rodamos em modo local (offline/dev)
+    if [[ -d "$script_dir/agents" && -f "$script_dir/opencode.json" ]]; then
+        echo "$script_dir"
+        return 0
+    fi
+
+    # Caso contrário, rodamos em modo remoto (download temporário via GitHub)
+    local tmp_dir
+    tmp_dir=$(mktemp -d -t harness-install.XXXXXX 2>/dev/null || mktemp -d /tmp/harness-install.XXXXXX)
+    TEMP_SOURCE_DIR="$tmp_dir"
+
+    local tarball_url="https://github.com/alexandre-henrique-rp/harnes-opencode/archive/refs/heads/main.tar.gz"
+    local tar_file="$tmp_dir/harness.tar.gz"
+
+    if command -v curl >/dev/null 2>&1; then
+        curl -L "$tarball_url" -o "$tar_file" >/dev/null 2>&1
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q "$tarball_url" -O "$tar_file" >/dev/null 2>&1
+    else
+        log_err "Erro: É necessário ter 'curl' ou 'wget' instalado para rodar a instalação remota."
+        exit 1
+    fi
+
+    if ! tar -xzf "$tar_file" -C "$tmp_dir" >/dev/null 2>&1; then
+        log_err "Erro: Falha ao extrair os arquivos baixados do GitHub."
+        exit 1
+    fi
+
+    # Encontra a pasta extraída (que o GitHub nomeia como 'harnes-opencode-main')
+    local extracted_dir
+    extracted_dir=$(find "$tmp_dir" -maxdepth 2 -type d -name "harnes-opencode-*" | head -n 1)
+
+    if [[ -z "$extracted_dir" ]]; then
+        log_err "Erro: Estrutura do repositório baixado está inválida."
+        exit 1
+    fi
+
+    echo "$extracted_dir"
 }
 
 # ============================================================================
@@ -566,6 +612,25 @@ EOF
         [[ -f "$existing_jsonc" ]] && config_file="$existing_jsonc"
 
         if [[ -n "$config_file" ]]; then
+            # Criar pasta de backup preventiva centralizada com data/hora
+            local backup_timestamp
+            backup_timestamp=$(date +%Y%m%d_%H%M%S)
+            local backup_dir="$dest/backup/backup_$backup_timestamp"
+
+            if ! $DRY_RUN; then
+                mkdir -p "$backup_dir"
+                cp "$config_file" "$backup_dir/$(basename "$config_file")"
+                printf "\n"
+                log_ok "[BACKUP DE SEGURANÇA] Cópia preventiva criada com sucesso!"
+                log_info "  Arquivo de backup: ${BLUE}$backup_dir/$(basename "$config_file")${NC}"
+                log_info "  Explicação: Salvamos o seu arquivo de configuração original antes de realizar alterações."
+                log_info "  Como restaurar se houver problemas: Você pode reverter a qualquer momento rodando o comando:"
+                log_bold "  cp \"$backup_dir/$(basename "$config_file")\" \"$config_file\""
+                printf "\n"
+            else
+                log_info "[DRY-RUN] Criaria pasta de backup em $backup_dir e copiaria $config_file"
+            fi
+
             local action_choice=0
             if $INTERACTIVE; then
                 printf "\n"
@@ -688,7 +753,7 @@ do_uninstall() {
     fi
 
     # Confirma
-    if [[ -t 0 ]] && ! $DRY_RUN; then
+    if [[ -t 0 || -c /dev/tty ]] && ! $DRY_RUN; then
         printf "${YELLOW}Isso vai remover APENAS arquivos do harness v6 (com backup).${NC}\n"
         printf "Arquivos que serao removidos:\n"
         printf "  - $dest/agents/\n"
@@ -706,7 +771,7 @@ do_uninstall() {
         printf "  - $dest/harness-allowlist.json (se foi instalado pelo harness)\n"
         printf "  - $dest/opencode.json (se foi instalado pelo harness)\n"
         printf "\n"
-        read -rp "Continuar? [y/N] " resp
+        read -rp "Continuar? [y/N] " resp < /dev/tty
         if [[ ! "$resp" =~ ^[Yy]$ ]]; then
             log_info "Cancelado pelo usuario."
             exit 0
@@ -740,10 +805,10 @@ do_uninstall() {
     # Pergunta sobre opencode.json/jsonc
     if ! $DRY_RUN; then
         for cfg_file in "$dest/opencode.json" "$dest/opencode.jsonc"; do
-            if [[ -f "$cfg_file" ]] && [[ -t 0 ]]; then
+            if [[ -f "$cfg_file" ]] && [[ -t 0 || -c /dev/tty ]]; then
                 printf "\n${YELLOW}O arquivo $cfg_file pode ter sido instalado/substituido pelo harness.${NC}\n"
                 printf "Ele contem 16 agents do harness + provavel config do usuario.\n"
-                read -rp "Remover? (recomendado: nao, fazer merge manual) [y/N] " resp
+                read -rp "Remover? (recomendado: nao, fazer merge manual) [y/N] " resp < /dev/tty
                 if [[ "$resp" =~ ^[Yy]$ ]]; then
                     backup_path "$cfg_file"
                     rm -f "$cfg_file"
@@ -888,85 +953,85 @@ print_summary() {
 # Main
 # ============================================================================
 
-891: main() {
-892:     # Parse args
-893:     if [[ $# -eq 0 ]]; then
-894:         INTERACTIVE=true
-895:         print_banner
-896:         
-897:         local options=(
-898:             "Instalação Limpa (Fresh Install) — Sobrescreve core e reinicia configs"
-899:             "Atualização (Update) — Preserva suas customizações e RAGs"
-900:             "Desinstalação (Uninstall) — Remove o Harness v6 do OpenCode"
-901:             "Cancelar e Sair"
-902:         )
-903:         
-904:         local choice
-905:         select_option "${options[@]}" && choice=0 || choice=$?
-906:         
-907:         case "$choice" in
-908:             0) # Fresh Install
-909:                ;;
-910:             1) # Update
-911:                UPDATE_MODE=true
-912:                PRESERVE_CUSTOM=true
-913:                PRESERVE_CONFIG=true
-914:                ;;
-915:             2) # Uninstall
-916:                UNINSTALL=true
-917:                ;;
-918:             *) # Cancelar
-919:                log_info "Operação cancelada pelo usuário."
-920:                exit 0
-921:                ;;
-922:         esac
-923:     else
-924:         while [[ $# -gt 0 ]]; do
-925:             case "$1" in
-926:                 --uninstall)        UNINSTALL=true; shift ;;
-927:                 --dry-run)          DRY_RUN=true; shift ;;
-928:                 --preserve-config)  PRESERVE_CONFIG=true; shift ;;
-929:                 --update)           UPDATE_MODE=true; PRESERVE_CUSTOM=true; PRESERVE_CONFIG=true; shift ;;
-930:                 --version)          echo "Harness v6 installer ${HARNESS_VERSION}"; exit 0 ;;
-931:                 --help|-h)          print_help; exit 0 ;;
-932:                 *)                  log_err "Opcao desconhecida: $1"; print_help; exit 1 ;;
-933:             esac
-934:         done
-935:         print_banner
-936:     fi
-937: 
-938:     # Deteccao
-939:     OS=$(detect_os)
-940:     SOURCE_DIR=$(get_source_dir)
-941:     INSTALL_DIR=$(get_install_dir "$OS")
-942: 
-943:     # Confirmação do diretório de instalação em modo interativo
-944:     if $INTERACTIVE && [[ "$UNINSTALL" = false ]]; then
-945:         printf "\n"
-946:         log_bold "Configuração do Caminho de Destino:"
-947:         printf "Caminho padrão detectado: ${BLUE}$INSTALL_DIR${NC}\n"
-948:         read -rp "Pressione Enter para confirmar ou digite outro caminho: " user_dir
-949:         if [[ -n "$user_dir" ]]; then
-950:             # Expande ~ se necessário
-951:             INSTALL_DIR="${user_dir/#\~/$HOME}"
-952:         fi
-953:     fi
-954: 
-955:     # Pre-checks
-956:     check_prerequisites "$OS" "$SOURCE_DIR"
-957: 
-958:     # Executa
-959:     if $UNINSTALL; then
-960:         do_uninstall "$INSTALL_DIR"
-961:     else
-962:         do_install "$SOURCE_DIR" "$INSTALL_DIR"
-963: 
-964:         if ! $DRY_RUN; then
-965:             post_install_check "$INSTALL_DIR" || true
-966:         fi
-967: 
-968:         print_summary "$INSTALL_DIR" "$OS"
-969:     fi
-970: }
+main() {
+    # Parse args
+    if [[ $# -eq 0 ]]; then
+        INTERACTIVE=true
+        print_banner
+        
+        local options=(
+            "Instalação Limpa (Fresh Install) — Sobrescreve core e reinicia configs"
+            "Atualização (Update) — Preserva suas customizações e RAGs"
+            "Desinstalação (Uninstall) — Remove o Harness v6 do OpenCode"
+            "Cancelar e Sair"
+        )
+        
+        local choice
+        select_option "${options[@]}" && choice=0 || choice=$?
+        
+        case "$choice" in
+            0) # Fresh Install
+               ;;
+            1) # Update
+               UPDATE_MODE=true
+               PRESERVE_CUSTOM=true
+               PRESERVE_CONFIG=true
+               ;;
+            2) # Uninstall
+               UNINSTALL=true
+               ;;
+            *) # Cancelar
+               log_info "Operação cancelada pelo usuário."
+               exit 0
+               ;;
+        esac
+    else
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --uninstall)        UNINSTALL=true; shift ;;
+                --dry-run)          DRY_RUN=true; shift ;;
+                --preserve-config)  PRESERVE_CONFIG=true; shift ;;
+                --update)           UPDATE_MODE=true; PRESERVE_CUSTOM=true; PRESERVE_CONFIG=true; shift ;;
+                --version)          echo "Harness v6 installer ${HARNESS_VERSION}"; exit 0 ;;
+                --help|-h)          print_help; exit 0 ;;
+                *)                  log_err "Opcao desconhecida: $1"; print_help; exit 1 ;;
+            esac
+        done
+        print_banner
+    fi
+
+    # Deteccao
+    OS=$(detect_os)
+    SOURCE_DIR=$(get_source_dir)
+    INSTALL_DIR=$(get_install_dir "$OS")
+
+    # Confirmação do diretório de instalação em modo interativo
+    if $INTERACTIVE && [[ "$UNINSTALL" = false ]]; then
+        printf "\n"
+        log_bold "Configuração do Caminho de Destino:"
+        printf "Caminho padrão detectado: ${BLUE}$INSTALL_DIR${NC}\n"
+        read -rp "Pressione Enter para confirmar ou digite outro caminho: " user_dir < /dev/tty
+        if [[ -n "$user_dir" ]]; then
+            # Expande ~ se necessário
+            INSTALL_DIR="${user_dir/#\~/$HOME}"
+        fi
+    fi
+
+    # Pre-checks
+    check_prerequisites "$OS" "$SOURCE_DIR"
+
+    # Executa
+    if $UNINSTALL; then
+        do_uninstall "$INSTALL_DIR"
+    else
+        do_install "$SOURCE_DIR" "$INSTALL_DIR"
+
+        if ! $DRY_RUN; then
+            post_install_check "$INSTALL_DIR" || true
+        fi
+
+        print_summary "$INSTALL_DIR" "$OS"
+    fi
+}
 
 main "$@"

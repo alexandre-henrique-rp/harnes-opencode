@@ -52,6 +52,8 @@ Estes, se faltarem, são `critical`:
 - [ ] Field schema tem `validation` em todos campos `required: true`
 - [ ] Action submit tem `endpoint` que existe no SPEC
 - [ ] Cross-module hints têm `dataFlow` (qual campo flui de onde pra onde)
+- [ ] **Heurísticas Impeccable:** O design não possui nenhum dos **Absolute Bans** (sem texto em gradiente, sem listras laterais grossas > 1px em cards/alertas, sem kickers ou eyebrows em caixa alta repetidos em cada seção, sem números de seção 01/02/03 artificiais).
+- [ ] **Contraste de Acessibilidade:** O design especifica contraste de cor de texto e placeholders de no mínimo 4.5:1 em relação ao fundo.
 
 Se qualquer item faltar → score máximo = 69 (rework zone).
 

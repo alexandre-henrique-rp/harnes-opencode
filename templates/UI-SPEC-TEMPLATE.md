@@ -71,7 +71,21 @@ Mapeie a árvore de componentes da tela dividindo-os de forma granular:
 Especifique o que o usuário vê em cada momento da requisição dos dados:
 
 * **Ideal State:** [Descrição da tela populada]
-* **Loading State:** [Indique onde os Skeletons animadas do Stitch MCP serão aplicados]
+* **Loading State:** [Indique onde as Skeletons animadas do Stitch MCP serão aplicados]
 * **Empty State:** [Mensagem e comportamento se a resposta for um array vazio `[]`]
 * **Error State:** [Tratamento visual e botão de retry para falhas de API `4xx/5xx`]
+
+---
+
+## 4.6 DIRETRIZES ESTÉTICAS E ACESSIBILIDADE (IMPECCABLE DIRECTIVES)
+
+* **Contraste de Acessibilidade:** Garantir que cores de texto e placeholders em relação ao fundo tenham contraste mínimo verificado de **4.5:1** (ou **3:1** para textos grandes).
+* **Escala de Z-Index Semântica:** Mapear z-indexes estruturados de acordo com uma hierarquia lógica (ex: dropdown -> sticky -> modal-backdrop -> modal -> toast). Nunca usar valores arbitrários como 9999.
+* **Prevenção de Slop de IA (Absolute Bans):** Esta especificação de UI garante a **não utilização** de:
+  - [ ] Textos com gradiente
+  - [ ] Listras laterais coloridas grossas em cards/alertas (side-stripe borders > 1px)
+  - [ ] Glassmorphism decorativo sem propósito
+  - [ ] Grids repetitivos de cartões idênticos
+  - [ ] Kickers/eyebrows repetidos no topo de cada seção
+  - [ ] Marcadores numéricos de seção artificiais (01, 02, 03) que não sejam sequências de processos reais
 

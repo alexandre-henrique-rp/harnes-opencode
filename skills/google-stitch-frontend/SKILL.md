@@ -29,9 +29,82 @@ Antes de escrever qualquer linha de código ou especificação de interface, ava
 
 ## 1.2 INCORPORAÇÃO OBRIGATÓRIA DE SKILLS AUXILIARES NO PROMPT DO STITCH
 > [!IMPORTANT]
-> **Injeção de Diretrizes no Prompt Único**: Dado que o **Google Stitch MCP** é o motor responsável por criar o layout e os tokens de UI, as diretrizes das skills locais **DEVEM ser incorporadas textualmente** no corpo do prompt consolidado (`.harness/ui-specs/[nome_da_feature]_mcp_prompt.md`):
+> **Injeção de Diretrizes no Prompt Único**: Dado que o **Google Stitch MCP** é o motor responsible por criar o layout e os tokens de UI, as diretrizes das skills locais **DEVEM ser incorporadas textualmente** no corpo do prompt consolidado (`.harness/ui-specs/[nome_da_feature]_mcp_prompt.md`):
 > 1. **Injetar `web-design-guidelines`**: Leia e anexe as diretrizes de design premium (paleta HSL, contrastes adequados, dark mode e micro-animações) como regras e instruções para o Google Stitch MCP. Isso garante que o layout gerado atinja a fidelidade e estética rica planejadas.
 > 2. **Injetar `impeccable`**: Leia e anexe as regras de qualidade estrutural e formatação impecável de documentos para que o Google Stitch MCP retorne a especificação de UI limpa, livre de placeholders e com diagramas ASCII perfeitos.
+
+---
+
+## 1.3 FERRAMENTAS DISPONÍVEIS DO STITCH MCP (AVAILABLE TOOLS)
+O assistente de IA possui acesso às seguintes ferramentas do Stitch MCP para gerenciar o fluxo de design:
+
+### A. Gerenciamento de Projetos (Project Management)
+* `create_project`: Cria um novo container de projeto para os designs de interface.
+  - Parâmetros: `title` (string, obrigatório) - O nome de exibição do projeto.
+* `get_project`: Obtém informações detalhadas de um projeto específico.
+  - Parâmetros: `name` (string, obrigatório) - O nome do recurso do projeto.
+* `list_projects`: Retorna uma lista de todos os projetos ativos.
+  - Parâmetros: `filter` (string, opcional) - Filtra os projetos (proprietário ou compartilhados).
+
+### B. Gerenciamento de Telas (Screen Management)
+* `list_screens`: Obtém todas as telas pertencentes a um projeto.
+  - Parâmetros: `projectId` (string, obrigatório) - O ID do projeto a ser inspecionado.
+* `get_screen`: Retorna informações detalhadas de uma única tela.
+  - Parâmetros: `name` (string, obrigatório) - O nome do recurso da tela.
+
+### C. Geração de Telas com IA (AI Generation)
+* `generate_screen_from_text`: Cria um novo design/tela a partir de um prompt em texto.
+  - Parâmetros:
+    - `projectId` (string, obrigatório) - O ID do projeto.
+    - `prompt` (string, obrigatório) - Instruções em texto detalhando a tela a ser gerada.
+    - `modelId` (string, opcional) - O modelo de IA (`GEMINI_3_FLASH` ou `GEMINI_3_1_PRO`).
+* `edit_screens`: Edita uma ou mais telas existentes usando instruções textuais.
+  - Parâmetros:
+    - `projectId` (string, obrigatório) - O ID do projeto.
+    - `selectedScreenIds` (array de strings, obrigatório) - Os IDs das telas a editar.
+    - `prompt` (string, obrigatório) - Instrução textual de edição.
+* `generate_variants`: Cria variações visuais de telas existentes.
+  - Parâmetros:
+    - `projectId` (string, obrigatório) - O ID do projeto.
+    - `selectedScreenIds` (array de strings, obrigatório) - Os IDs das telas a variar.
+    - `prompt` (string, obrigatório) - Instruções guiando a geração das variantes.
+    - `variantOptions` (object, opcional) - Opções como quantidade, fator de criatividade, etc.
+
+### D. Sistemas de Design (Design Systems)
+* `create_design_system`: Cria um novo design system com tokens fundamentais.
+  - Parâmetros:
+    - `designSystem` (object, obrigatório) - Configurações do design system (nome, tema).
+    - `projectId` (string, opcional) - Projeto a ser associado.
+* `update_design_system`: Updates an existing design system.
+  - Parâmetros:
+    - `name` (string, obrigatório) - Nome do recurso do design system.
+    - `projectId` (string, obrigatório) - ID do projeto.
+    - `designSystem` (object, obrigatório) - Conteúdo atualizado.
+* `list_design_systems`: Lista todos os design systems de um projeto.
+  - Parâmetros: `projectId` (string, opcional) - ID do projeto.
+* `apply_design_system`: Aplica um design system a uma ou mais telas.
+  - Parâmetros:
+    - `projectId` (string, obrigatório) - ID do projeto.
+    - `selectedScreenInstances` (array, obrigatório) - Telas a atualizar (retornadas em `get_project`).
+    - `assetId` (string, obrigatório) - ID do design system.
+
+---
+
+## 1.4 PLANO DE UTILIZAÇÃO E EXECUÇÃO ASSÍNCRONA
+Para garantir a maior fidelidade na geração de UI e evitar perda de contexto pelo Stitch, o agente deve seguir rigorosamente as diretivas abaixo:
+
+1. **Planejamento Detalhado Prévio (Contexto Abundante):**
+   - O Stitch processa e otimiza a geração pensando em padrões de **HTML, JavaScript e Tailwind CSS**.
+   - Forneça descrições extremamente detalhadas das páginas, especificando a hierarquia estrutural e wireframes em ASCII estruturados. Quanto mais preciso for o mapeamento, melhor o resultado.
+2. **Estratégia de Envio de Prompts (Consolidado vs. Granular):**
+   - **Tentativa 1 (Lote Consolidado):** Se houver múltiplas telas, tente sempre estruturar e enviar todas juntas em um único prompt consolidado. Isso garante consistência máxima de design system entre as telas.
+   - **Tentativa 2 (Página por Página - Fallback):** Caso o envio em lote falhe, apresente timeouts ou retorne resultados insatisfatórios, divida a geração enviando **página por página** sequencialmente.
+3. **Injeção Moderada de Código e Diretrizes:**
+   - É permitido injetar pequenos trechos de código reais e guidelines estéticos (como as regras do Impeccable) no prompt do Stitch para guiar a estrutura visual.
+   - **Atenção:** Mantenha os trechos de código curtos e diretos para não sobrecarregar ou confundir a IA do Stitch.
+4. **Execução Assíncrona Não-Bloqueante:**
+   - O processamento de geração do Stitch MCP é pesado e pode demorar de segundos a alguns minutos.
+   - **Nunca** faça loops de polling ou aguarde a resposta ativamente. Inicie a tarefa em background e libere a execução para outras atividades ou encerre a chamada. O sistema utilizará o mecanismo reativo de notificação automática assim que o Stitch concluir a requisição.
 
 ---
 
