@@ -126,7 +126,7 @@ jobs:
       - name: Validate opencode.json schema
         run: |
           python3 << 'EOF'
-          import json
+          import json, os
           with open('opencode.json') as f:
               data = json.load(f)
           allowed = {
@@ -162,7 +162,6 @@ jobs:
                       print(f'FAIL: plugin {plugin} nao existe ({path})')
                       exit(1)
           print(f'opencode.json valid ({len(data.get("plugin", []))} plugins, {len(data.get("mcp", {}))} MCPs)')
-          import os
           EOF
 
       # 7. Verifica que todos os templates referenciados existem
