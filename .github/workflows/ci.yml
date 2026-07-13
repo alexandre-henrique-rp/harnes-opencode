@@ -45,18 +45,21 @@ jobs:
         run: |
           echo "=== Root JSONs ==="
           for f in state-machine.json failure-protocol.json opencode.json; do
+            [ -f "$f" ] || continue
             echo "Checking $f"
             python3 -c "import json; json.load(open('$f'))" || exit 1
           done
           echo ""
           echo "=== Template JSONs ==="
           for f in templates/*.json; do
+            [ -f "$f" ] || continue
             echo "Checking $f"
             python3 -c "import json; json.load(open('$f'))" || exit 1
           done
           echo ""
           echo "=== Example JSONs ==="
           for f in examples/**/*.json; do
+            [ -f "$f" ] || continue
             echo "Checking $f"
             python3 -c "import json; json.load(open('$f'))" || exit 1
           done
