@@ -24,28 +24,26 @@
     "question": "allow",
     "task": "deny"
   },
-  "mcp": {
+    "mcp": {
     "playwright": {
       "type": "local",
       "command": [
-        "npx",
-        "@playwright/mcp@latest"
+        "node",
+        "/home/kingdev/.config/opencode/node_modules/.bin/playwright-mcp"
       ]
     },
     "drawio": {
       "type": "local",
       "command": [
-        "npx",
-        "-y",
-        "@drawio/mcp"
+        "node",
+        "/home/kingdev/.config/opencode/node_modules/.bin/drawio-mcp"
       ]
     },
     "chrome-devtools": {
       "type": "local",
       "command": [
-        "npx",
-        "-y",
-        "chrome-devtools-mcp@latest",
+        "node",
+        "/home/kingdev/.config/opencode/node_modules/.bin/chrome-devtools-mcp",
         "--autoConnect"
       ]
     },
@@ -57,7 +55,7 @@
         "--agent",
         "openCodeCLI"
       ],
-      "enabled": true,
+      "enabled": false,
       "type": "local"
     },
     "stitch": {
@@ -67,7 +65,15 @@
       "headers": {
         "X-Goog-Api-Key": ""
       }
-    }
+    },
+    "duckduckgo-search": {
+      "type": "local",
+      "command": [
+        "node",
+        "/home/kingdev/.config/opencode/node_modules/.bin/ddg-search-mcp",
+        "--server"
+      ]
+    },
   },
   "default_agent": "orchestrator"
 }
