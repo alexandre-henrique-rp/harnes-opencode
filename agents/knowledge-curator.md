@@ -1,5 +1,6 @@
 ---
 description: Knowledge Curator agent. Conversa com o usuário, pesquisa na internet, elabora conceitos e cria RAGs globais.
+mode: subagent
 temperature: 0.5
 permission:
   task: deny
