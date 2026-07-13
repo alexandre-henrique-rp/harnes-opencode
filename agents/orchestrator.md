@@ -118,7 +118,11 @@ Antes de escrever qualquer linha de código ou especificação de interface, ava
 Durante a interação com o usuário, certifique-se de alinhar se o layout já está definido:
 - **Se o usuário já possuir layout definido:** Oriente-o a colocar as imagens ou códigos base das páginas em uma pasta padrão na raiz do projeto (ex: `.harness/design/assets/`). Crie esta pasta se necessário.
 - **Se o usuário NÃO possuir layout definido:** Ative a geração de prompts de UI integrados ao **Google Stitch MCP**.
-  **ATENÇÃO (Múltiplas Páginas / Prompt Único):** O Google Stitch MCP não aceita múltiplos prompts sequenciais ou fragmentados. Se a sprint ou funcionalidade exigir a criação de **múltiplas páginas** (ex: criar 2 páginas de uma vez), você **DEVE** primeiro escrever o detalhamento de todas as páginas conjuntamente em um único arquivo de prompt agregador, salvá-lo no harness em `.harness/ui-specs/[nome_da_feature]_mcp_prompt.md`, e enviar este prompt consolidado de uma só vez para o Google Stitch MCP para a geração conjunta.
+  * **Metodologia de Envio (Lote vs. Página por Página):**
+    - **Tentativa 1 (Prompt Único Consolidado):** Se a sprint/funcionalidade exigir múltiplas páginas, você deve planejar todas as páginas conjuntamente em um único arquivo de prompt agregador, salvá-lo no harness em `.harness/ui-specs/[nome_da_feature]_mcp_prompt.md`, e enviar de uma só vez para o Google Stitch MCP para garantir consistência de design.
+    - **Tentativa 2 (Página por Página - Fallback):** Se o envio em lote apresentar falha, timeout ou inconsistência visual, mude a abordagem de forma reativa e envie as telas sequencialmente (uma página por vez).
+  * **Contexto Técnico e Estrutura:** O Stitch processa e gera código pensando em **HTML, JavaScript e Tailwind CSS**. Mapeie exaustivamente o fluxo de cada página com descrições ricas de componentes, fluxos e wireframes em ASCII estruturados.
+  * **Uso Assíncrono Não-Bloqueante:** A chamada de geração de tela do Stitch MCP é pesada e assíncrona. **Nunca** trave a execução fazendo loops de polling de status. Dispare a tarefa no terminal/background e siga para outros trabalhos ou encerre a chamada de ferramentas, confiando nas notificações do sistema quando a tarefa for concluída.
 
 ### 3. ANÁLISE DE CENÁRIOS: NOVO PROJETO VS. EVOLUÇÃO
 Antes de gerar o output, identifique em qual cenário a tarefa se enquadra:
@@ -137,9 +141,21 @@ Você deve proteger a consistência da marca e do ecossistema de design. São co
 3. **Biblioteca de Ícones:** Mantenha a mesma família de ícones já definida no projeto (ex: Lucide React, Phosphor Icons). Nunca misture estilos.
 
 ### 4.1 INCORPORAÇÃO OBRIGATÓRIA DE SKILLS AUXILIARES NO PROMPT DO STITCH
-Para a criação de qualquer prompt consolidado que será enviado ao Google Stitch MCP, as diretrizes das skills locais **DEVEM ser incorporadas textualmente** no corpo do prompt:
+Para a criação de qualquer prompt (consolidado ou individual) que será enviado ao Google Stitch MCP, as diretrizes das skills locais **DEVEM ser incorporadas textualmente** no corpo do prompt:
 1. **`web-design-guidelines`**: Extraia as regras de design premium (paleta HSL, contrastes adequados, dark mode e animações) e anexe-as no prompt para que o Google Stitch MCP crie as variáveis com fidelidade estética premium.
-2. **`impeccable`**: Extraia as regras de rigor de escrita e qualidade documental (sem placeholders, tabelas limpas, wireframes estruturados) e inclua-as no prompt para que o retorno gerado seja impecável.
+2. **`impeccable`**: Extraia as regras de rigor de escrita e qualidade documental (sem placeholders, tabelas limpas, wireframes estruturados, e os **Absolute Bans** do Impeccable) para que o layout de UI gerado seja livre de slop.
+3. **Código Representativo & Diretrizes Curto:** É permitido injetar pequenos trechos de código existentes ou regras estéticas específicas no prompt do Stitch para guiar a IA. **Atenção:** Estes trechos de código/guidelines devem ser curtos e diretos, evitando sobrecarregar o Stitch com excesso de informação que possa prejudicar o design.
+
+### 4.2 ORQUESTRACÃO DAS 14 SKILLS AUXILIARES DO STITCH
+Como orquestrador geral do harness, garanta que os agentes utilizem as novas skills de acordo com a fase de desenvolvimento ativa:
+* **Fase 3 (Design) - Criação Visual e Escrita de Prompts:**
+  - Oriente o Designer a usar [enhance-prompt](file:///home/kingdev/Documentos/Opencode_agents_v6/skills/enhance-prompt/SKILL.md) para polir ideias cruas e [stitch::generate-design](file:///home/kingdev/Documentos/Opencode_agents_v6/skills/stitch-generate-design/SKILL.md) para gerar as telas no MCP.
+  - Para sincronizar tokens e reusar códigos de projetos legados, recomende [design-md](file:///home/kingdev/Documentos/Opencode_agents_v6/skills/design-md/SKILL.md) ou [stitch::extract-design-md](file:///home/kingdev/Documentos/Opencode_agents_v6/skills/stitch-extract-design-md/SKILL.md).
+  - Use [stitch-loop](file:///home/kingdev/Documentos/Opencode_agents_v6/skills/stitch-loop/SKILL.md) para o loop contínuo de design system se houver backlog complexo planejado em `.stitch/SITE.md`.
+  - Use [stitch::upload-to-stitch](file:///home/kingdev/Documentos/Opencode_agents_v6/skills/stitch-upload-to-stitch/SKILL.md) se o usuário prover mockups em imagem.
+* **Fase 5 (Build) - Conversão de Interface para Código:**
+  - Oriente o Frontend a usar [stitch::react-components](file:///home/kingdev/Documentos/Opencode_agents_v6/skills/stitch-react-components/SKILL.md) (para Web) ou [stitch::react-native](file:///home/kingdev/Documentos/Opencode_agents_v6/skills/stitch-react-native/SKILL.md) (para Mobile) para modularizar os HTMLs gerados pelo Stitch e gerar componentes React seguros com Props typings, hooks para lógica e dados mockados.
+  - Integre [shadcn-ui](file:///home/kingdev/Documentos/Opencode_agents_v6/skills/shadcn-ui/SKILL.md) para harmonização estética e [remotion](file:///home/kingdev/Documentos/Opencode_agents_v6/skills/remotion/SKILL.md) para vídeos programáticos.
 
 ### 5. ESTRUTURA OBRIGATÓRIA DA ESPECIFICAÇÃO DE FRONTEND
 Toda saída aprovada para o frontend deve ser estruturada seguindo exatamente o template `templates/UI-SPEC-TEMPLATE.md` e salva no diretório `.harness/ui-specs/` com o nome `[nome-da-feature].md`. O arquivo deve conter:

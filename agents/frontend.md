@@ -198,12 +198,13 @@ Ordem **rígida**:
 3. **Integração com API** (fetch/axios)
 4. **Máscaras** (via lib ou manual)
 5. **Validação** (client-side — usando o mesmo schema do backend)
-6. **Estados loading/error/success**
-7. **Responsividade + acessibilidade** (aria, keyboard, contraste)
+6. **Estados loading/error/success** (use Skeletons para carregamento em vez de spinners simples)
+7. **Responsividade + acessibilidade** (aria, keyboard, contraste mínimo 4.5:1, sem texto transbordando em telas menores)
 8. **Para LGPD/cookies:** banner com opt-in granular, bloqueio de scripts, log de consentimento
-9. **Docstring completa** (após green, antes de refactor)
-10. **Lint + typecheck + tests** — sem warnings
-11. **Loop de Auto-Correção Local:** Se o teste, lint, build ou typecheck falhar em qualquer step, leia o erro, corrija o código e rode novamente. Repita esse processo localmente por até 3 vezes antes de entregar a tarefa. Não entregue código com erros ou testes falhando.
+9. **Auditar e Polir com Impeccable CLI:** Em ambientes web, se aplicável, execute `npx impeccable audit` no arquivo de UI modificado e corrija falhas estéticas. Opcionalmente, use `npx impeccable polish` para otimizações e polimento automatizado.
+10. **Docstring completa** (após green e após o polimento, antes do refactor final)
+11. **Lint + typecheck + tests** — sem warnings
+12. **Loop de Auto-Correção Local:** Se o teste, lint, build ou typecheck falhar em qualquer step, leia o erro, corrija o código e rode novamente. Repita esse processo localmente por até 3 vezes antes de entregar a tarefa. Não entregue código com erros ou testes falhando.
 
 ### 4. Validar acceptance criteria
 
@@ -221,6 +222,25 @@ Rode todos os testes, lint, typecheck.
 - Commit: `feat(<module>): <task-id> <page-name>`
 
 **Regra de Zero Chat (Extrema Objetividade):** NÃO escreva explicações, resumos, reflexões ou justificativas textuais em markdown. Vá diretamente para a execução e o reporte final em JSON para o orchestrator.
+
+---
+
+## 🛠️ Conversão de Componentes do Stitch (Aproveitamento das Novas Skills)
+
+Durante a fase de implementação de Frontend, você DEVE consultar e aplicar as regras e ferramentas das seguintes skills locais:
+
+1. **Conversão e Geração de Código:**
+   - [stitch::react-components](file:///home/kingdev/Documentos/Opencode_agents_v6/skills/stitch-react-components/SKILL.md): (**MANDATÓRIO para React/Vite**) Diretrizes estritas para converter os HTMLs do Stitch em componentes React modulares. Garanta que:
+     - Cada componente e página possua uma interface TypeScript de propriedades nomeada `[ComponentName]Props`.
+     - Toda lógica de estado e eventos fique isolada em hooks customizados (`src/hooks/`).
+     - Todos os dados estáticos (textos, URLs) sejam movidos para `src/data/mockData.ts`.
+     - Links `href="#"` sejam convertidos para `<Link>` do React Router (com atenção ao logo principal linkar para `/`).
+     - Variantes `dark:` sejam aplicadas a todas as classes de cores.
+   - [stitch::react-native](file:///home/kingdev/Documentos/Opencode_agents_v6/skills/stitch-react-native/SKILL.md): Aplica as mesmas regras arquiteturais na conversão de telas móveis para React Native.
+   - [stitch::extract-static-html](file:///home/kingdev/Documentos/Opencode_agents_v6/skills/stitch-extract-static-html/SKILL.md): Use se a tarefa exigir apenas a extração e integração de páginas HTML estáticas e limpas.
+2. **Integrações Estéticas Avançadas:**
+   - [shadcn-ui](file:///home/kingdev/Documentos/Opencode_agents_v6/skills/shadcn-ui/SKILL.md): Use para mapear as classes e layouts gerados pelo Stitch no ecossistema e componentes do shadcn/ui.
+   - [remotion](file:///home/kingdev/Documentos/Opencode_agents_v6/skills/remotion/SKILL.md): Consulte se o escopo de design envolver animações de vídeo programáticas.
 
 ---
 
@@ -252,6 +272,7 @@ Antes de implementar, leia:
 - ❌ Cookie wall ou bundle (1 checkbox para tudo) — fere LGPD
 - ❌ Tracking/fingerprinting sem consentimento
 - ❌ "Vibe coding" sem disciplina
+- ❌ **Violar as regras da skill `impeccable`** (ex: usar z-indexes arbitrários e mágicos como 999 ou 9999 em vez de uma escala semântica, ignorar `@media (prefers-reduced-motion: reduce)`, usar animações lentas >250ms que não indicam estado, usar cards aninhados, ou ignorar os Bans Absolutos do Impeccable).
 
 ---
 

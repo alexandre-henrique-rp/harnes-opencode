@@ -24,7 +24,7 @@
     "question": "allow",
     "task": "deny"
   },
-    "mcp": {
+  "mcp": {
     "playwright": {
       "type": "local",
       "command": [
@@ -73,7 +73,7 @@
         "/home/kingdev/.config/opencode/node_modules/.bin/ddg-search-mcp",
         "--server"
       ]
-    },
+    }
   },
   "default_agent": "orchestrator"
 }
