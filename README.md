@@ -1,7 +1,7 @@
 <div align="center">
   <br />
   <p align="center">
-    <img src="assets/logo-harness.png" alt="OpenCode Harness Logo" width="300" style="vertical-align: middle;">
+    <img src="docs/assets/logo-harness.png" alt="OpenCode Harness Logo" width="300" style="vertical-align: middle;">
   </p>
 
   ### **O Harness Multi-Agente Declarativo, Auditável e de Alta Fidelidade para OpenCode**
