@@ -1,0 +1,14 @@
+{
+  "name": "opencode-agents-v6",
+  "version": "6.3.2",
+  "description": "Multi-agent development harness for OpenCode v6",
+  "private": true,
+  "scripts": {
+    "validate:syntax": "bash -n install.sh",
+    "validate:types": "tsc --noEmit --skipLibCheck plugins/*.ts tools/*.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
