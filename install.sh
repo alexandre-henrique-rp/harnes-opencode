@@ -461,6 +461,27 @@ do_install() {
     # Agents (16 .md files)
     if [[ -d "$src/agents" ]]; then
         copy_item "$src/agents" "$dest/agents" "agents/ (16 files)"
+        
+        # Verifica a disponibilidade dos modelos Minimax no sistema do usuário
+        log_info "Verificando se modelos Minimax estao instalados..."
+        local models_list
+        models_list=$(opencode models 2>/dev/null || true)
+        
+        if echo "$models_list" | grep -qE "minimax/MiniMax-M2\.5|minimax/MiniMax-M2\.7|minimax/MiniMax-M3"; then
+            log_ok "Modelos Minimax detectados no sistema. Preservando configuracao nos agentes."
+        else
+            log_warn "Nenhum modelo Minimax (M2.5, M2.7 ou M3) detectado no sistema."
+            log_info "Removendo definicao de modelo Minimax dos agentes..."
+            if ! $DRY_RUN; then
+                for f in "$dest"/agents/*.md; do
+                    if [[ -f "$f" ]]; then
+                        # Remove a linha que define o modelo minimax do frontmatter
+                        sed -i '/^[[:space:]]*model:[[:space:]]*minimax/d' "$f"
+                    fi
+                done
+                log_ok "Definicoes de modelo Minimax removidas dos agentes com sucesso."
+            fi
+        fi
     fi
 
     # Commands (6 .md files)
