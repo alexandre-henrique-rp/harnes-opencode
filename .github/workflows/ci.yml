@@ -35,7 +35,7 @@ jobs:
       - name: Install plugin deps
         run: |
           mkdir -p ./opencode-test
-          cp -r agents commands templates tools plugins examples GERAIS.md state-machine.json failure-protocol.json opencode.json ./opencode-test/
+          cp -r agents commands templates tools plugins examples GERAIS.md state-machine.json failure-protocol.json opencode.json package.json ./opencode-test/
           cp .github/workflows/ci-validate.sh ./opencode-test/ 2>/dev/null || true
           cd ./opencode-test
           pnpm install --silent
