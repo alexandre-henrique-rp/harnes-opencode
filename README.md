@@ -39,7 +39,14 @@ Inspirado nas práticas de *vibe-coding* e Extreme Programming (XP), como progra
 
 ## ⚡ Instalação Rápida
 
-Instale ou atualize o Harness v6 diretamente do repositório remoto com um único comando no seu terminal (Linux, macOS, Git Bash ou WSL no Windows):
+> [!IMPORTANT]
+> **Pré-requisito Obrigatório:** Você precisa ter a CLI oficial do **OpenCode** instalada no sistema para rodar o harness.
+> Se você ainda não possui o OpenCode instalado, instale-o primeiro executando o comando oficial:
+> ```bash
+> curl -fsSL https://opencode.ai/install | bash
+> ```
+
+Com o OpenCode instalado, execute o comando único abaixo no seu terminal para instalar ou atualizar o Harness v6:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/alexandre-henrique-rp/harnes-opencode/main/install.sh | bash
