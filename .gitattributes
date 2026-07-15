@@ -1,0 +1,5 @@
+# Configuração do GitHub Linguist para estatísticas de linguagem do repositório
+# Isso instrui o GitHub a ignorar arquivos gerados ou injetados na medição de linguagens.
+
+skills/impeccable/scripts/detector/detect-antipatterns-browser.js linguist-generated=true
+skills/impeccable/scripts/detector/detect-antipatterns-browser.js linguist-vendored=true

@@ -24,8 +24,18 @@ export default tool({
       description: tool.schema.string().describe("O que foi feito"),
     })).optional().describe("Lista de arquivos e alterações realizadas"),
     blockerReason: tool.schema.string().optional().describe("Motivo do bloqueio, se status for 'blocked'"),
+    commitRange: tool.schema.string().optional().describe("Faixa de commits relacionados (ex: 'base..head') para auditoria e ledger"),
   },
-  async execute({ taskId, sprintId, status, artifacts = [], blockerReason }, context) {
+  async execute({ taskId, sprintId, status, artifacts = [], blockerReason, commitRange }, context) {
+    const mcpResponse = (data: Record<string, any>) => ({
+      ...data,
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(data, null, 2)
+        }
+      ]
+    });
     const cwd = context?.directory || process.cwd();
     const harnessDir = path.join(cwd, ".harness");
     const sprintDir = path.join(harnessDir, "sprints", sprintId);
@@ -34,7 +44,7 @@ export default tool({
     const registryPath = path.join(harnessDir, "registry.json");
 
     if (!fs.existsSync(harnessDir)) {
-      return { success: false, error: "Diretorio .harness nao encontrado." };
+      return mcpResponse({ success: false, error: "Diretorio .harness nao encontrado." });
     }
 
     // 1. Atualizar Header do Markdown (TXXX_PROMPT.md)
@@ -108,10 +118,52 @@ export default tool({
       fs.writeFileSync(registryPath, JSON.stringify(registry, null, 2));
     }
 
-    return {
+    // 4. Atualizar o Ledger de Progresso de Sprint (persistente e indestrutível)
+    const ledgerPath = path.join(harnessDir, "sprints", "progress_ledger.md");
+    updateProgressLedger(harnessDir, taskId, sprintId, status, commitRange);
+
+    return mcpResponse({
       success: true,
       message: `Task ${taskId} atualizada para ${status}.`,
-      filesUpdated: [taskPromptPath, taskLogPath, registryPath].filter(p => fs.existsSync(p) || p.endsWith(".json"))
-    };
+      filesUpdated: [taskPromptPath, taskLogPath, registryPath, ledgerPath].filter(p => fs.existsSync(p) || p.endsWith(".json") || p.endsWith(".md"))
+    });
   },
 });
+
+function updateProgressLedger(harnessDir: string, taskId: string, sprintId: string, status: string, commitRange?: string) {
+  const sprintsDir = path.join(harnessDir, "sprints");
+  if (!fs.existsSync(sprintsDir)) {
+    fs.mkdirSync(sprintsDir, { recursive: true });
+  }
+  const ledgerPath = path.join(sprintsDir, "progress_ledger.md");
+  let content = "";
+  
+  if (fs.existsSync(ledgerPath)) {
+    content = fs.readFileSync(ledgerPath, "utf8");
+  } else {
+    content = `# Ledger de Progresso de Sprints\n\nEste arquivo registra de forma persistente o status de conclusão de cada tarefa de sprint, incluindo commits associados.\n\n`;
+  }
+  
+  const lines = content.split("\n");
+  const taskPattern = new RegExp(`^- \\[([ x])\\] \\*\\*${taskId}\\*\\* \\(sprint ${sprintId}\\)`);
+  let found = false;
+  
+  const statusMarker = status === "completed" ? "x" : " ";
+  const commitSuffix = commitRange ? ` (commits: \`${commitRange}\`)` : "";
+  const statusText = `**${taskId}** (sprint ${sprintId}): status: \`${status}\`${commitSuffix}`;
+  const newLine = `- [${statusMarker}] ${statusText}`;
+  
+  for (let i = 0; i < lines.length; i++) {
+    if (taskPattern.test(lines[i])) {
+      lines[i] = newLine;
+      found = true;
+      break;
+    }
+  }
+  
+  if (!found) {
+    lines.push(newLine);
+  }
+  
+  fs.writeFileSync(ledgerPath, lines.join("\n"));
+}

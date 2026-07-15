@@ -26,6 +26,15 @@ export default tool({
       .describe("Se true, retorna detalhes de cada fase (scores, timestamps, attempts)"),
   },
   async execute({ verbose = false }, context) {
+    const mcpResponse = (data: Record<string, any>) => ({
+      ...data,
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(data, null, 2)
+        }
+      ]
+    });
     const cwd = context?.directory || process.cwd();
     const harnessDir = path.join(cwd, ".harness");
     const statePath = path.join(harnessDir, "state.json");
@@ -34,16 +43,16 @@ export default tool({
 
     // Validacoes
     if (!fs.existsSync(harnessDir)) {
-      return {
+      return mcpResponse({
         success: false,
         error: `.harness/ nao existe em ${cwd}. Rode 'harness_init' primeiro.`,
-      };
+      });
     }
     if (!fs.existsSync(statePath)) {
-      return {
+      return mcpResponse({
         success: false,
         error: `.harness/state.json nao existe. Estado corrompido. Rode 'harness_init --force'.`,
-      };
+      });
     }
 
     // Carrega state
@@ -114,6 +123,6 @@ export default tool({
       result.gate = currentPhaseInfo?.gate || null;
     }
 
-    return result;
+    return mcpResponse(result);
   },
 });

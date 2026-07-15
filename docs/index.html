@@ -455,9 +455,159 @@
         padding: 1.5rem;
       }
     }
+
+    /* Banner Superior Minimalista (Fidelidade OpenCode) */
+    .update-alert-banner {
+      position: relative;
+      width: 100%;
+      background: #111010;
+      border-bottom: 1px solid rgba(170, 150, 132, 0.15);
+      color: #9c9791;
+      z-index: 9999;
+      font-size: 0.85rem;
+    }
+
+    .update-alert-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0.65rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+    }
+
+    .badge-new {
+      background: #ffffff;
+      color: #111010;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .update-link {
+      color: #ffffff;
+      text-decoration: none;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+      transition: border-color 0.2s ease;
+    }
+
+    .update-link:hover {
+      border-bottom-color: #ffffff;
+    }
+
+    .update-close-btn {
+      background: none;
+      border: none;
+      color: #9c9791;
+      font-size: 1.25rem;
+      cursor: pointer;
+      font-weight: bold;
+      line-height: 1;
+      margin-left: 1rem;
+      transition: color 0.2s ease;
+    }
+
+    .update-close-btn:hover {
+      color: #ffffff;
+    }
+
+    /* Terminal Container Estilo OpenCode */
+    .terminal-container {
+      max-width: 760px;
+      margin: 3rem auto 0 auto;
+      background: #111010;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      overflow: hidden;
+      text-align: left;
+    }
+
+    .terminal-tabs {
+      display: flex;
+      background: #161515;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 0 1rem;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      color: #888888;
+      padding: 0.9rem 1.25rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border-bottom: 2px solid transparent;
+      outline: none;
+      text-transform: lowercase;
+    }
+
+    .tab-btn:hover {
+      color: #ffffff;
+    }
+
+    .tab-btn.active {
+      color: #ffffff;
+      border-bottom-color: #ffffff;
+    }
+
+    .terminal-body {
+      padding: 1.5rem 1.75rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.95rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1.5rem;
+      background: #111010;
+    }
+
+    .cmd-text {
+      color: #cccccc;
+      word-break: break-all;
+      line-height: 1.5;
+    }
+
+    .copy-btn {
+      background: none;
+      border: none;
+      color: #666666;
+      padding: 0.5rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .copy-btn:hover {
+      color: #ffffff;
+    }
+
+    @keyframes slideDown {
+      from { transform: translateY(-100%); }
+      to { transform: translateY(0); }
+    }
   </style>
 </head>
 <body>
+
+  <!-- Alerta de Atualização (Sticky) -->
+  <div id="updateAlert" class="update-alert-banner" style="display: none;">
+    <div class="update-alert-content">
+      <span class="badge-new">Novo</span>
+      <span id="updateAlertMsg">Uma nova versão do Harness está disponível!</span>
+      <a href="https://github.com/alexandre-henrique-rp/harnes-opencode/releases/latest" target="_blank" class="update-link">Ver release</a>
+      <button class="update-close-btn" onclick="closeUpdateAlert()">×</button>
+    </div>
+  </div>
 
   <!-- Menu do Cabeçalho -->
   <header>
@@ -484,30 +634,26 @@
   <!-- Hero Section -->
   <section class="hero">
     <img src="assets/logo-harness.png" alt="OpenCode Harness Logo" width="340" class="hero-logo">
-    <div class="badge" data-i18n="badge">Versão 6.3.2 Lançada</div>
+    <div class="badge" data-i18n="badge">Versão 6.4.0 Lançada</div>
     <h1 data-i18n="hero_title">Desenvolvimento Multi-Agente Declarativo de Alta Fidelidade</h1>
     <p data-i18n="hero_desc">O harness estruturado para o OpenCode. 20 agentes especializados coordenados sob 6 fases rígidas baseadas em TDD, Smart Merge de segurança e auditoria total.</p>
     
     <!-- Painel de Instalação -->
     <div class="terminal-container">
-      <div class="terminal-header">
-        <div class="terminal-dots">
-          <div class="dot dot-red"></div>
-          <div class="dot dot-yellow"></div>
-          <div class="dot dot-green"></div>
-        </div>
-        <div class="terminal-title">bash — installer</div>
+      <div class="terminal-tabs">
+        <button class="tab-btn active" onclick="selectOS('curl')">curl</button>
+        <button class="tab-btn" onclick="selectOS('powershell')">powershell</button>
+        <button class="tab-btn" onclick="selectOS('macos')">macos</button>
       </div>
       <div class="terminal-body">
         <div>
-          <span class="cmd-prefix">$</span>
-          <span class="cmd-text" id="installCmd">curl -fsSL https://raw.githubusercontent.com/alexandre-henrique-rp/harnes-opencode/main/install.sh | bash</span>
+          <span class="cmd-text" id="installCmd">curl -fsSL https://raw.githubusercontent.com/alexandre-henrique-rp/harnes-opencode/raw/main/harness-installer-linux -o harness-installer && chmod +x harness-installer && ./harness-installer</span>
         </div>
         <button class="copy-btn" onclick="copyCommand()" title="Copiar Comando">
-          <svg id="copyIcon" height="16" width="16" fill="currentColor" viewBox="0 0 16 16">
-            <path fill-rule="evenodd" d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h1v1a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1v1z"/>
+          <svg id="copyIcon" height="18" width="18" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
           </svg>
-          <svg id="checkIcon" height="16" width="16" fill="currentColor" viewBox="0 0 16 16" style="display: none; color: #aa9684;">
+          <svg id="checkIcon" height="18" width="18" fill="currentColor" viewBox="0 0 16 16" style="display: none; color: #aa9684;">
             <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425a.247.247 0 0 1 .02-.022z"/>
           </svg>
         </button>
@@ -591,7 +737,7 @@
     const translations = {
       pt: {
         title: "OpenCode Agents v6 — O Harness Multi-Agente Declarativo e Auditável",
-        badge: "Versão 6.3.2 Lançada",
+        badge: "Versão 6.4.0 Lançada",
         hero_title: "Desenvolvimento Multi-Agente Declarativo de Alta Fidelidade",
         hero_desc: "O harness estruturado para o OpenCode. 20 agentes especializados coordenados sob 6 fases rígidas baseadas em TDD, Smart Merge de segurança e auditoria total.",
         pillars_title: "Pilares do Harness",
@@ -624,7 +770,7 @@
       },
       en: {
         title: "OpenCode Agents v6 — The Declarative & Auditable Multi-Agent Harness",
-        badge: "Version 6.3.2 Released",
+        badge: "Version 6.4.0 Released",
         hero_title: "High-Fidelity Declarative Multi-Agent Development",
         hero_desc: "The structured workflow harness for OpenCode. 20 specialized agents coordinated across 6 rigid phases based on TDD, security Smart Merge, and total audit log.",
         pillars_title: "Harness Pillars",
@@ -691,6 +837,28 @@
       applyTranslations(lang);
     }
 
+    // Comandos de instalação por OS
+    const commands = {
+      curl: "curl -fsSL https://raw.githubusercontent.com/alexandre-henrique-rp/harnes-opencode/raw/main/harness-installer-linux -o harness-installer && chmod +x harness-installer && ./harness-installer",
+      powershell: "Invoke-WebRequest -Uri \"https://github.com/alexandre-henrique-rp/harnes-opencode/raw/main/harness-installer-windows.exe\" -OutFile \"harness-installer.exe\"; .\\harness-installer.exe",
+      macos: "curl -fsSL https://raw.githubusercontent.com/alexandre-henrique-rp/harnes-opencode/raw/main/harness-installer-macos -o harness-installer && chmod +x harness-installer && ./harness-installer"
+    };
+
+    function selectOS(os) {
+      // Atualiza os botões das abas
+      const tabs = document.querySelectorAll('.tab-btn');
+      tabs.forEach(tab => {
+        if (tab.getAttribute('onclick').includes(os)) {
+          tab.classList.add('active');
+        } else {
+          tab.classList.remove('active');
+        }
+      });
+
+      // Atualiza o comando
+      document.getElementById('installCmd').innerText = commands[os];
+    }
+
     // Lógica do botão de Copiar
     function copyCommand() {
       const cmdText = document.getElementById('installCmd').innerText;
@@ -711,8 +879,57 @@
       });
     }
 
-    // Inicializa idioma no carregamento do DOM
-    window.addEventListener('DOMContentLoaded', initLanguage);
+    // Verificação Dinâmica de Release no GitHub
+    const CURRENT_VERSION = "6.4.0";
+
+    function checkForUpdates() {
+      fetch("https://api.github.com/repos/alexandre-henrique-rp/harnes-opencode/releases/latest")
+        .then(response => {
+          if (!response.ok) return null;
+          return response.json();
+        })
+        .then(data => {
+          if (!data || !data.tag_name) return;
+          
+          const latestVersion = data.tag_name.replace(/^v/, "");
+          
+          if (isVersionGreater(latestVersion, CURRENT_VERSION)) {
+            const msgPt = `Uma nova versão está disponível! v${latestVersion} (Você está rodando a v${CURRENT_VERSION}).`;
+            const msgEn = `A new version is available! v${latestVersion} (You are running v${CURRENT_VERSION}).`;
+            
+            const lang = localStorage.getItem('harness-lang') || 'pt';
+            document.getElementById('updateAlertMsg').innerText = lang === 'pt' ? msgPt : msgEn;
+            document.getElementById('updateAlert').style.display = 'block';
+            
+            // Margem no topo para não quebrar o layout do cabeçalho
+            document.body.style.paddingTop = "40px";
+          }
+        })
+        .catch(err => console.error("Erro ao verificar atualizações:", err));
+    }
+
+    function isVersionGreater(latest, current) {
+      const parse = (v) => v.split('.').map(Number);
+      const [lMajor, lMinor, lPatch] = parse(latest);
+      const [cMajor, cMinor, cPatch] = parse(current);
+
+      if (lMajor > cMajor) return true;
+      if (lMajor < cMajor) return false;
+      if (lMinor > cMinor) return true;
+      if (lMinor < cMinor) return false;
+      return lPatch > cPatch;
+    }
+
+    function closeUpdateAlert() {
+      document.getElementById('updateAlert').style.display = 'none';
+      document.body.style.paddingTop = "0";
+    }
+
+    // Inicializa idioma e verifica atualizações no carregamento do DOM
+    window.addEventListener('DOMContentLoaded', () => {
+      initLanguage();
+      checkForUpdates();
+    });
   </script>
 </body>
 </html>

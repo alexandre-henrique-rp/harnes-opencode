@@ -54,6 +54,15 @@ export default tool({
     { userApproval, scores, sprintCoverage, buildMetrics, force = false },
     context
   ) {
+    const mcpResponse = (data: Record<string, any>) => ({
+      ...data,
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(data, null, 2)
+        }
+      ]
+    });
     const cwd = context?.directory || process.cwd();
     const harnessDir = path.join(cwd, ".harness");
     const statePath = path.join(harnessDir, "state.json");
@@ -63,10 +72,10 @@ export default tool({
 
     // Validacoes
     if (!fs.existsSync(statePath)) {
-      return { success: false, error: "state.json nao existe. Rode harness_init." };
+      return mcpResponse({ success: false, error: "state.json nao existe. Rode harness_init." });
     }
     if (!fs.existsSync(stateMachinePath)) {
-      return { success: false, error: "state-machine.json nao existe." };
+      return mcpResponse({ success: false, error: "state-machine.json nao existe." });
     }
 
     const state = JSON.parse(fs.readFileSync(statePath, "utf8"));
@@ -78,10 +87,10 @@ export default tool({
     // Encontra phase info
     const phase = stateMachine.phases.find((p: any) => p.id === state.currentPhase);
     if (!phase) {
-      return {
+      return mcpResponse({
         success: false,
         error: `Fase '${state.currentPhase}' nao encontrada no state-machine.json.`,
-      };
+      });
     }
 
     const phaseState = state.phases[phase.id];
@@ -104,7 +113,7 @@ export default tool({
         attempt: phaseState.attempt,
         warning: "force=true pula gate. Use apenas em situacoes excepcionais.",
       });
-      return transitionPhase(state, phase, stateMachine, harnessDir, "forced");
+      return mcpResponse(transitionPhase(state, phase, stateMachine, harnessDir, "forced"));
     }
 
     // Valida gate
@@ -124,7 +133,7 @@ export default tool({
         attempt: phaseState.attempt,
         details: gateResult.details,
       });
-      return transitionPhase(state, phase, stateMachine, harnessDir, "completed");
+      return mcpResponse(transitionPhase(state, phase, stateMachine, harnessDir, "completed"));
     }
 
     // Gate falhou — classifica falha
@@ -145,50 +154,50 @@ export default tool({
     if (failureClass === "transient") {
       const maxRetries = classConfig?.maxAutoRetries || 3;
       if (phaseState.attempt < maxRetries) {
-        return {
+        return mcpResponse({
           success: false,
           gateResult,
           action: "retry",
           message: `Transient failure (attempt ${phaseState.attempt}/${maxRetries}). Retrying com backoff.`,
-        };
+        });
       }
       // Esgotou — promove a user-action
-      return {
+      return mcpResponse({
         success: false,
         gateResult,
         action: "escalate",
         message: `Transient failure esgotou ${maxRetries} retries. Escala para user-action.`,
-      };
+      });
     }
 
     if (failureClass === "quality") {
       const maxRetries = phaseFailure.maxAutoRetries || 2;
       const loopbackTo = phaseFailure.loopbackTo || phase.id;
       if (phaseState.attempt < maxRetries) {
-        return {
+        return mcpResponse({
           success: false,
           gateResult,
           action: "rework",
           loopbackTo,
           message: `Quality failure (attempt ${phaseState.attempt}/${maxRetries}). Rework com loopbackTo: ${loopbackTo}.`,
-        };
+        });
       }
-      return {
+      return mcpResponse({
         success: false,
         gateResult,
         action: "escalate",
         message: `Quality failure esgotou ${maxRetries} retries. Escala para user-action.`,
-      };
+      });
     }
 
     if (failureClass === "user-action") {
-      return {
+      return mcpResponse({
         success: false,
         gateResult,
         action: "block",
         message: `User-action needed. Bloqueia ate decisao humana.`,
         userPrompt: gateResult.userPrompt || "Decisao humana necessaria para avancar.",
-      };
+      });
     }
 
     if (failureClass === "fatal") {
@@ -197,20 +206,20 @@ export default tool({
         phase: phase.id,
         reason: gateResult.reason,
       });
-      return {
+      return mcpResponse({
         success: false,
         gateResult,
         action: "halt",
         message: `FATAL: ${gateResult.reason}. Requer fix manual antes de continuar.`,
-      };
+      });
     }
 
-    return {
+    return mcpResponse({
       success: false,
       gateResult,
       action: "unknown",
       message: `Failure class '${failureClass}' nao reconhecida.`,
-    };
+    });
   },
 });
 
