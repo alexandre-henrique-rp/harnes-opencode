@@ -22,7 +22,7 @@ set -euo pipefail
 # Configuracao
 # ============================================================================
 
-HARNESS_VERSION="6.3.2"
+HARNESS_VERSION="6.4.0"
 HARNESS_NAME="harness-v6"
 DRY_RUN=false
 PRESERVE_CONFIG=false
@@ -99,6 +99,135 @@ install_bun_if_needed() {
     fi
 
     return 1
+}
+
+install_configured_mcps() {
+    local dest="$1"
+    local pm="$2"
+    
+    if command -v node >/dev/null 2>&1; then
+        log_info "Verificando MCPs locais configurados no opencode.json..."
+        node - "$dest" "$pm" <<'EOF'
+const fs = require('fs');
+const path = require('path');
+const { execSync } = require('child_process');
+
+const dest = process.argv[2];
+const pm = process.argv[3];
+
+const opencodePath = [
+  path.join(dest, 'opencode.json'),
+  path.join(dest, 'opencode.jsonc')
+].find(fs.existsSync);
+
+if (!opencodePath) process.exit(0);
+
+try {
+  let content = fs.readFileSync(opencodePath, 'utf8');
+  content = content.replace(/\/\/.*/g, '');
+  const config = JSON.parse(content);
+  
+  if (!config.mcp) process.exit(0);
+  
+  const packages = [];
+  for (const mcpName in config.mcp) {
+    const cmd = config.mcp[mcpName].command || [];
+    for (const arg of cmd) {
+      if (arg.includes('node_modules/.bin/')) {
+        const parts = arg.split('/');
+        const pkgName = parts[parts.length - 1];
+        if (pkgName && !packages.includes(pkgName)) {
+          packages.push(pkgName);
+        }
+      }
+    }
+  }
+  
+  if (packages.length > 0) {
+    console.log(`    [MCP] Detectados ${packages.length} MCPs locais. Instalando pacotes...`);
+    for (const pkg of packages) {
+      console.log(`      Instalando ${pkg} no escopo do Harness...`);
+      if (pm === 'bun') {
+        execSync(`bun add ${pkg} --save-dev`, { cwd: dest, stdio: 'inherit' });
+      } else {
+        execSync(`npm install ${pkg} --save-dev`, { cwd: dest, stdio: 'inherit' });
+      }
+    }
+  }
+} catch (e) {
+  // Ignora erros
+}
+EOF
+    fi
+}
+
+setup_git_restore_point() {
+    local dir="$1"
+    if ! command -v git >/dev/null 2>&1; then
+        return 0
+    fi
+    
+    local git_dir="$dir/.git"
+    if [[ ! -d "$git_dir" ]]; then
+        log_info "Iniciando repositório Git preventivo para versionamento..."
+        git init "$dir" >/dev/null 2>&1 || true
+        
+        local gitignore="$dir/.gitignore"
+        if [[ ! -f "$gitignore" ]]; then
+            printf "backup/\ntmp/\nnode_modules/\n" > "$gitignore"
+        fi
+    fi
+    
+    (cd "$dir" && git add . && git commit -m "Backup harness-v6 antes da alteracao: $(date '+%Y-%m-%d %H:%M:%S')" >/dev/null 2>&1 || true)
+}
+
+commit_git_restore_point() {
+    local dir="$1"
+    local msg="$2"
+    if ! command -v git >/dev/null 2>&1; then
+        return 0
+    fi
+    (cd "$dir" && git add . && git commit -m "harness-v6: $msg" >/dev/null 2>&1 || true)
+}
+
+revert_git_state() {
+    local dir="$1"
+    local git_dir="$dir/.git"
+    if command -v git >/dev/null 2>&1 && [[ -d "$git_dir" ]]; then
+        log_info "Revertendo modificações via Git..."
+        (cd "$dir" && git reset --hard HEAD~1 >/dev/null 2>&1 || true)
+    fi
+}
+
+has_existing_harness_files() {
+    local dir="$1"
+    local critical_files=("agents/orchestrator.md" "GERAIS.md" "state-machine.json")
+    for f in "${critical_files[@]}"; do
+        if [[ -f "$dir/$f" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+copy_directory_exclude_backup() {
+    local src="$1"
+    local dest="$2"
+    
+    mkdir -p "$dest"
+    
+    # Copia itens da raiz excluindo backup, .git, tmp e node_modules
+    for item in "$src"/* "$src"/.*; do
+        local base
+        base=$(basename "$item")
+        if [[ "$base" == "." || "$base" == ".." || "$base" == "backup" || "$base" == ".git" || "$base" == "tmp" || "$base" == "node_modules" ]]; then
+            continue
+        fi
+        
+        if [[ -e "$item" ]]; then
+            cp -r "$item" "$dest/" 2>/dev/null || true
+        fi
+    done
 }
 
 # ============================================================================
@@ -230,19 +359,26 @@ get_source_dir() {
     local tarball_url="https://github.com/alexandre-henrique-rp/harnes-opencode/archive/refs/heads/main.tar.gz"
     local tar_file="$tmp_dir/harness.tar.gz"
 
+    log_bold ""
+    log_bold "[3/4] Baixando e Extraindo os Arquivos do GitHub..."
+    log_bold ""
+
+    log_info "Baixando pacote do repositório GitHub..."
     if command -v curl >/dev/null 2>&1; then
-        curl -L "$tarball_url" -o "$tar_file" >/dev/null 2>&1
+        curl -L --progress-bar "$tarball_url" -o "$tar_file"
     elif command -v wget >/dev/null 2>&1; then
-        wget -q "$tarball_url" -O "$tar_file" >/dev/null 2>&1
+        wget --show-progress "$tarball_url" -O "$tar_file"
     else
         log_err "Erro: É necessário ter 'curl' ou 'wget' instalado para rodar a instalação remota."
         exit 1
     fi
 
-    if ! tar -xzf "$tar_file" -C "$tmp_dir" >/dev/null 2>&1; then
+    log_info "Extraindo arquivos do Harness..."
+    if ! tar -xzf "$tar_file" -C "$tmp_dir"; then
         log_err "Erro: Falha ao extrair os arquivos baixados do GitHub."
         exit 1
     fi
+    log_ok "Arquivos de estrutura baixados e extraídos com sucesso."
 
     # Encontra a pasta extraída (que o GitHub nomeia como 'harnes-opencode-main')
     local extracted_dir
@@ -261,12 +397,26 @@ get_source_dir() {
 # ============================================================================
 
 print_banner() {
-    cat <<EOF
-${BOLD}+--------------------------------------------------+${NC}
-${BOLD}|  Harness v6 Installer                            |${NC}
-${BOLD}|  Version: ${HARNESS_VERSION}                                  |${NC}
-${BOLD}+--------------------------------------------------+${NC}
-EOF
+    local logo="
+${BLUE}██╗  ██╗ █████╗ ██████╗ ███╗   ██╗███████╗███████╗███████╗
+██║  ██║██╔══██╗██╔══██╗████╗  ██║██╔════╝██╔════╝██╔════╝
+███████║███████║██████╔╝██╔██╗ ██║█████╗  ███████╗███████╗
+██╔══██║██╔══██║██╔══██╗██║╚██╗██║██╔══╝  ╚════██║╚════██║
+██║  ██║██║  ██║██║  ██║██║ ╚████║███████╗███████║███████║
+╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝╚══════╝╚══════╝${NC}"
+
+    printf "%b\n" "$logo"
+    printf "  ${BOLD}Harness v6 Installer${NC} — ${BLUE}%s${NC}\n" "${OS:-platform}"
+    printf "  ${BOLD}Versão:${NC} %s\n" "${HARNESS_VERSION}"
+    
+    local node_color="${RED}" npm_color="${RED}" opencode_color="${RED}"
+    [[ "$NODE_STATUS" == *"✓"* ]] && node_color="${GREEN}"
+    [[ "$NPM_STATUS" == *"✓"* ]] && npm_color="${GREEN}"
+    [[ "$OPENCODE_STATUS" == *"✓"* ]] && opencode_color="${GREEN}"
+    
+    printf "  ${BOLD}Ambiente:${NC} Node.js (${node_color}%s${NC}) • npm (${npm_color}%s${NC}) • OpenCode (${opencode_color}%s${NC})\n" \
+        "${NODE_STATUS}" "${NPM_STATUS}" "${OPENCODE_STATUS}"
+    printf "  ${BLUE}──────────────────────────────────────────────────${NC}\n"
 }
 
 print_help() {
@@ -308,33 +458,52 @@ check_prerequisites() {
     local os="$1"
     local src="$2"
 
-    log_info "Verificando pre-requisitos..."
+    log_bold ""
+    log_bold "[1/4] Verificando Pré-requisitos..."
+    log_bold ""
 
-    # Verifica source dir
-    [[ -d "$src" ]] || die "Diretorio source nao existe: $src"
-    [[ -f "$src/opencode.json" ]] || die "opencode.json nao encontrado em $src"
-    [[ -d "$src/agents" ]] || die "agents/ nao encontrado em $src"
-    [[ -d "$src/commands" ]] || die "commands/ nao encontrado em $src"
+    local opencode_found=false
+    local detection_msg=""
 
-    # Verifica OpenCode instalado (opcional, apenas warn)
     if command -v opencode >/dev/null 2>&1; then
-        local ver
-        ver="$(opencode --version 2>/dev/null || echo 'unknown')"
-        log_ok "OpenCode detectado: $ver"
+        opencode_found=true
+        detection_msg="OpenCode CLI detectado no PATH."
     else
-        log_warn "opencode nao encontrado no PATH. Instale antes de usar o harness:"
+        # Se não estiver no PATH, verifica a pasta de destino padrão
+        if [[ -d "$INSTALL_DIR" ]]; then
+            opencode_found=true
+            detection_msg="OpenCode detectado (Pasta de configuração ativa em $INSTALL_DIR)."
+        else
+            local local_bin="${HOME}/.local/bin/opencode"
+            if [[ -f "$local_bin" ]]; then
+                opencode_found=true
+                detection_msg="OpenCode CLI detectado em $local_bin."
+            fi
+        fi
+    fi
+
+    if $opencode_found; then
+        log_ok "$detection_msg"
+    else
+        log_warn "OpenCode não encontrado. Instale-o posteriormente via:"
         log_warn "  curl -fsSL https://opencode.ai/install | bash"
     fi
 
-    # Verifica bash version (precisa 4+ pra alguns recursos)
-    local bash_major="${BASH_VERSINFO[0]:-0}"
-    if [[ "$bash_major" -lt 4 ]]; then
-        log_warn "Bash $bash_major detectado. Bash 4+ recomendado (alguns recursos podem falhar)."
+    if command -v node >/dev/null 2>&1; then
+        log_ok "Node.js detectado no PATH: $(node --version)"
+    else
+        log_warn "Node.js não foi encontrado. Necessário para executar os plugins e MCPs."
     fi
 
-    log_ok "OS detectado: $os"
-    log_ok "Source dir: $src"
-    log_ok "Install dir: $INSTALL_DIR"
+    if command -v npm >/dev/null 2>&1; then
+        log_ok "npm detectado no PATH: $(npm --version)"
+    else
+        log_warn "npm não foi encontrado. Necessário para instalar dependências de plugins."
+    fi
+
+    log_info "OS detectado: $os"
+    log_info "Source dir: $src"
+    log_info "Install dir: $INSTALL_DIR"
 }
 
 # ============================================================================
@@ -440,11 +609,7 @@ do_install() {
     local dest="$2"
 
     log_bold ""
-    if $UPDATE_MODE; then
-        log_bold "Atualizando Harness v6 em: $dest (preservando customizacoes)"
-    else
-        log_bold "Instalando Harness v6 em: $dest"
-    fi
+    log_bold "[2/4] Preparando Ambiente e Backup..."
     log_bold ""
 
     # 1. Cria diretorio de instalacao
@@ -455,7 +620,25 @@ do_install() {
         log_ok "diretorio criado: $dest"
     fi
 
-    # 2. Copia estrutura de diretorios
+    if ! $DRY_RUN; then
+        setup_git_restore_point "$dest"
+    fi
+
+    # 2. Backup físico preventivo dos arquivos existentes
+    if has_existing_harness_files "$dest"; then
+        local timestamp
+        timestamp=$(date +%Y%m%d_%H%M%S)
+        local backup_dir="$dest/backup/backup_$timestamp"
+        
+        log_info "Copiando backup preventivo dos arquivos para: $backup_dir"
+        if copy_directory_exclude_backup "$dest" "$backup_dir"; then
+            log_ok "Backup físico datado criado com sucesso."
+        else
+            log_warn "Falha ao criar backup físico. Continuando..."
+        fi
+    fi
+
+    # 3. Copia estrutura de diretorios
     log_info "Copiando arquivos..."
 
     # Agents (16 .md files)
@@ -639,10 +822,11 @@ EOF
             local backup_dir="$dest/backup/backup_$backup_timestamp"
 
             if ! $DRY_RUN; then
+                # Se o backup preventivo já copiou o arquivo, não precisamos copiar de novo, mas garantimos
                 mkdir -p "$backup_dir"
-                cp "$config_file" "$backup_dir/$(basename "$config_file")"
+                cp "$config_file" "$backup_dir/$(basename "$config_file")" 2>/dev/null || true
                 printf "\n"
-                log_ok "[BACKUP DE SEGURANÇA] Cópia preventiva criada com sucesso!"
+                log_ok "[BACKUP DE SEGURANÇA] Cópia preventiva do config criada com sucesso!"
                 log_info "  Arquivo de backup: ${BLUE}$backup_dir/$(basename "$config_file")${NC}"
                 log_info "  Explicação: Salvamos o seu arquivo de configuração original antes de realizar alterações."
                 log_info "  Como restaurar se houver problemas: Você pode reverter a qualquer momento rodando o comando:"
@@ -742,9 +926,11 @@ EOF
     # 7. Instalação automática das dependências NPM/Bun
     if ! $DRY_RUN; then
         log_bold ""
-        log_bold "Instalando dependências de plugins do Harness..."
+        log_bold "[4/4] Instalando Dependências e Configurando MCPs..."
         log_bold ""
+        local pm="npm"
         if install_bun_if_needed; then
+            pm="bun"
             log_info "Executando 'bun install' em $dest..."
             (cd "$dest" && bun install) || log_warn "Falha ao rodar bun install. Você pode tentar rodar manualmente."
         elif command -v npm >/dev/null 2>&1; then
@@ -754,6 +940,13 @@ EOF
         else
             log_err "Nenhum gerenciador de pacotes (Bun ou NPM) disponível para instalar as dependências."
         fi
+        
+        # Instala MCPs locais configurados no opencode.json
+        install_configured_mcps "$dest" "$pm"
+    fi
+
+    if ! $DRY_RUN; then
+        commit_git_restore_point "$dest" "Instalacao/Atualizacao concluida com sucesso"
     fi
 }
 
@@ -822,6 +1015,10 @@ do_uninstall() {
             fi
         fi
     done
+
+    if ! $DRY_RUN; then
+        revert_git_state "$dest"
+    fi
 
     # Pergunta sobre opencode.json/jsonc
     if ! $DRY_RUN; then
@@ -975,6 +1172,18 @@ print_summary() {
 # ============================================================================
 
 main() {
+    # Deteccao inicial
+    OS=$(detect_os)
+    
+    # Detecção rápida de ferramentas para o banner
+    NODE_STATUS="✗ ausente"
+    NPM_STATUS="✗ ausente"
+    OPENCODE_STATUS="✗ ausente"
+    
+    command -v node >/dev/null 2>&1 && NODE_STATUS="✓ ok"
+    command -v npm >/dev/null 2>&1 && NPM_STATUS="✓ ok"
+    (command -v opencode >/dev/null 2>&1 || [[ -d "${HOME}/.config/opencode" || -f "${HOME}/.local/bin/opencode" ]]) && OPENCODE_STATUS="✓ ok"
+
     # Parse args
     if [[ $# -eq 0 ]]; then
         INTERACTIVE=true
@@ -1030,7 +1239,7 @@ main() {
     if $INTERACTIVE && [[ "$UNINSTALL" = false ]]; then
         printf "\n"
         log_bold "Configuração do Caminho de Destino:"
-        printf "Caminho padrão detectado: ${BLUE}$INSTALL_DIR${NC}\n"
+        printf "Caminho padrão detectado para $OS: ${BLUE}$INSTALL_DIR${NC}\n"
         read -rp "Pressione Enter para confirmar ou digite outro caminho: " user_dir < /dev/tty
         if [[ -n "$user_dir" ]]; then
             # Expande ~ se necessário

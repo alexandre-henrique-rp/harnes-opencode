@@ -647,7 +647,7 @@
       </div>
       <div class="terminal-body">
         <div>
-          <span class="cmd-text" id="installCmd">curl -fsSL https://raw.githubusercontent.com/alexandre-henrique-rp/harnes-opencode/raw/main/harness-installer-linux -o harness-installer && chmod +x harness-installer && ./harness-installer</span>
+          <span class="cmd-text" id="installCmd">curl -fsSL https://raw.githubusercontent.com/alexandre-henrique-rp/harnes-opencode/main/install.sh | bash</span>
         </div>
         <button class="copy-btn" onclick="copyCommand()" title="Copiar Comando">
           <svg id="copyIcon" height="18" width="18" fill="currentColor" viewBox="0 0 24 24">
@@ -839,9 +839,9 @@
 
     // Comandos de instalação por OS
     const commands = {
-      curl: "curl -fsSL https://raw.githubusercontent.com/alexandre-henrique-rp/harnes-opencode/raw/main/harness-installer-linux -o harness-installer && chmod +x harness-installer && ./harness-installer",
-      powershell: "Invoke-WebRequest -Uri \"https://github.com/alexandre-henrique-rp/harnes-opencode/raw/main/harness-installer-windows.exe\" -OutFile \"harness-installer.exe\"; .\\harness-installer.exe",
-      macos: "curl -fsSL https://raw.githubusercontent.com/alexandre-henrique-rp/harnes-opencode/raw/main/harness-installer-macos -o harness-installer && chmod +x harness-installer && ./harness-installer"
+      curl: "curl -fsSL https://raw.githubusercontent.com/alexandre-henrique-rp/harnes-opencode/main/install.sh | bash",
+      powershell: "bash -c \"curl -fsSL https://raw.githubusercontent.com/alexandre-henrique-rp/harnes-opencode/main/install.sh | bash\"",
+      macos: "curl -fsSL https://raw.githubusercontent.com/alexandre-henrique-rp/harnes-opencode/main/install.sh | bash"
     };
 
     function selectOS(os) {
