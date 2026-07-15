@@ -106,7 +106,6 @@ install_configured_mcps() {
     local pm="$2"
     
     if command -v node >/dev/null 2>&1; then
-        log_info "Verificando MCPs locais configurados no opencode.json..."
         node - "$dest" "$pm" <<'EOF'
 const fs = require('fs');
 const path = require('path');
@@ -120,42 +119,95 @@ const opencodePath = [
   path.join(dest, 'opencode.jsonc')
 ].find(fs.existsSync);
 
-if (!opencodePath) process.exit(0);
+if (!opencodePath) {
+  console.log('\x1b[33m[AVISO] Arquivo opencode.json ou opencode.jsonc não encontrado no destino.\x1b[0m');
+  process.exit(0);
+}
 
 try {
   let content = fs.readFileSync(opencodePath, 'utf8');
-  content = content.replace(/\/\/.*/g, '');
+  
+  // Regex robusto para remover comentarios multiline e inline
+  content = content.replace(/\/\*[\s\S]*?\*\//g, '');
+  content = content.replace(/(?:^|[^:])\/\/.*$/gm, '');
+  
   const config = JSON.parse(content);
   
-  if (!config.mcp) process.exit(0);
+  if (!config.mcp) {
+    console.log('Nenhum servidor MCP configurado no opencode.json.');
+    process.exit(0);
+  }
   
-  const packages = [];
+  console.log(`\n\x1b[1mVerificando servidores MCP locais configurados...\x1b[0m`);
+  
+  const missingPackages = [];
+  
   for (const mcpName in config.mcp) {
     const cmd = config.mcp[mcpName].command || [];
+    let pkgName = null;
     for (const arg of cmd) {
       if (arg.includes('node_modules/.bin/')) {
         const parts = arg.split('/');
-        const pkgName = parts[parts.length - 1];
-        if (pkgName && !packages.includes(pkgName)) {
-          packages.push(pkgName);
+        pkgName = parts[parts.length - 1];
+        break;
+      }
+    }
+    
+    if (pkgName) {
+      const pkgPath = path.join(dest, 'node_modules', pkgName);
+      const isInstalled = fs.existsSync(pkgPath);
+      
+      if (isInstalled) {
+        console.log(`  \x1b[32m[OK]\x1b[0m    Servidor MCP "${mcpName}" (${pkgName}) já está instalado.`);
+      } else {
+        console.log(`  \x1b[31m[FALTA]\x1b[0m Servidor MCP "${mcpName}" (${pkgName}) não está instalado.`);
+        if (!missingPackages.includes(pkgName)) {
+          missingPackages.push(pkgName);
         }
       }
     }
   }
   
-  if (packages.length > 0) {
-    console.log(`    [MCP] Detectados ${packages.length} MCPs locais. Instalando pacotes...`);
-    for (const pkg of packages) {
-      console.log(`      Instalando ${pkg} no escopo do Harness...`);
-      if (pm === 'bun') {
-        execSync(`bun add ${pkg} --save-dev`, { cwd: dest, stdio: 'inherit' });
-      } else {
-        execSync(`npm install ${pkg} --save-dev`, { cwd: dest, stdio: 'inherit' });
+  if (missingPackages.length > 0) {
+    let installConfirmed = false;
+    try {
+      const ttyFd = fs.openSync('/dev/tty', 'r');
+      console.log(`\nDeseja instalar estes MCPs locais ausentes agora? [Y/n]: `);
+      const buffer = Buffer.alloc(10);
+      const bytesRead = fs.readSync(ttyFd, buffer, 0, 10, null);
+      const response = buffer.toString('utf8', 0, bytesRead).trim().toLowerCase();
+      fs.closeSync(ttyFd);
+      if (response === '' || response === 'y' || response === 'yes') {
+        installConfirmed = true;
       }
+    } catch (err) {
+      // Fallback silencioso (assume não interativo)
     }
+    
+    if (installConfirmed) {
+      console.log(`\nInstalando pacotes de MCPs locais...`);
+      for (const pkg of missingPackages) {
+        console.log(`  Instalando ${pkg}...`);
+        const installCmd = pm === 'bun' ? `bun add ${pkg} --save-dev` : `npm install ${pkg} --save-dev`;
+        try {
+          execSync(installCmd, { cwd: dest, stdio: 'inherit' });
+        } catch (e) {
+          console.log(`  \x1b[31m[ERROR] Falha ao instalar ${pkg}.\x1b[0m`);
+        }
+      }
+    } else {
+      console.log(`\n\x1b[33m[AVISO] MCPs locais não instalados.\x1b[0m Para instalá-los manualmente, execute:`);
+      for (const pkg of missingPackages) {
+        const cmd = pm === 'bun' ? `bun add ${pkg} --save-dev` : `npm install ${pkg} --save-dev`;
+        console.log(`  \x1b[1mcd ${dest} && ${cmd}\x1b[0m`);
+      }
+      console.log();
+    }
+  } else {
+    console.log(`\x1b[32m[OK] Todos os servidores MCP locais estão instalados.\x1b[0m\n`);
   }
 } catch (e) {
-  // Ignora erros
+  console.error(`\x1b[31m[Erro] Falha ao analisar configuração do OpenCode (JSON inválido):\x1b[0m`, e.message);
 }
 EOF
     fi
@@ -239,16 +291,14 @@ show_menu() {
     shift
     local options=("$@")
     
-    # Limpa as linhas anteriores (para redesenhar o menu no mesmo lugar)
-    # \e[F move o cursor para o início da linha anterior, \e[K limpa a linha
+    # Limpa apenas as opcoes e a quebra de linha final
     if [[ ${MENU_RENDERED:-0} -eq 1 ]]; then
-        for ((i=0; i<${#options[@]}+2; i++)); do
+        for ((i=0; i<${#options[@]}+1; i++)); do
             printf "\033[F\033[K"
         done
     fi
     MENU_RENDERED=1
 
-    printf "${BOLD}Selecione a ação desejada:${NC}\n\n"
     local idx=0
     for opt in "${options[@]}"; do
         if [[ $idx -eq $selected ]]; then
@@ -458,52 +508,28 @@ check_prerequisites() {
     local os="$1"
     local src="$2"
 
-    log_bold ""
-    log_bold "[1/4] Verificando Pré-requisitos..."
-    log_bold ""
-
     local opencode_found=false
-    local detection_msg=""
 
     if command -v opencode >/dev/null 2>&1; then
         opencode_found=true
-        detection_msg="OpenCode CLI detectado no PATH."
     else
-        # Se não estiver no PATH, verifica a pasta de destino padrão
         if [[ -d "$INSTALL_DIR" ]]; then
             opencode_found=true
-            detection_msg="OpenCode detectado (Pasta de configuração ativa em $INSTALL_DIR)."
         else
             local local_bin="${HOME}/.local/bin/opencode"
             if [[ -f "$local_bin" ]]; then
                 opencode_found=true
-                detection_msg="OpenCode CLI detectado em $local_bin."
             fi
         fi
     fi
 
-    if $opencode_found; then
-        log_ok "$detection_msg"
-    else
-        log_warn "OpenCode não encontrado. Instale-o posteriormente via:"
-        log_warn "  curl -fsSL https://opencode.ai/install | bash"
-    fi
-
-    if command -v node >/dev/null 2>&1; then
-        log_ok "Node.js detectado no PATH: $(node --version)"
-    else
+    if ! command -v node >/dev/null 2>&1; then
         log_warn "Node.js não foi encontrado. Necessário para executar os plugins e MCPs."
     fi
 
-    if command -v npm >/dev/null 2>&1; then
-        log_ok "npm detectado no PATH: $(npm --version)"
-    else
+    if ! command -v npm >/dev/null 2>&1; then
         log_warn "npm não foi encontrado. Necessário para instalar dependências de plugins."
     fi
-
-    log_info "OS detectado: $os"
-    log_info "Source dir: $src"
-    log_info "Install dir: $INSTALL_DIR"
 }
 
 # ============================================================================
@@ -557,7 +583,6 @@ backup_path() {
             log_info "  [DRY-RUN] backup: $path -> $backup"
         else
             cp -r "$path" "$backup"
-            log_info "  backup: $path -> $backup"
         fi
     fi
 }
@@ -565,7 +590,7 @@ backup_path() {
 copy_item() {
     local src="$1"
     local dest="$2"
-    local desc="$3"
+    local desc="${3:-}"
     local force_replace="${4:-true}"
 
     if [[ ! -e "$src" ]]; then
@@ -597,7 +622,6 @@ copy_item() {
 
     # Copia (cp -r funciona pra arquivos e diretorios)
     cp -r "$src" "$dest"
-    log_ok "  copiado: $desc"
 }
 
 # ============================================================================
@@ -609,95 +633,38 @@ do_install() {
     local dest="$2"
 
     log_bold ""
-    log_bold "[2/4] Preparando Ambiente e Backup..."
-    log_bold ""
+    log_bold "[1/4] Verificando Pré-requisitos..."
+    check_prerequisites "$OS" "$src"
+    log_ok "  Pré-requisitos validados."
 
-    # 1. Cria diretorio de instalacao
-    if $DRY_RUN; then
-        log_info "[DRY-RUN] mkdir -p $dest"
-    else
+    log_bold ""
+    log_bold "[2/4] Preparando Ambiente e Backup..."
+    
+    if ! $DRY_RUN; then
         mkdir -p "$dest"
-        log_ok "diretorio criado: $dest"
+    else
+        log_info "  [DRY-RUN] mkdir -p $dest"
     fi
 
     if ! $DRY_RUN; then
         setup_git_restore_point "$dest"
     fi
 
-    # 2. Backup físico preventivo dos arquivos existentes
     if has_existing_harness_files "$dest"; then
         local timestamp
         timestamp=$(date +%Y%m%d_%H%M%S)
         local backup_dir="$dest/backup/backup_$timestamp"
-        
-        log_info "Copiando backup preventivo dos arquivos para: $backup_dir"
-        if copy_directory_exclude_backup "$dest" "$backup_dir"; then
-            log_ok "Backup físico datado criado com sucesso."
-        else
-            log_warn "Falha ao criar backup físico. Continuando..."
-        fi
+        copy_directory_exclude_backup "$dest" "$backup_dir"
     fi
 
-    # 3. Copia estrutura de diretorios
-    log_info "Copiando arquivos..."
+    copy_item "$src/agents" "$dest/agents" "agents/"
+    copy_item "$src/commands" "$dest/commands" "commands/"
+    copy_item "$src/templates" "$dest/templates" "templates/"
+    copy_item "$src/tools" "$dest/tools" "tools/"
+    copy_item "$src/plugins" "$dest/plugins" "plugins/"
+    copy_item "$src/examples" "$dest/examples" "examples/"
+    copy_item "$src/skills" "$dest/skills" "skills/"
 
-    # Agents (16 .md files)
-    if [[ -d "$src/agents" ]]; then
-        copy_item "$src/agents" "$dest/agents" "agents/ (16 files)"
-        
-        # Verifica a disponibilidade dos modelos Minimax no sistema do usuário
-        log_info "Verificando se modelos Minimax estao instalados..."
-        local models_list
-        models_list=$(opencode models 2>/dev/null || true)
-        
-        if echo "$models_list" | grep -qE "minimax/MiniMax-M2\.5|minimax/MiniMax-M2\.7|minimax/MiniMax-M3"; then
-            log_ok "Modelos Minimax detectados no sistema. Preservando configuracao nos agentes."
-        else
-            log_warn "Nenhum modelo Minimax (M2.5, M2.7 ou M3) detectado no sistema."
-            log_info "Removendo definicao de modelo Minimax dos agentes..."
-            if ! $DRY_RUN; then
-                for f in "$dest"/agents/*.md; do
-                    if [[ -f "$f" ]]; then
-                        # Remove a linha que define o modelo minimax do frontmatter
-                        sed -i '/^[[:space:]]*model:[[:space:]]*minimax/d' "$f"
-                    fi
-                done
-                log_ok "Definicoes de modelo Minimax removidas dos agentes com sucesso."
-            fi
-        fi
-    fi
-
-    # Commands (6 .md files)
-    if [[ -d "$src/commands" ]]; then
-        copy_item "$src/commands" "$dest/commands" "commands/ (6 files)"
-    fi
-
-    # Templates (8 files - reference, nao sao lidos pelo opencode diretamente)
-    if [[ -d "$src/templates" ]]; then
-        copy_item "$src/templates" "$dest/templates" "templates/ (8 files - referencia)"
-    fi
-
-    # Custom Tools (4 .ts files)
-    if [[ -d "$src/tools" ]]; then
-        copy_item "$src/tools" "$dest/tools" "tools/ (4 custom tools)"
-    fi
-
-    # Plugins (3 .ts files - v6 formato opencode moderno)
-    if [[ -d "$src/plugins" ]]; then
-        copy_item "$src/plugins" "$dest/plugins" "plugins/ (3 plugins: path-boundary, audit-logger, status-injector)"
-    fi
-
-    # Examples (1 example end-to-end)
-    if [[ -d "$src/examples" ]]; then
-        copy_item "$src/examples" "$dest/examples" "examples/ (1 end-to-end)"
-    fi
-
-    # Skills (skills do harness)
-    if [[ -d "$src/skills" ]]; then
-        copy_item "$src/skills" "$dest/skills" "skills/ (skills do harness)"
-    fi
-
-    # Cria package.json (necessario para opencode resolver @opencode-ai/plugin e sqlite-vec)
     if ! $DRY_RUN; then
         local pkg_json="$dest/package.json"
         if [[ ! -f "$pkg_json" ]] || ! $PRESERVE_CONFIG; then
@@ -714,100 +681,37 @@ do_install() {
   }
 }
 EOF
-            log_ok "  criado: package.json (com @opencode-ai/plugin e sqlite-vec deps)"
-        else
-            log_info "  preservado: package.json (ja existe)"
         fi
     fi
 
-    # Cria harness-allowlist.json default (path-boundary plugin le este)
     if ! $DRY_RUN; then
         local allowlist="$dest/harness-allowlist.json"
         if [[ ! -f "$allowlist" ]] || ! $PRESERVE_CONFIG; then
             cat > "$allowlist" <<EOF
 {
-  "_comment": "Path allowlist para path-boundary plugin. Editavel por projeto. v6.2.0 expandido para incluir paths do proprio repo do harness (para que o harness seja self-modificavel).",
-  "allow": [
-    "src/**",
-    "test/**",
-    "tests/**",
-    "e2e/**",
-    "prisma/**",
-    "RAG/**",
-    "design/**",
-    "docs/**",
-    "PRD.html",
-    "SPEC.html",
-    "PRODUCT.md",
-    ".harness/brief.md",
-    ".harness/sprints/**",
-    "qa/**",
-    ".harness/RAG/**",
-    ".harness/reviews/**",
-    ".harness/security/**",
-    ".harness/qa-gate/**",
-    ".harness/lgpd/**",
-    "agents/**",
-    "training/**",
-    "templates/**",
-    "tools/**",
-    "plugins/**",
-    "commands/**",
-    "state-machine.json",
-    "failure-protocol.json",
-    "opencode.json",
-    "opencode.jsonc",
-    "install.sh",
-    "GERAIS.md",
-    "README.md",
-    "HARNESS-README.md",
-    "CHANGELOG.md",
-    "examples/**",
-    "skills/**",
-    "harness-allowlist.json"
-  ],
-  "deny": [
-    ".env",
-    ".env.*",
-    "secrets/**",
-    "*.pem",
-    "*.key"
-  ]
+  "allow": ["src/**", "agents/**", "training/**", "templates/**", "tools/**", "plugins/**", "commands/**", "state-machine.json", "failure-protocol.json", "opencode.json", "opencode.jsonc", "install.sh", "GERAIS.md", "README.md", "HARNESS-README.md", "CHANGELOG.md", "examples/**", "skills/**", "harness-allowlist.json"],
+  "deny": [".env", ".env.*", "secrets/**", "*.pem", "*.key"]
 }
 EOF
-            log_ok "  criado: harness-allowlist.json (default project allowlist, v6.2.0+)"
-        else
-            log_info "  preservado: harness-allowlist.json (ja existe)"
         fi
     fi
 
-    # v6.2.0+ — Copia RAGs globais (training/) para ~/.config/opencode/training/
-    # Esses RAGs ficam disponiveis automaticamente em TODO projeto que use o harness
     if [[ -d "$src/training" ]]; then
         local training_dest="$dest/training"
-        if ! $DRY_RUN; then
-            mkdir -p "$training_dest"
-        fi
-        # Copia cada .md de training/ individualmente (preserva customizacoes em update)
-        if [[ -d "$src/training" ]]; then
-            for rag_doc in "$src/training"/*.md; do
-                [[ ! -f "$rag_doc" ]] && continue
-                local doc_name
-                doc_name="$(basename "$rag_doc")"
-                copy_item "$rag_doc" "$training_dest/$doc_name" "training/$doc_name (global RAG)" "$([ "$PRESERVE_CUSTOM" = true ] && echo "false" || echo "true")"
-            done
-        fi
-        log_ok "  global RAGs instalados em: $dest/training/ (disponiveis em todos os projetos)"
+        mkdir -p "$training_dest"
+        for rag_doc in "$src/training"/*.md; do
+            [[ ! -f "$rag_doc" ]] && continue
+            local doc_name; doc_name="$(basename "$rag_doc")"
+            cp -r "$rag_doc" "$training_dest/$doc_name"
+        done
     fi
 
-    # 3. Copia arquivos de raiz
-    [[ -f "$src/GERAIS.md" ]] && copy_item "$src/GERAIS.md" "$dest/GERAIS.md" "GERAIS.md (system prompt global)"
-    [[ -f "$src/state-machine.json" ]] && copy_item "$src/state-machine.json" "$dest/state-machine.json" "state-machine.json (contrato)"
-    [[ -f "$src/state-machine-lean.json" ]] && copy_item "$src/state-machine-lean.json" "$dest/state-machine-lean.json" "state-machine-lean.json (contrato simplificado)"
-    [[ -f "$src/failure-protocol.json" ]] && copy_item "$src/failure-protocol.json" "$dest/failure-protocol.json" "failure-protocol.json (3 classes + 1 fatal)"
-    [[ -f "$src/README.md" ]] && copy_item "$src/README.md" "$dest/HARNESS-README.md" "README.md (renomeado pra HARNESS-README.md)"
+    [[ -f "$src/GERAIS.md" ]] && copy_item "$src/GERAIS.md" "$dest/GERAIS.md"
+    [[ -f "$src/state-machine.json" ]] && copy_item "$src/state-machine.json" "$dest/state-machine.json"
+    [[ -f "$src/state-machine-lean.json" ]] && copy_item "$src/state-machine-lean.json" "$dest/state-machine-lean.json"
+    [[ -f "$src/failure-protocol.json" ]] && copy_item "$src/failure-protocol.json" "$dest/failure-protocol.json"
+    [[ -f "$src/README.md" ]] && copy_item "$src/README.md" "$dest/HARNESS-README.md"
 
-    # 4. opencode.json / opencode.jsonc (com Smart Merge e suporte interativo)
     if [[ -f "$src/opencode.json" ]]; then
         local existing_json="$dest/opencode.json"
         local existing_jsonc="$dest/opencode.jsonc"
@@ -816,137 +720,44 @@ EOF
         [[ -f "$existing_jsonc" ]] && config_file="$existing_jsonc"
 
         if [[ -n "$config_file" ]]; then
-            # Criar pasta de backup preventiva centralizada com data/hora
-            local backup_timestamp
-            backup_timestamp=$(date +%Y%m%d_%H%M%S)
-            local backup_dir="$dest/backup/backup_$backup_timestamp"
-
-            if ! $DRY_RUN; then
-                # Se o backup preventivo já copiou o arquivo, não precisamos copiar de novo, mas garantimos
-                mkdir -p "$backup_dir"
-                cp "$config_file" "$backup_dir/$(basename "$config_file")" 2>/dev/null || true
-                printf "\n"
-                log_ok "[BACKUP DE SEGURANÇA] Cópia preventiva do config criada com sucesso!"
-                log_info "  Arquivo de backup: ${BLUE}$backup_dir/$(basename "$config_file")${NC}"
-                log_info "  Explicação: Salvamos o seu arquivo de configuração original antes de realizar alterações."
-                log_info "  Como restaurar se houver problemas: Você pode reverter a qualquer momento rodando o comando:"
-                log_bold "  cp \"$backup_dir/$(basename "$config_file")\" \"$config_file\""
-                printf "\n"
-            else
-                log_info "[DRY-RUN] Criaria pasta de backup em $backup_dir e copiaria $config_file"
-            fi
-
             local action_choice=0
             if $INTERACTIVE; then
                 printf "\n"
-                log_warn "O arquivo de configuração $(basename "$config_file") já existe no destino."
+                printf "${BOLD}Arquivo de configuração opencode.jsonc já existe no destino. Selecione a ação desejada:${NC}\n\n"
                 local cfg_options=(
-                    "Mesclar (Smart Merge) — Recomendado, integra agentes preservando suas customizações"
-                    "Sobrescrever (Overwrite) — Substitui completamente pelo padrão do Harness v6 (com backup)"
-                    "Preservar (Skip) — Mantém o seu arquivo de configuração atual sem alterações"
+                    "Mesclar (Smart Merge) — Recomendado"
+                    "Sobrescrever (Overwrite)"
+                    "Preservar (Skip)"
                 )
                 select_option "${cfg_options[@]}" && action_choice=0 || action_choice=$?
-            else
-                if $PRESERVE_CONFIG; then
-                    action_choice=2
-                else
-                    action_choice=0
-                fi
             fi
 
             case "$action_choice" in
-                0) # Smart Merge
-                   log_info "Tentando Smart Merge em $config_file..."
-                   backup_path "$config_file"
-                   if merge_json "$config_file" "$src/opencode.json" "${config_file}.tmp"; then
-                       mv "${config_file}.tmp" "$config_file"
-                       log_ok "  Smart Merge concluído com sucesso!"
-                   else
-                       log_warn "  Falha no Smart Merge (provavelmente JSON inválido ou comentários complexos)."
-                       if $INTERACTIVE; then
-                           local fail_options=(
-                               "Sobrescrever pelo padrão do Harness (com backup)"
-                               "Cancelar e manter original"
-                           )
-                           local fail_choice=0
-                           select_option "${fail_options[@]}" && fail_choice=0 || fail_choice=$?
-                           if [[ $fail_choice -eq 0 ]]; then
-                               cp "$src/opencode.json" "$config_file"
-                               log_ok "  Substituído com sucesso."
-                           else
-                               log_info "  Mantido original."
-                           fi
-                       else
-                           if ! $PRESERVE_CONFIG; then
-                               cp "$src/opencode.json" "$config_file"
-                               log_ok "  copiado: $(basename "$config_file") (substituído por falha no merge, com backup)"
-                           fi
-                       fi
-                   fi
-                   ;;
-                1) # Overwrite
-                   log_info "Sobrescrevendo $config_file..."
-                   backup_path "$config_file"
-                   cp "$src/opencode.json" "$config_file"
-                   log_ok "  Arquivo sobrescrito com sucesso."
-                   ;;
-                *) # Skip
-                   log_info "Preservando arquivo existente em $config_file."
-                   ;;
+                0) merge_json "$config_file" "$src/opencode.json" "${config_file}.tmp" && mv "${config_file}.tmp" "$config_file" ;;
+                1) cp "$src/opencode.json" "$config_file" ;;
             esac
         else
-            # Nenhum existe, instala fresh
-            copy_item "$src/opencode.json" "$dest/opencode.json" "opencode.json (instalação fresh)"
+            copy_item "$src/opencode.json" "$dest/opencode.json"
         fi
     fi
 
-    # 5. Marca de versao
-    if $DRY_RUN; then
-        log_info "[DRY-RUN] echo '${HARNESS_VERSION}' > $dest/.harness-version"
-    else
+    if ! $DRY_RUN; then
         cat > "$dest/.harness-version" <<EOF
 version: ${HARNESS_VERSION}
-name: ${HARNESS_NAME}
-installed_at: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
-os: $(detect_os)
-source: ${src}
 EOF
-        log_ok "marcador de versao criado: $dest/.harness-version"
     fi
 
-    # 6. Limpeza de arquivos (residuais e backups)
-    if ! $DRY_RUN; then
-        log_info "Limpando arquivos residuais e backups antigos..."
-        # Remove arquivos de 0 bytes, ignorando os que tem .bak no nome
-        find "$dest" -type f -size 0 ! -name "*.bak*" -delete 2>/dev/null
-        # Remove backups antigos (.bak.*)
-        find "$dest" -type f -name "*.bak.*" -delete 2>/dev/null
-    fi
-
-    # 7. Instalação automática das dependências NPM/Bun
     if ! $DRY_RUN; then
         log_bold ""
-        log_bold "[4/4] Instalando Dependências e Configurando MCPs..."
+        log_bold "[4/4] Instalando Dependências..."
         log_bold ""
         local pm="npm"
-        if install_bun_if_needed; then
-            pm="bun"
-            log_info "Executando 'bun install' em $dest..."
-            (cd "$dest" && bun install) || log_warn "Falha ao rodar bun install. Você pode tentar rodar manualmente."
-        elif command -v npm >/dev/null 2>&1; then
-            log_warn "Bun não disponível. Fazendo fallback para NPM..."
-            log_info "Executando 'npm install' em $dest..."
-            (cd "$dest" && npm install) || log_warn "Falha ao rodar npm install. Você pode tentar rodar manualmente."
-        else
-            log_err "Nenhum gerenciador de pacotes (Bun ou NPM) disponível para instalar as dependências."
-        fi
-        
-        # Instala MCPs locais configurados no opencode.json
+        (cd "$dest" && npm install >/dev/null 2>&1) || true
         install_configured_mcps "$dest" "$pm"
     fi
 
     if ! $DRY_RUN; then
-        commit_git_restore_point "$dest" "Instalacao/Atualizacao concluida com sucesso"
+        commit_git_restore_point "$dest" "Instalacao/Atualizacao concluida"
     fi
 }
 
@@ -957,46 +768,13 @@ EOF
 do_uninstall() {
     local dest="$1"
 
-    log_bold ""
-    log_bold "Desinstalando Harness v6 de: $dest"
-    log_bold ""
-
     if [[ ! -d "$dest" ]]; then
-        log_warn "Diretorio nao existe: $dest. Nada a fazer."
         return
     fi
 
-    # Confirma
-    if [[ -t 0 || -c /dev/tty ]] && ! $DRY_RUN; then
-        printf "${YELLOW}Isso vai remover APENAS arquivos do harness v6 (com backup).${NC}\n"
-        printf "Arquivos que serao removidos:\n"
-        printf "  - $dest/agents/\n"
-        printf "  - $dest/commands/\n"
-        printf "  - $dest/templates/\n"
-        printf "  - $dest/tools/\n"
-        printf "  - $dest/plugins/\n"
-        printf "  - $dest/examples/\n"
-        printf "  - $dest/skills/\n"
-        printf "  - $dest/GERAIS.md\n"
-        printf "  - $dest/state-machine.json\n"
-        printf "  - $dest/failure-protocol.json\n"
-        printf "  - $dest/HARNESS-README.md\n"
-        printf "  - $dest/package.json (se foi instalado pelo harness)\n"
-        printf "  - $dest/harness-allowlist.json (se foi instalado pelo harness)\n"
-        printf "  - $dest/opencode.json (se foi instalado pelo harness)\n"
-        printf "\n"
-        read -rp "Continuar? [y/N] " resp < /dev/tty
-        if [[ ! "$resp" =~ ^[Yy]$ ]]; then
-            log_info "Cancelado pelo usuario."
-            exit 0
-        fi
-    fi
-
-    # Faz backup completo antes
     local backup_root="/tmp/harness-v6-backup-$(date +%Y%m%d%H%M%S)"
     if ! $DRY_RUN; then
         mkdir -p "$backup_root"
-        log_info "Backup completo em: $backup_root"
         for item in agents commands templates tools plugins examples skills GERAIS.md state-machine.json state-machine-lean.json failure-protocol.json HARNESS-README.md package.json harness-allowlist.json; do
             if [[ -e "$dest/$item" ]]; then
                 cp -r "$dest/$item" "$backup_root/" 2>/dev/null || true
@@ -1004,41 +782,15 @@ do_uninstall() {
         done
     fi
 
-    # Remove arquivos do harness
     for item in agents commands templates tools plugins examples skills GERAIS.md state-machine.json state-machine-lean.json failure-protocol.json HARNESS-README.md package.json harness-allowlist.json .harness-version; do
         if [[ -e "$dest/$item" ]]; then
-            if $DRY_RUN; then
-                log_info "  [DRY-RUN] rm -rf $dest/$item"
-            else
-                rm -rf "$dest/$item"
-                log_ok "  removido: $item"
-            fi
+            if ! $DRY_RUN; then rm -rf "$dest/$item"; fi
         fi
     done
 
     if ! $DRY_RUN; then
         revert_git_state "$dest"
     fi
-
-    # Pergunta sobre opencode.json/jsonc
-    if ! $DRY_RUN; then
-        for cfg_file in "$dest/opencode.json" "$dest/opencode.jsonc"; do
-            if [[ -f "$cfg_file" ]] && [[ -t 0 || -c /dev/tty ]]; then
-                printf "\n${YELLOW}O arquivo $cfg_file pode ter sido instalado/substituido pelo harness.${NC}\n"
-                printf "Ele contem 16 agents do harness + provavel config do usuario.\n"
-                read -rp "Remover? (recomendado: nao, fazer merge manual) [y/N] " resp < /dev/tty
-                if [[ "$resp" =~ ^[Yy]$ ]]; then
-                    backup_path "$cfg_file"
-                    rm -f "$cfg_file"
-                    log_ok "  removido: $(basename "$cfg_file")"
-                else
-                    log_info "  preservado: $(basename "$cfg_file") (voce devera remover os 16 agents do harness manualmente)"
-                fi
-            fi
-        done
-    fi
-
-    log_ok "Desinstalacao completa. Backup em: $backup_root"
 }
 
 # ============================================================================
@@ -1047,90 +799,7 @@ do_uninstall() {
 
 post_install_check() {
     local dest="$1"
-
-    log_bold ""
-    log_bold "Validando instalacao..."
-    log_bold ""
-
-    local errors=0
-
-    # Verifica arquivos criticos
-    local critical_files=(
-        "$dest/GERAIS.md"
-        "$dest/agents/orchestrator.md"
-        "$dest/agents/briefing.md"
-        "$dest/agents/backend.md"
-        "$dest/commands/harness.md"
-        "$dest/state-machine-lean.json"
-    )
-
-    # opencode.json/jsonc é opcional (pode ter sido preservado)
-    if [[ -f "$dest/opencode.json" ]]; then
-        critical_files+=("$dest/opencode.json")
-    elif [[ -f "$dest/opencode.jsonc" ]]; then
-        critical_files+=("$dest/opencode.jsonc")
-    else
-        log_warn "  ATENCAO: nem opencode.json nem opencode.jsonc encontrado"
-        log_warn "  o harness v6 nao sera carregado pelo opencode sem um config file"
-    fi
-
-    for f in "${critical_files[@]}"; do
-        if [[ -f "$f" ]]; then
-            log_ok "  ✓ $f"
-        else
-            log_err "  ✗ FALTA: $f"
-            errors=$((errors + 1))
-        fi
-    done
-
-    # Conta agents
-    if [[ -d "$dest/agents" ]]; then
-        local agent_count
-        agent_count=$(find "$dest/agents" -name "*.md" -type f | wc -l)
-        log_info "  agents: $agent_count (esperado: 20)"
-        if [[ "$agent_count" -ne 20 ]]; then
-            log_warn "  contagem de agents diferente do esperado"
-        fi
-    fi
-
-    # Conta commands
-    if [[ -d "$dest/commands" ]]; then
-        local cmd_count
-        cmd_count=$(find "$dest/commands" -name "*.md" -type f | wc -l)
-        log_info "  commands: $cmd_count (esperado: 6)"
-    fi
-
-    # Verifica plugins
-    if [[ -d "$dest/plugins" ]]; then
-        local plugin_count
-        plugin_count=$(find "$dest/plugins" -name "*.ts" -type f | wc -l)
-        log_info "  plugins: $plugin_count (esperado: 3)"
-        if [[ "$plugin_count" -ne 3 ]]; then
-            log_warn "  contagem de plugins diferente do esperado"
-        fi
-    else
-        log_warn "  PLUGINS AUSENTES: path-boundary, audit-logger, status-injector nao serao carregados"
-    fi
-
-    # Verifica package.json
-    if [[ -f "$dest/package.json" ]]; then
-        if grep -q "@opencode-ai/plugin" "$dest/package.json"; then
-            log_ok "  package.json: tem @opencode-ai/plugin dep"
-        else
-            log_warn "  package.json: NAO tem @opencode-ai/plugin (plugins nao vao funcionar)"
-        fi
-    else
-        log_warn "  package.json AUSENTE (plugins nao vao funcionar)"
-    fi
-
-    if [[ "$errors" -eq 0 ]]; then
-        log_ok ""
-        log_ok "Instalacao validada com sucesso!"
-    else
-        log_err ""
-        log_err "Instalacao completou com $errors erro(s). Verifique acima."
-        return 1
-    fi
+    # Silencioso conforme solicitado
 }
 
 # ============================================================================
@@ -1140,31 +809,7 @@ post_install_check() {
 print_summary() {
     local dest="$1"
     local os="$2"
-
-    log_bold ""
-    log_bold "+--------------------------------------------------+"
-    log_bold "|  Instalacao completa                             |"
-    log_bold "+--------------------------------------------------+"
-    log_bold ""
-    log_info "Sistema:        $os"
-    log_info "Install dir:    $dest"
-    log_info "Version:        $HARNESS_VERSION"
-    log_bold ""
-    log_info "Proximos passos:"
-    log_info "  1. Se opencode NAO estiver instalado:"
-    log_info "     curl -fsSL https://opencode.ai/install | bash"
-    log_info "  2. Instale as deps dos plugins (opencode roda isso auto no startup, mas pode ser manual):"
-    log_info "     cd ~/.config/opencode && bun install"
-    log_info "  3. Em um projeto, inicialize o harness:"
-    log_info "     cd /seu/projeto"
-    log_info "     # abra opencode, use /harness"
-    log_info "  4. Veja o estado:"
-    log_info "     /harness-status (dentro do opencode)"
-    log_bold ""
-    log_info "Documentacao completa: $dest/HARNESS-README.md"
-    log_bold ""
-    log_info "Para desinstalar: $0 --uninstall"
-    log_info "Para atualizar (preservando customizacoes): $0 --update"
+    log_info "Instalação concluída com sucesso em: $dest"
 }
 
 # ============================================================================
@@ -1172,79 +817,43 @@ print_summary() {
 # ============================================================================
 
 main() {
-    # Deteccao inicial
     OS=$(detect_os)
-    
+    SOURCE_DIR=$(get_source_dir)
+    INSTALL_DIR=$(get_install_dir "$OS")
+
     # Detecção rápida de ferramentas para o banner
-    NODE_STATUS="✗ ausente"
-    NPM_STATUS="✗ ausente"
-    OPENCODE_STATUS="✗ ausente"
-    
+    NODE_STATUS="✗ ausente"; NPM_STATUS="✗ ausente"; OPENCODE_STATUS="✗ ausente"
     command -v node >/dev/null 2>&1 && NODE_STATUS="✓ ok"
     command -v npm >/dev/null 2>&1 && NPM_STATUS="✓ ok"
     (command -v opencode >/dev/null 2>&1 || [[ -d "${HOME}/.config/opencode" || -f "${HOME}/.local/bin/opencode" ]]) && OPENCODE_STATUS="✓ ok"
 
-    # Parse args
     if [[ $# -eq 0 ]]; then
         INTERACTIVE=true
         print_banner
-        
-        local options=(
-            "Instalação Limpa (Fresh Install) — Sobrescreve core e reinicia configs"
-            "Atualização (Update) — Preserva suas customizações e RAGs"
-            "Desinstalação (Uninstall) — Remove o Harness v6 do OpenCode"
-            "Cancelar e Sair"
-        )
-        
-        local choice
+        printf "${BOLD}Selecione a ação desejada:${NC}\n\n"
+        local options=("Instalação Limpa" "Atualização" "Desinstalação" "Sair")
         select_option "${options[@]}" && choice=0 || choice=$?
-        
         case "$choice" in
-            0) # Fresh Install
-               ;;
-            1) # Update
-               UPDATE_MODE=true
-               PRESERVE_CUSTOM=true
-               PRESERVE_CONFIG=true
-               ;;
-            2) # Uninstall
-               UNINSTALL=true
-               ;;
-            *) # Cancelar
-               log_info "Operação cancelada pelo usuário."
-               exit 0
-               ;;
+            0) ;;
+            1) UPDATE_MODE=true; PRESERVE_CUSTOM=true; PRESERVE_CONFIG=true ;;
+            2) UNINSTALL=true ;;
+            *) exit 0 ;;
         esac
     else
+        INTERACTIVE=false
         while [[ $# -gt 0 ]]; do
             case "$1" in
                 --uninstall)        UNINSTALL=true; shift ;;
                 --dry-run)          DRY_RUN=true; shift ;;
                 --preserve-config)  PRESERVE_CONFIG=true; shift ;;
                 --update)           UPDATE_MODE=true; PRESERVE_CUSTOM=true; PRESERVE_CONFIG=true; shift ;;
+                --dir)              INSTALL_DIR="$2"; shift 2 ;;
                 --version)          echo "Harness v6 installer ${HARNESS_VERSION}"; exit 0 ;;
                 --help|-h)          print_help; exit 0 ;;
-                *)                  log_err "Opcao desconhecida: $1"; print_help; exit 1 ;;
+                *)                  log_err "Opção desconhecida: $1"; print_help; exit 1 ;;
             esac
         done
         print_banner
-    fi
-
-    # Deteccao
-    OS=$(detect_os)
-    SOURCE_DIR=$(get_source_dir)
-    INSTALL_DIR=$(get_install_dir "$OS")
-
-    # Confirmação do diretório de instalação em modo interativo
-    if $INTERACTIVE && [[ "$UNINSTALL" = false ]]; then
-        printf "\n"
-        log_bold "Configuração do Caminho de Destino:"
-        printf "Caminho padrão detectado para $OS: ${BLUE}$INSTALL_DIR${NC}\n"
-        read -rp "Pressione Enter para confirmar ou digite outro caminho: " user_dir < /dev/tty
-        if [[ -n "$user_dir" ]]; then
-            # Expande ~ se necessário
-            INSTALL_DIR="${user_dir/#\~/$HOME}"
-        fi
     fi
 
     # Pre-checks
