@@ -1,0 +1,11 @@
+[
+  { "agents": "agents", "type": "folder" },
+  { "commands": "commands", "type": "folder" },
+  { "plugins": "plugins", "type": "folder" },
+  { "schemas": "schemas", "type": "folder" },
+  { "skills": "skills", "type": "folder" },
+  { "templates": "templates", "type": "folder" },
+  { "tools": "tools", "type": "folder" },
+  { "training": "training", "type": "folder" },
+  { "guidelines": ["AGENTS.md", "GERAIS.md", "opencode.json", "package.json", "tsconfig.json", "global.d.ts"], "type": "file" }
+]

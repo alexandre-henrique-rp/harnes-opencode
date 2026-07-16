@@ -206,6 +206,61 @@ export class HarnessDB {
       } catch (err) {
         return null;
       }
+    },
+
+    insert: (newTask: Omit<Task, 'sprintId' | 'status'> & Partial<Task>): Task | null => {
+      const state = this.state.get();
+      const sprintId = newTask.sprintId || state.currentSprint;
+      const sprintPath = path.join(this.baseDir, 'sprints', `${sprintId}.json`);
+
+      if (!this.exists(sprintPath)) return null;
+
+      try {
+        const data = JSON.parse(fs.readFileSync(sprintPath, 'utf-8'));
+        const tasks: Task[] = data.tasks || [];
+
+        // Verifica se já existe para não duplicar
+        if (tasks.some(t => t.id === newTask.id)) {
+          throw new Error(`Task ${newTask.id} already exists`);
+        }
+
+        const taskToInsert: Task = {
+          sprintId,
+          status: 'pending',
+          ...newTask,
+        };
+
+        tasks.push(taskToInsert);
+        this.writeAtomic(sprintPath, JSON.stringify({ ...data, tasks }, null, 2));
+        return taskToInsert;
+      } catch (err) {
+        return null;
+      }
+    },
+
+    remove: (taskId: string): boolean => {
+      const state = this.state.get();
+      const sprintId = state.currentSprint;
+      const sprintPath = path.join(this.baseDir, 'sprints', `${sprintId}.json`);
+
+      if (!this.exists(sprintPath)) return false;
+
+      try {
+        const data = JSON.parse(fs.readFileSync(sprintPath, 'utf-8'));
+        const tasks: Task[] = data.tasks || [];
+        const initialLength = tasks.length;
+        
+        const filteredTasks = tasks.filter(t => t.id !== taskId);
+        
+        if (filteredTasks.length === initialLength) {
+          return false; // Task não encontrada
+        }
+
+        this.writeAtomic(sprintPath, JSON.stringify({ ...data, tasks: filteredTasks }, null, 2));
+        return true;
+      } catch (err) {
+        return false;
+      }
     }
   };
 }

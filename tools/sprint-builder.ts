@@ -155,6 +155,26 @@ export default tool({
       filesCreated.push(path.relative(cwd, planFilePath));
     }
 
+    // 7. Gera o arquivo de banco de dados da sprint SXX.json
+    const sprintDbPath = path.join(sprintsDir, `${sprintId}.json`);
+    if (!fs.existsSync(sprintDbPath)) {
+      const sprintDbData = {
+        id: sprintId,
+        _type: "harness-sprint-v6",
+        version: 1,
+        createdAt: new Date().toISOString(),
+        tasks: finalTasks.map((t) => ({
+          id: t.id,
+          sprintId,
+          title: t.title,
+          status: "pending",
+          type: t.type,
+        }))
+      };
+      fs.writeFileSync(sprintDbPath, JSON.stringify(sprintDbData, null, 2));
+      filesCreated.push(path.relative(cwd, sprintDbPath));
+    }
+
     return {
       success: true,
       sprintId,

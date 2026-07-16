@@ -29,6 +29,8 @@ Quando o harness está ativo em um projeto alvo, os principais artefatos são ge
 - **Planejamento de Sprints:** Salvo como arquivos JSON em `.harness/sprints/` (ex: `S01.json`, `S02.json`), mapeando todas as tarefas com 100% de cobertura dos requisitos da SPEC.
 - **Arquivos RAG locais:** Localizados na pasta `.harness/RAG/` e listados no índice `RAG/index.json`.
 
+> **Nota Operacional para os Agentes:** Consulte o documento [TOOLS_INDEX.md](file:///home/kingdev/Documentos/Opencode_agents_v6/docs/TOOLS_INDEX.md) localizado em `docs/TOOLS_INDEX.md` para visualizar as **ferramentas (tools)** disponíveis que poupam comandos bash repetitivos (como commit automatizado, atualização de changelog e linter inteligente).
+
 ---
 
 ## 🗂️ Organização das Pastas do Harness

@@ -176,6 +176,28 @@ export default tool({
       JSON.stringify(agentBoundaries, null, 2)
     );
 
+    // Mover config files como .ai-jail e opencode.json se estiverem na raiz
+    const configFiles = [
+      ".ai-jail",
+      "opencode.json",
+      "state-machine.json",
+      "state-machine-lean.json",
+      "failure-protocol.json",
+    ];
+
+    for (const fileName of configFiles) {
+      const srcPath = path.join(cwd, fileName);
+      const destPath = path.join(harnessDir, fileName);
+      if (fs.existsSync(srcPath)) {
+        if (!fs.existsSync(destPath)) {
+          fs.renameSync(srcPath, destPath);
+        } else {
+          fs.unlinkSync(srcPath); // já copiado
+        }
+      }
+    }
+
+
     // 6. Cria PROGRESS.md inicial
     const initialProgress = `# Progresso do Projeto: ${project}\n\n` +
       `**Status:** Iniciado\n` +

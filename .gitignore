@@ -41,3 +41,8 @@ Thumbs.db
 secrets/
 *.pem
 *.key
+
+.harness/
+.mimocode/
+.ai-jail
+node_modules/

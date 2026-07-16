@@ -37,6 +37,7 @@ cleanup_temp_dir() {
     if [[ -n "$TEMP_SOURCE_DIR" && -d "$TEMP_SOURCE_DIR" ]]; then
         rm -rf "$TEMP_SOURCE_DIR"
     fi
+    tput cnorm 2>/dev/null || printf "\033[?25h" # Garante cursor restaurado
 }
 trap cleanup_temp_dir EXIT
 
@@ -63,17 +64,59 @@ setup_colors() {
 setup_colors
 
 # ============================================================================
-# Funcoes utilitarias
+# Funcoes utilitarias & Spinner
 # ============================================================================
 
-log_info()    { printf "  ${BLUE}●${NC}  %s\n" "$*"; }
-log_ok()      { printf "  ${GREEN}✔${NC}  %s\n" "$*"; }
-log_warn()    { printf "  ${YELLOW}⚠${NC}  %s\n" "$*"; }
-log_err()     { printf "  ${RED}✖${NC}  %s\n" "$*" >&2; }
-log_step()    { printf "\n${BOLD}${CYAN}  %s${NC}\n" "$*"; }
-log_done()    { printf "  ${GREEN}${BOLD}✔  %s${NC}\n" "$*"; }
+SPINNER_PID=""
+hide_cursor() { tput civis 2>/dev/null || printf "\033[?25l"; }
+show_cursor() { tput cnorm 2>/dev/null || printf "\033[?25h"; }
 
-die() { log_err "$*"; exit 1; }
+start_spinner() {
+    local msg="$1"
+    hide_cursor
+    printf "  ${DIM}│${NC}  ${CYAN}⠋${NC}  %s" "$msg"
+    
+    (
+        local frames=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
+        while true; do
+            for frame in "${frames[@]}"; do
+                printf "\r  ${DIM}│${NC}  ${CYAN}%s${NC}  %s" "$frame" "$msg"
+                sleep 0.1
+            done
+        done
+    ) &
+    SPINNER_PID=$!
+}
+
+stop_spinner() {
+    local msg="$1"
+    local status="${2:-0}"
+    if [[ -n "$SPINNER_PID" ]]; then
+        kill "$SPINNER_PID" >/dev/null 2>&1 || true
+        wait "$SPINNER_PID" 2>/dev/null || true
+        SPINNER_PID=""
+        printf "\r\033[K"
+    fi
+    show_cursor
+    if [[ "$status" -eq 0 ]]; then
+        log_ok "$msg"
+    else
+        log_err "$msg"
+    fi
+}
+
+log_info()    { printf "  ${DIM}│${NC}  ${BLUE}❯${NC}  %s\n" "$*"; }
+log_ok()      { printf "  ${DIM}│${NC}  ${GREEN}✔${NC}  %s\n" "$*"; }
+log_warn()    { printf "  ${DIM}│${NC}  ${YELLOW}⚠${NC}  %s\n" "$*"; }
+log_err()     { printf "  ${DIM}│${NC}  ${RED}✖${NC}  %s\n" "$*" >&2; }
+log_step()    { printf "  ${DIM}│${NC}  ${BOLD}${CYAN}✦${NC}  %s\n" "$*"; }
+log_done()    { printf "  ${DIM}╰─${NC} ${GREEN}${BOLD}✔  %s${NC}\n" "$*"; }
+
+die() {
+    if [[ -n "$SPINNER_PID" ]]; then stop_spinner "Falha crítica" 1; fi
+    log_err "$*"; 
+    exit 1; 
+}
 
 print_divider() {
     printf "  ${DIM}────────────────────────────────────────────────────${NC}\n"
@@ -128,8 +171,7 @@ print_step() {
     local current="$1"
     local total="$2"
     local desc="$3"
-    printf "\n  ${BOLD}${CYAN}[%d/%d]${NC} ${BOLD}%s${NC}\n" "$current" "$total" "$desc"
-    printf "  ${DIM}────────────────────────────────────────────────────${NC}\n"
+    printf "\n  ${DIM}╭───${NC} ${CYAN}[%d/%d]${NC} ${BOLD}%s${NC}\n" "$current" "$total" "$desc"
 }
 
 # ============================================================================
@@ -151,9 +193,9 @@ show_menu() {
     local idx=0
     for opt in "${options[@]}"; do
         if [[ $idx -eq $selected ]]; then
-            printf "  ${GREEN}  ▸${NC}  ${BOLD}${GREEN}%s${NC}\n" "$opt"
+            printf "  ${DIM}│${NC}  ${CYAN}❯${NC}  ${BOLD}${CYAN}%s${NC}\n" "$opt"
         else
-            printf "      %s\n" "$opt"
+            printf "  ${DIM}│${NC}     ${DIM}%s${NC}\n" "$opt"
         fi
         idx=$idx+1
     done
@@ -429,7 +471,8 @@ try {
       for (const pkg of missingPackages) {
         const installCmd = pm === 'bun' ? `bun add ${pkg} --save-dev` : `npm install ${pkg} --save-dev`;
         try {
-          execSync(installCmd, { cwd: dest, stdio: 'inherit' });
+          execSync(installCmd, { cwd: dest, stdio: 'ignore' });
+          console.log(`  \x1b[32m✔ Instalado: ${pkg}\x1b[0m`);
         } catch (e) {
           console.log(`  \x1b[31m✖ Falha: ${pkg}\x1b[0m`);
         }
@@ -546,6 +589,88 @@ get_install_dir() {
     esac
 }
 
+get_source_dir_tarball() {
+    local tmp_dir="$1"
+    local tarball_url="https://github.com/alexandre-henrique-rp/harnes-opencode/archive/refs/heads/main.tar.gz"
+    local tar_file="$tmp_dir/harness.tar.gz"
+
+    start_spinner "Baixando pacote do GitHub..." >&2
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL "$tarball_url" -o "$tar_file" >/dev/null 2>&1
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q "$tarball_url" -O "$tar_file" >/dev/null 2>&1
+    else
+        stop_spinner "Necessario 'curl' ou 'wget'." 1 >&2
+        die "Necessario 'curl' ou 'wget' para instalacao remota."
+    fi
+    stop_spinner "Pacote baixado com sucesso." >&2
+
+    start_spinner "Extraindo arquivos..." >&2
+    if ! tar -xzf "$tar_file" -C "$tmp_dir" >/dev/null 2>&1; then
+        stop_spinner "Falha ao extrair arquivos." 1 >&2
+        die "Falha ao extrair arquivos do GitHub."
+    fi
+    stop_spinner "Arquivos extraidos com sucesso." >&2
+
+    local extracted_dir
+    extracted_dir=$(find "$tmp_dir" -maxdepth 2 -type d -name "harnes-opencode-*" | head -n 1)
+
+    if [[ -z "$extracted_dir" ]]; then
+        die "Estrutura do repositorio invalida."
+    fi
+
+    echo "$extracted_dir"
+}
+
+get_source_dir_git_sparse() {
+    local dest_dir="$1"
+    local repo_url="https://github.com/alexandre-henrique-rp/harnes-opencode.git"
+    local repo_dir="$dest_dir/repo"
+    local manifest_file="$dest_dir/install.json"
+
+    mkdir -p "$dest_dir"
+
+    start_spinner "Clonando repositorio (sparse) do GitHub..." >&2
+    if ! git clone --depth 1 --filter=blob:none --no-checkout "$repo_url" "$repo_dir" >/dev/null 2>&1; then
+        stop_spinner "Falha ao clonar repositorio." 1 >&2
+        return 1
+    fi
+    stop_spinner "Repositorio clonado." >&2
+
+    # Baixa somente o blob do manifesto primeiro, para decidir o que mais baixar
+    if ! (cd "$repo_dir" && git show HEAD:config/install.json > "$manifest_file" 2>/dev/null); then
+        rm -rf "$repo_dir"
+        return 1
+    fi
+
+    # Constroi os padroes de sparse-checkout a partir do manifesto
+    local patterns=()
+    local mtype mpath
+    local manifest_entries
+    if ! manifest_entries=$(parse_install_manifest_file "$manifest_file" 2>/dev/null); then
+        rm -rf "$repo_dir"
+        return 1
+    fi
+    while IFS='|' read -r mtype mpath; do
+        [[ -z "$mpath" ]] && continue
+        if [[ "$mtype" == "FOLDER" ]]; then
+            patterns+=("/$mpath/**")
+        elif [[ "$mtype" == "FILE" ]]; then
+            patterns+=("/$mpath")
+        fi
+    done <<< "$manifest_entries"
+
+    # Inclui o proprio manifesto para o do_install poder le-lo
+    patterns+=("/config/install.json")
+
+    if ! (cd "$repo_dir" && git sparse-checkout init --no-cone >/dev/null 2>&1 && git sparse-checkout set "${patterns[@]}" >/dev/null 2>&1 && git checkout >/dev/null 2>&1); then
+        rm -rf "$repo_dir"
+        return 1
+    fi
+
+    echo "$repo_dir"
+}
+
 get_source_dir() {
     local script_dir
     script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd 2>/dev/null || pwd)"
@@ -559,32 +684,19 @@ get_source_dir() {
     tmp_dir=$(mktemp -d -t harness-install.XXXXXX 2>/dev/null || mktemp -d /tmp/harness-install.XXXXXX)
     TEMP_SOURCE_DIR="$tmp_dir"
 
-    local tarball_url="https://github.com/alexandre-henrique-rp/harnes-opencode/archive/refs/heads/main.tar.gz"
-    local tar_file="$tmp_dir/harness.tar.gz"
-
-    log_info "Baixando pacote do GitHub..."
-    if command -v curl >/dev/null 2>&1; then
-        curl -L --progress-bar "$tarball_url" -o "$tar_file"
-    elif command -v wget >/dev/null 2>&1; then
-        wget --show-progress "$tarball_url" -O "$tar_file"
-    else
-        die "Necessario 'curl' ou 'wget' para instalacao remota."
+    # Tenta baixar somente o manifesto e os itens listados via git sparse-checkout
+    if command -v git >/dev/null 2>&1; then
+        local sparse_dir
+        sparse_dir=$(get_source_dir_git_sparse "$tmp_dir" 2>/dev/null)
+        if [[ -n "$sparse_dir" && -f "$sparse_dir/config/install.json" ]]; then
+            echo "$sparse_dir"
+            return 0
+        fi
+        [[ -d "$tmp_dir/repo" ]] && rm -rf "$tmp_dir/repo"
+        log_warn "Download seletivo falhou. Usando tarball completo." >&2
     fi
 
-    log_info "Extraindo arquivos..."
-    if ! tar -xzf "$tar_file" -C "$tmp_dir"; then
-        die "Falha ao extrair arquivos do GitHub."
-    fi
-    log_ok "Arquivos extraidos com sucesso."
-
-    local extracted_dir
-    extracted_dir=$(find "$tmp_dir" -maxdepth 2 -type d -name "harnes-opencode-*" | head -n 1)
-
-    if [[ -z "$extracted_dir" ]]; then
-        die "Estrutura do repositorio invalida."
-    fi
-
-    echo "$extracted_dir"
+    get_source_dir_tarball "$tmp_dir"
 }
 
 # ============================================================================
@@ -703,6 +815,220 @@ copy_item() {
     cp -r "$src" "$dest"
 }
 
+get_default_manifest() {
+    cat <<'EOF'
+FOLDER|agents
+FOLDER|commands
+FOLDER|plugins
+FOLDER|schemas
+FOLDER|skills
+FOLDER|templates
+FOLDER|tools
+FOLDER|training
+FILE|AGENTS.md
+FILE|GERAIS.md
+FILE|opencode.json
+EOF
+}
+
+parse_install_manifest_file() {
+    local manifest="$1"
+
+    if command -v node >/dev/null 2>&1; then
+        node - "$manifest" <<'NODEEOF'
+const fs = require('fs');
+const manifest = process.argv[2];
+const data = JSON.parse(fs.readFileSync(manifest, 'utf8'));
+for (const entry of data) {
+  const type = entry.type;
+  if (!type) continue;
+  for (const [key, value] of Object.entries(entry)) {
+    if (key === 'type') continue;
+    if (type === 'folder' && typeof value === 'string') {
+      console.log(`FOLDER|${value}`);
+    } else if (type === 'file') {
+      const files = Array.isArray(value) ? value : [value];
+      for (const file of files) {
+        if (typeof file === 'string') {
+          console.log(`FILE|${file}`);
+        }
+      }
+    }
+  }
+}
+NODEEOF
+        return 0
+    fi
+
+    if command -v python3 >/dev/null 2>&1; then
+        python3 - "$manifest" <<'PYEOF'
+import json, sys
+manifest = sys.argv[1]
+data = json.load(open(manifest))
+for entry in data:
+    etype = entry.get('type')
+    if not etype:
+        continue
+    for key, value in entry.items():
+        if key == 'type':
+            continue
+        if etype == 'folder' and isinstance(value, str):
+            print(f'FOLDER|{value}')
+        elif etype == 'file':
+            files = value if isinstance(value, list) else [value]
+            for f in files:
+                if isinstance(f, str):
+                    print(f'FILE|{f}')
+PYEOF
+        return 0
+    fi
+
+    return 1
+}
+
+load_install_manifest() {
+    local src="$1"
+    local manifest="$src/config/install.json"
+
+    if [[ -f "$manifest" ]]; then
+        if parse_install_manifest_file "$manifest"; then
+            return 0
+        fi
+        log_warn "Falha ao parsear config/install.json. Usando manifesto padrao."
+    else
+        log_warn "config/install.json nao encontrado. Usando manifesto padrao."
+    fi
+
+    get_default_manifest
+}
+
+save_install_manifest_record() {
+    local src="$1"
+    local dest="$2"
+    local manifest="$src/config/install.json"
+    local record="$dest/.harness-manifest.json"
+
+    if ! $DRY_RUN && [[ -f "$manifest" ]]; then
+        cp -f "$manifest" "$record"
+    fi
+}
+
+load_uninstall_manifest() {
+    local dest="$1"
+    local record="$dest/.harness-manifest.json"
+
+    if [[ -f "$record" ]]; then
+        if parse_install_manifest_file "$record"; then
+            return 0
+        fi
+        log_warn "Falha ao parsear .harness-manifest.json. Usando manifesto padrao."
+    fi
+
+    get_default_manifest
+}
+
+manifest_contains() {
+    local src="$1"
+    local needle="$2"
+    local mtype mpath
+    while IFS='|' read -r mtype mpath; do
+        [[ -z "$mpath" ]] && continue
+        [[ "$mpath" == "$needle" ]] && return 0
+    done < <(load_install_manifest "$src")
+    return 1
+}
+
+generate_harness_allowlist() {
+    local src="$1"
+    local dest="$2"
+    local manifest="$src/config/install.json"
+    local allowlist="$dest/harness-allowlist.json"
+
+    if command -v node >/dev/null 2>&1; then
+        node - "$manifest" "$allowlist" <<'NODEEOF'
+const fs = require('fs');
+const manifestPath = process.argv[2];
+const allowlistPath = process.argv[3];
+
+const baseAllow = [
+  "src/**", "agents/**", "training/**", "templates/**", "tools/**", "plugins/**", "commands/**",
+  "state-machine.json", "failure-protocol.json", "opencode.json", "opencode.jsonc", "install.sh",
+  "GERAIS.md", "README.md", "HARNESS-README.md", "CHANGELOG.md", "examples/**", "skills/**",
+  "harness-allowlist.json"
+];
+const deny = [".env", ".env.*", "secrets/**", "*.pem", "*.key"];
+
+const allow = new Set(baseAllow);
+if (fs.existsSync(manifestPath)) {
+  const data = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  for (const entry of data) {
+    const type = entry.type;
+    if (!type) continue;
+    for (const [key, value] of Object.entries(entry)) {
+      if (key === 'type') continue;
+      if (type === 'folder' && typeof value === 'string') {
+        allow.add(`${value}/**`);
+        allow.add(value);
+      } else if (type === 'file') {
+        const files = Array.isArray(value) ? value : [value];
+        for (const f of files) {
+          if (typeof f === 'string') allow.add(f);
+        }
+      }
+    }
+  }
+}
+
+fs.writeFileSync(allowlistPath, JSON.stringify({ allow: Array.from(allow), deny }, null, 2) + '\n');
+NODEEOF
+    elif command -v python3 >/dev/null 2>&1; then
+        python3 - "$manifest" "$allowlist" <<'PYEOF'
+import json, os, sys
+manifest_path = sys.argv[1]
+allowlist_path = sys.argv[2]
+
+base_allow = [
+  "src/**", "agents/**", "training/**", "templates/**", "tools/**", "plugins/**", "commands/**",
+  "state-machine.json", "failure-protocol.json", "opencode.json", "opencode.jsonc", "install.sh",
+  "GERAIS.md", "README.md", "HARNESS-README.md", "CHANGELOG.md", "examples/**", "skills/**",
+  "harness-allowlist.json"
+]
+deny = [".env", ".env.*", "secrets/**", "*.pem", "*.key"]
+
+allow = set(base_allow)
+if os.path.exists(manifest_path):
+    with open(manifest_path, 'r') as f:
+        data = json.load(f)
+    for entry in data:
+        etype = entry.get('type')
+        if not etype:
+            continue
+        for key, value in entry.items():
+            if key == 'type':
+                continue
+            if etype == 'folder' and isinstance(value, str):
+                allow.add(f'{value}/**')
+                allow.add(value)
+            elif etype == 'file':
+                files = value if isinstance(value, list) else [value]
+                for f in files:
+                    if isinstance(f, str):
+                        allow.add(f)
+
+with open(allowlist_path, 'w') as f:
+    json.dump({'allow': sorted(allow), 'deny': deny}, f, indent=2)
+    f.write('\n')
+PYEOF
+    else
+        cat > "$allowlist" <<EOF
+{
+  "allow": ["src/**", "agents/**", "training/**", "templates/**", "tools/**", "plugins/**", "commands/**", "state-machine.json", "failure-protocol.json", "opencode.json", "opencode.jsonc", "install.sh", "GERAIS.md", "README.md", "HARNESS-README.md", "CHANGELOG.md", "examples/**", "skills/**", "harness-allowlist.json"],
+  "deny": [".env", ".env.*", "secrets/**", "*.pem", "*.key"]
+}
+EOF
+    fi
+}
+
 # ============================================================================
 # Instalacao
 # ============================================================================
@@ -730,18 +1056,19 @@ do_install() {
         log_ok "Backup criado em backup_$timestamp"
     fi
 
-    log_info "Copiando componentes..."
-    copy_item "$src/agents" "$dest/agents" "agents/"
-    copy_item "$src/commands" "$dest/commands" "commands/"
-    copy_item "$src/templates" "$dest/templates" "templates/"
-    copy_item "$src/tools" "$dest/tools" "tools/"
-    copy_item "$src/plugins" "$dest/plugins" "plugins/"
-    if ! $UPDATE_MODE; then
-        copy_item "$src/examples" "$dest/examples" "examples/"
-    fi
-    copy_item "$src/skills" "$dest/skills" "skills/"
+    log_info "Copiando componentes do manifesto..."
+    while IFS='|' read -r mtype mpath; do
+        [[ -z "$mpath" ]] && continue
+        if [[ "$mtype" == "FOLDER" ]]; then
+            copy_item "$src/$mpath" "$dest/$mpath" "$mpath/"
+        elif [[ "$mtype" == "FILE" ]]; then
+            # opencode.json e tratado separadamente para preservar customizacoes
+            [[ "$mpath" == "opencode.json" ]] && continue
+            copy_item "$src/$mpath" "$dest/$mpath" "$mpath"
+        fi
+    done < <(load_install_manifest "$src")
 
-    if ! $DRY_RUN; then
+    if ! $DRY_RUN && ! manifest_contains "$src" "package.json"; then
         local pkg_json="$dest/package.json"
         if [[ ! -f "$pkg_json" ]] || ! $PRESERVE_CONFIG; then
             cat > "$pkg_json" <<EOF
@@ -760,33 +1087,11 @@ EOF
         fi
     fi
 
-    if ! $DRY_RUN; then
-        local allowlist="$dest/harness-allowlist.json"
-        if [[ ! -f "$allowlist" ]] || ! $PRESERVE_CONFIG; then
-            cat > "$allowlist" <<EOF
-{
-  "allow": ["src/**", "agents/**", "training/**", "templates/**", "tools/**", "plugins/**", "commands/**", "state-machine.json", "failure-protocol.json", "opencode.json", "opencode.jsonc", "install.sh", "GERAIS.md", "README.md", "HARNESS-README.md", "CHANGELOG.md", "examples/**", "skills/**", "harness-allowlist.json"],
-  "deny": [".env", ".env.*", "secrets/**", "*.pem", "*.key"]
-}
-EOF
-        fi
+    if ! $DRY_RUN && ! manifest_contains "$src" "harness-allowlist.json"; then
+        generate_harness_allowlist "$src" "$dest"
     fi
 
-    if [[ -d "$src/training" ]]; then
-        local training_dest="$dest/training"
-        mkdir -p "$training_dest"
-        for rag_doc in "$src/training"/*.md; do
-            [[ ! -f "$rag_doc" ]] && continue
-            local doc_name; doc_name="$(basename "$rag_doc")"
-            cp -r "$rag_doc" "$training_dest/$doc_name"
-        done
-    fi
-
-    [[ -f "$src/GERAIS.md" ]] && copy_item "$src/GERAIS.md" "$dest/GERAIS.md"
-    [[ -f "$src/state-machine.json" ]] && copy_item "$src/state-machine.json" "$dest/state-machine.json"
-    [[ -f "$src/state-machine-lean.json" ]] && copy_item "$src/state-machine-lean.json" "$dest/state-machine-lean.json"
-    [[ -f "$src/failure-protocol.json" ]] && copy_item "$src/failure-protocol.json" "$dest/failure-protocol.json"
-    [[ -f "$src/README.md" ]] && copy_item "$src/README.md" "$dest/HARNESS-README.md"
+    save_install_manifest_record "$src" "$dest"
 
     if [[ -f "$src/opencode.json" ]]; then
         local existing_json="$dest/opencode.json"
@@ -854,7 +1159,13 @@ do_uninstall() {
     local backup_root="/tmp/harness-v6-backup-$(date +%Y%m%d%H%M%S)"
     if ! $DRY_RUN; then
         mkdir -p "$backup_root"
-        for item in agents commands templates tools plugins examples skills GERAIS.md state-machine.json state-machine-lean.json failure-protocol.json HARNESS-README.md package.json harness-allowlist.json; do
+        while IFS='|' read -r mtype mpath; do
+            [[ -z "$mpath" ]] && continue
+            if [[ -e "$dest/$mpath" ]]; then
+                cp -r "$dest/$mpath" "$backup_root/" 2>/dev/null || true
+            fi
+        done < <(load_uninstall_manifest "$dest")
+        for item in package.json harness-allowlist.json; do
             if [[ -e "$dest/$item" ]]; then
                 cp -r "$dest/$item" "$backup_root/" 2>/dev/null || true
             fi
@@ -865,7 +1176,13 @@ do_uninstall() {
         if ! $DRY_RUN; then rm -f "${HOME}/.local/bin/opencode"; fi
     fi
 
-    for item in agents commands templates tools plugins examples skills GERAIS.md state-machine.json state-machine-lean.json failure-protocol.json HARNESS-README.md package.json harness-allowlist.json .harness-version; do
+    while IFS='|' read -r mtype mpath; do
+        [[ -z "$mpath" ]] && continue
+        if [[ -e "$dest/$mpath" ]]; then
+            if ! $DRY_RUN; then rm -rf "$dest/$mpath"; fi
+        fi
+    done < <(load_uninstall_manifest "$dest")
+    for item in package.json harness-allowlist.json .harness-manifest.json .harness-version; do
         if [[ -e "$dest/$item" ]]; then
             if ! $DRY_RUN; then rm -rf "$dest/$item"; fi
         fi
@@ -901,23 +1218,33 @@ print_summary() {
     local dest="$1"
     local os="$2"
 
+    local pad_dest="                                            "
+    local dest_str="${dest}${pad_dest}"
+    dest_str="${dest_str:0:44}"
+
+    local ver_str="${HARNESS_VERSION}${pad_dest}"
+    ver_str="${ver_str:0:44}"
+
+    local os_str="${os}${pad_dest}"
+    os_str="${os_str:0:44}"
+
     printf "\n"
-    print_divider
+    printf "  ${GREEN}╭─────────────────────────────────────────────────────────╮${NC}\n"
+    printf "  ${GREEN}│${NC}                                                         ${GREEN}│${NC}\n"
+    printf "  ${GREEN}│${NC}  ${BOLD}Instalação concluída com sucesso!${NC}                      ${GREEN}│${NC}\n"
+    printf "  ${GREEN}│${NC}                                                         ${GREEN}│${NC}\n"
+    printf "  ${GREEN}│${NC}  ${BOLD}Destino:${NC}   %s ${GREEN}│${NC}\n" "$dest_str"
+    printf "  ${GREEN}│${NC}  ${BOLD}Versão:${NC}    %s ${GREEN}│${NC}\n" "$ver_str"
+    printf "  ${GREEN}│${NC}  ${BOLD}Sistema:${NC}   %s ${GREEN}│${NC}\n" "$os_str"
+    printf "  ${GREEN}│${NC}                                                         ${GREEN}│${NC}\n"
+    printf "  ${GREEN}│${NC}  ${BOLD}Próximos passos:${NC}                                       ${GREEN}│${NC}\n"
+    printf "  ${GREEN}│${NC}  ${DIM}1.${NC} Navegue até seu projeto                             ${GREEN}│${NC}\n"
+    printf "  ${GREEN}│${NC}  ${DIM}2.${NC} Execute ${BOLD}opencode${NC}                                  ${GREEN}│${NC}\n"
+    printf "  ${GREEN}│${NC}  ${DIM}3.${NC} Use ${BOLD}/harness${NC} para iniciar o workflow               ${GREEN}│${NC}\n"
+    printf "  ${GREEN}│${NC}                                                         ${GREEN}│${NC}\n"
+    printf "  ${GREEN}╰─────────────────────────────────────────────────────────╯${NC}\n"
     printf "\n"
-    printf "  ${GREEN}${BOLD}  Instalacao concluida com sucesso!${NC}\n"
-    printf "\n"
-    printf "  ${BOLD}Destino:${NC}   %s\n" "$dest"
-    printf "  ${BOLD}Versao:${NC}    %s\n" "$HARNESS_VERSION"
-    printf "  ${BOLD}Plataforma:${NC} %s\n" "$os"
-    printf "\n"
-    printf "  ${BOLD}Proximos passos:${NC}\n"
-    printf "  ${DIM}  1.${NC} Navegue ate seu projeto\n"
-    printf "  ${DIM}  2.${NC} Execute ${BOLD}opencode${NC}\n"
-    printf "  ${DIM}  3.${NC} Use ${BOLD}/harness${NC} para iniciar o workflow\n"
-    printf "\n"
-    print_divider
-    printf "\n"
-    printf "  ${DIM}Documentacao: https://github.com/alexandre-henrique-rp/harnes-opencode${NC}\n"
+    printf "  ${DIM}Documentação: https://github.com/alexandre-henrique-rp/harnes-opencode${NC}\n"
     printf "  ${DIM}Sandbox: ai-jail by @akitaonrails${NC}\n"
     printf "\n"
 }

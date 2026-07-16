@@ -1,7 +1,9 @@
 {
-  "name": "opencode-agents-v6",
+  "name": "Opencode-Harness",
   "version": "6.4.1",
-  "description": "Multi-agent development harness for OpenCode v6",
+  "description": "Plugin Multi agente para desenvolvimento com Opencode",
+  "author": "Alexandre Henrique",
+  "github": "https://github.com/alexandre-henrique-rp",
   "private": true,
   "scripts": {
     "validate:syntax": "bash -n install.sh",
