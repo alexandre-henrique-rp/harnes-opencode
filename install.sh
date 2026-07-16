@@ -22,7 +22,7 @@ set -euo pipefail
 # Configuracao
 # ============================================================================
 
-HARNESS_VERSION="6.4.0"
+HARNESS_VERSION="6.4.1"
 HARNESS_NAME="harness-v6"
 DRY_RUN=false
 PRESERVE_CONFIG=false
@@ -31,7 +31,7 @@ UPDATE_MODE=false
 UNINSTALL=false
 INTERACTIVE=false
 
-# Limpeza de diretórios temporários na saída do script
+# Limpeza de diretorios temporarios na saida do script
 TEMP_SOURCE_DIR=""
 cleanup_temp_dir() {
     if [[ -n "$TEMP_SOURCE_DIR" && -d "$TEMP_SOURCE_DIR" ]]; then
@@ -41,63 +41,191 @@ cleanup_temp_dir() {
 trap cleanup_temp_dir EXIT
 
 # ============================================================================
-# Cores (se terminal suportar)
+# Cores e formatacao (se terminal suportar)
 # ============================================================================
 
-if [[ -t 1 ]] && command -v tput >/dev/null 2>&1 && [[ "$(tput colors 2>/dev/null || echo 0)" -ge 8 ]]; then
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[0;33m'
-    BLUE='\033[0;34m'
-    BOLD='\033[1m'
-    NC='\033[0m'
-else
-    RED='' GREEN='' YELLOW='' BLUE='' BOLD='' NC=''
-fi
+setup_colors() {
+    if [[ -t 1 ]] && command -v tput >/dev/null 2>&1 && [[ "$(tput colors 2>/dev/null || echo 0)" -ge 8 ]]; then
+        RED='\033[0;31m'
+        GREEN='\033[0;32m'
+        YELLOW='\033[0;33m'
+        BLUE='\033[0;34m'
+        MAGENTA='\033[0;35m'
+        CYAN='\033[0;36m'
+        WHITE='\033[1;37m'
+        BOLD='\033[1m'
+        DIM='\033[2m'
+        NC='\033[0m'
+    else
+        RED='' GREEN='' YELLOW='' BLUE='' MAGENTA='' CYAN='' WHITE='' BOLD='' DIM='' NC=''
+    fi
+}
+setup_colors
 
 # ============================================================================
 # Funcoes utilitarias
 # ============================================================================
 
-log_info()  { printf "${BLUE}[INFO]${NC}  %s\n" "$*"; }
-log_ok()     { printf "${GREEN}[OK]${NC}    %s\n" "$*"; }
-log_warn()   { printf "${YELLOW}[WARN]${NC}  %s\n" "$*"; }
-log_err()    { printf "${RED}[ERROR]${NC} %s\n" "$*" >&2; }
-log_bold()   { printf "${BOLD}%s${NC}\n" "$*"; }
+log_info()    { printf "  ${BLUE}●${NC}  %s\n" "$*"; }
+log_ok()      { printf "  ${GREEN}✔${NC}  %s\n" "$*"; }
+log_warn()    { printf "  ${YELLOW}⚠${NC}  %s\n" "$*"; }
+log_err()     { printf "  ${RED}✖${NC}  %s\n" "$*" >&2; }
+log_step()    { printf "\n${BOLD}${CYAN}  %s${NC}\n" "$*"; }
+log_done()    { printf "  ${GREEN}${BOLD}✔  %s${NC}\n" "$*"; }
 
 die() { log_err "$*"; exit 1; }
 
+print_divider() {
+    printf "  ${DIM}────────────────────────────────────────────────────${NC}\n"
+}
+
+print_thin_divider() {
+    printf "  ${DIM}· · · · · · · · · · · · · · · · · · · · · · · · ·${NC}\n"
+}
+
+# ============================================================================
+# Banner
+# ============================================================================
+
+print_banner() {
+    local logo="
+${CYAN}  ┌─────────────────────────────────────────────────────┐
+  │                                                     │
+  │   ██╗  ██╗ █████╗ ██████╗ ███╗   ██╗███████╗       │
+  │   ██║  ██║██╔══██╗██╔══██╗████╗  ██║██╔════╝       │
+  │   ███████║███████║██████╔╝██╔██╗ ██║█████╗         │
+  │   ██╔══██║██╔══██║██╔══██╗██║╚██╗██║██╔══╝         │
+  │   ██║  ██║██║  ██║██║  ██║██║ ╚████║███████╗       │
+  │   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝   │
+  │                                                     │
+  │   ${BOLD}${WHITE}Agents v6${NC}${CYAN}                                     │
+  │                                                     │
+  └─────────────────────────────────────────────────────┘${NC}"
+
+    printf "%b\n" "$logo"
+    printf "\n"
+    printf "  ${BOLD}Installer${NC}  ${DIM}v${HARNESS_VERSION}${NC}  ${DIM}·${NC}  ${BLUE}%s${NC}\n" "${OS:-platform}"
+    printf "\n"
+    printf "  ${DIM}Verificando ambiente...${NC}\n\n"
+
+    local node_color="${RED}" npm_color="${RED}" opencode_color="${RED}"
+    [[ "$NODE_STATUS" == *"ok"* ]] && node_color="${GREEN}"
+    [[ "$NPM_STATUS" == *"ok"* ]] && npm_color="${GREEN}"
+    [[ "$OPENCODE_STATUS" == *"ok"* ]] && opencode_color="${GREEN}"
+
+    printf "  ${DIM}┌──────────────────────────────────────────────┐${NC}\n"
+    printf "  ${DIM}│${NC}  Node.js    ${node_color}%s${NC}  ${DIM}│${NC}  npm       ${npm_color}%s${NC}  ${DIM}│${NC}  OpenCode  ${opencode_color}%s${NC}  ${DIM}│${NC}\n" \
+        "${NODE_STATUS}" "${NPM_STATUS}" "${OPENCODE_STATUS}"
+    printf "  ${DIM}└──────────────────────────────────────────────┘${NC}\n"
+    printf "\n"
+}
+
+# ============================================================================
+# Progress
+# ============================================================================
+
+print_step() {
+    local current="$1"
+    local total="$2"
+    local desc="$3"
+    printf "\n  ${BOLD}${CYAN}[%d/%d]${NC} ${BOLD}%s${NC}\n" "$current" "$total" "$desc"
+    printf "  ${DIM}────────────────────────────────────────────────────${NC}\n"
+}
+
+# ============================================================================
+# Menu interativo
+# ============================================================================
+
+show_menu() {
+    local selected="$1"
+    shift
+    local options=("$@")
+
+    if [[ ${MENU_RENDERED:-0} -eq 1 ]]; then
+        for ((i=0; i<${#options[@]}+1; i++)); do
+            printf "\033[F\033[K"
+        done
+    fi
+    MENU_RENDERED=1
+
+    local idx=0
+    for opt in "${options[@]}"; do
+        if [[ $idx -eq $selected ]]; then
+            printf "  ${GREEN}  ▸${NC}  ${BOLD}${GREEN}%s${NC}\n" "$opt"
+        else
+            printf "      %s\n" "$opt"
+        fi
+        idx=$idx+1
+    done
+    printf "\n"
+}
+
+select_option() {
+    local options=("$@")
+    local selected=0
+    local key=""
+    local ESC=$'\x1b'
+
+    tput civis 2>/dev/null || printf "\033[?25l"
+    trap 'tput cnorm 2>/dev/null || printf "\033[?25h"; exit 1' INT TERM
+
+    MENU_RENDERED=0
+    show_menu "$selected" "${options[@]}"
+
+    while true; do
+        read -s -n1 key < /dev/tty
+
+        if [[ "$key" == "$ESC" ]]; then
+            read -s -n2 -t 0.05 key < /dev/tty
+            if [[ "$key" == "[A" ]]; then
+                selected=$(( (selected - 1 + ${#options[@]}) % ${#options[@]} ))
+                show_menu "$selected" "${options[@]}"
+            elif [[ "$key" == "[B" ]]; then
+                selected=$(( (selected + 1) % ${#options[@]} ))
+                show_menu "$selected" "${options[@]}"
+            fi
+        elif [[ "$key" == "" ]]; then
+            break
+        fi
+    done
+
+    tput cnorm 2>/dev/null || printf "\033[?25h"
+    trap - INT TERM
+
+    return "$selected"
+}
+
+# ============================================================================
+# Funcoes do instalador (mantidas do original)
+# ============================================================================
+
 install_bun_if_needed() {
-    log_info "Verificando se o Bun está instalado..."
+    log_info "Verificando Bun..."
     if command -v bun >/dev/null 2>&1; then
         log_ok "Bun detectado: $(bun --version)"
         return 0
     fi
 
-    log_warn "Bun não foi detectado no sistema."
-    
+    log_warn "Bun nao detectado."
     local resp="y"
-    # Se for terminal interativo ou /dev/tty estiver disponível, pergunta ao usuário
     if [[ -t 0 || -c /dev/tty ]]; then
-        printf "\n${YELLOW}O Bun é altamente recomendado para executar os plugins do Harness e o sqlite-vec com máxima performance.${NC}\n"
-        read -rp "Deseja instalar o Bun agora automaticamente? [Y/n] " resp < /dev/tty
+        printf "\n  ${YELLOW}Bun e recomendado para plugins e sqlite-vec.${NC}\n"
+        read -rp "  Instalar Bun agora? [Y/n] " resp < /dev/tty
         if [[ -z "$resp" || "$resp" =~ ^[Yy]$ ]]; then
-            log_info "Instalando o Bun..."
+            log_info "Instalando Bun..."
             if curl -fsSL https://bun.sh/install | bash; then
-                log_ok "Bun instalado com sucesso!"
-                # Carrega o Bun no PATH do script atual
+                log_ok "Bun instalado!"
                 export BUN_INSTALL="${HOME}/.bun"
                 export PATH="${BUN_INSTALL}/bin:${PATH}"
                 return 0
             else
-                log_err "Falha ao instalar o Bun automaticamente."
+                log_err "Falha ao instalar Bun."
                 return 1
             fi
         fi
     else
-        log_info "Instalação não interativa. Pulando instalação do Bun."
+        log_info "Modo nao-interativo. Pulando Bun."
     fi
-
     return 1
 }
 
@@ -105,17 +233,16 @@ AI_JAIL_PINNED_VERSION="v1.4.3"
 
 install_ai_jail_if_needed() {
     if command -v ai-jail >/dev/null 2>&1; then
-        log_ok "ai-jail $(ai-jail --version 2>/dev/null | head -n1) já instalado"
+        log_ok "ai-jail $(ai-jail --version 2>/dev/null | head -n1) instalado"
         return 0
     fi
 
-    [[ -t 0 || -c /dev/tty ]] || { log_warn "Sessão não-interativa, pulando instalação."; return 1; }
+    [[ -t 0 || -c /dev/tty ]] || { log_warn "Sessao nao-interativa. Pulando ai-jail."; return 1; }
 
-    printf "\n${YELLOW}O ai-jail isola o agente em nível de kernel (bwrap/seatbelt).${NC}\n"
-    read -rp "Instalar agora? [Y/n] " resp < /dev/tty
+    printf "\n  ${YELLOW}ai-jail isola agentes em nivel de kernel (bwrap/seatbelt).${NC}\n"
+    read -rp "  Instalar agora? [Y/n] " resp < /dev/tty
     [[ -z "$resp" || "$resp" =~ ^[Yy]$ ]] || return 1
 
-    # Canais oficiais primeiro (checksum e upgrade já resolvidos por eles)
     if command -v mise >/dev/null 2>&1; then
         mise use -g "github:akitaonrails/ai-jail@${AI_JAIL_PINNED_VERSION}" && return 0
     fi
@@ -126,27 +253,23 @@ install_ai_jail_if_needed() {
         cargo install ai-jail --version "${AI_JAIL_PINNED_VERSION#v}" && return 0
     fi
 
-    # Fallback: download direto, com deteccao real de SO/arquitetura + checksum obrigatorio
     local os_kind arch asset bin_dest="${HOME}/.local/bin"
-    os_kind="$(detect_os)"   # reaproveita a funcao ja existente no install.sh
+    os_kind="$(detect_os)"
     arch="$(uname -m)"
 
     case "$os_kind" in
         linux|wsl)
             if ! command -v bwrap >/dev/null 2>&1; then
-                log_warn "bubblewrap (bwrap) não encontrado. Instale via apt/pacman/dnf."
-                log_warn "Em Ubuntu 24.04+/Debian 13+, bwrap pode falhar com 'Permission denied'"
-                log_warn "por restrição de AppArmor a user namespaces — ver docs do ai-jail."
+                log_warn "bubblewrap (bwrap) nao encontrado. Instale via apt/pacman/dnf."
             fi
             asset="ai-jail-linux-x86_64.tar.gz" ;;
         macos)
             [[ "$arch" == "arm64" ]] && asset="ai-jail-macos-aarch64.tar.gz" \
                 || asset="ai-jail-macos-x86_64.tar.gz" ;;
         windows-gitbash)
-            log_err "Windows nativo não é suportado pelo ai-jail (sem bwrap/seatbelt equivalente)."
-            log_err "Use WSL2: https://aka.ms/wsl2 — o checkpoint via git stash continua funcionando."
+            log_err "Windows nativo nao suportado pelo ai-jail. Use WSL2."
             return 1 ;;
-        *) log_err "SO não suportado: $os_kind"; return 1 ;;
+        *) log_err "SO nao suportado: $os_kind"; return 1 ;;
     esac
 
     mkdir -p "$bin_dest"
@@ -154,15 +277,14 @@ install_ai_jail_if_needed() {
 
     curl -fsSL "${base}/${asset}" -o "/tmp/${asset}" || { log_err "Falha no download"; return 1; }
 
-    # Checksum obrigatorio - aborta se nao disponivel, nunca instala sem verificar
     if curl -fsSL "${base}/${asset}.sha256" -o "/tmp/${asset}.sha256" 2>/dev/null; then
         (cd /tmp && sha256sum -c "${asset}.sha256") || {
-            log_err "Checksum inválido! Abortando instalação."
+            log_err "Checksum invalido! Abortando."
             rm -f "/tmp/${asset}" "/tmp/${asset}.sha256"
             return 1
         }
     else
-        log_err "Checksum não disponível para esta release. Abortando por segurança."
+        log_err "Checksum nao disponivel. Abortando por seguranca."
         rm -f "/tmp/${asset}"
         return 1
     fi
@@ -174,22 +296,19 @@ install_ai_jail_if_needed() {
     log_ok "ai-jail ${AI_JAIL_PINNED_VERSION} instalado em $bin_dest/ai-jail!"
 }
 
-# Trecho do install.sh que instala o wrapper
 install_opencode_wrapper() {
     local wrapper_dest="${HOME}/.local/bin/opencode"
 
-    # Resolve o binario REAL antes de qualquer coisa, seguindo symlinks
     local real_bin
     real_bin="$(command -v opencode 2>/dev/null || true)"
     if [[ -z "$real_bin" ]]; then
-        log_warn "opencode não encontrado no PATH — wrapper não instalado."
+        log_warn "opencode nao encontrado no PATH. Wrapper nao instalado."
         return 1
     fi
     real_bin="$(readlink -f "$real_bin" 2>/dev/null || echo "$real_bin")"
 
-    # Nunca sobrescreve o proprio wrapper caso opencode ja resolva pra ele
     if [[ "$real_bin" == "$wrapper_dest" ]]; then
-        log_info "Wrapper já instalado e ativo."
+        log_info "Wrapper ja instalado e ativo."
         return 0
     fi
 
@@ -197,15 +316,13 @@ install_opencode_wrapper() {
     cat > "$wrapper_dest" <<EOF
 #!/usr/bin/env bash
 # Gerado por harnes-opencode install.sh — NAO editar a mao.
-# Caminho do binario real resolvido em tempo de instalacao:
 REAL_OPENCODE_BIN="${real_bin}"
 
 if [[ ! -x "\$REAL_OPENCODE_BIN" ]]; then
-    echo "opencode real nao encontrado em \$REAL_OPENCODE_BIN (foi movido/reinstalado?)" >&2
+    echo "opencode real nao encontrado em \$REAL_OPENCODE_BIN" >&2
     exit 1
 fi
 
-# Evita nesting caso ja estejamos dentro de um sandbox ai-jail
 if [[ -n "\${AI_JAIL_ACTIVE:-}" ]]; then
     exec "\$REAL_OPENCODE_BIN" "\$@"
 fi
@@ -220,26 +337,23 @@ exec env AI_JAIL_ACTIVE=1 ai-jail --exec --no-private-home --no-docker \\
 EOF
     chmod +x "$wrapper_dest"
 
-    # Verificacao pos-instalacao: garante que o PATH realmente aponta pro wrapper.
     hash -r 2>/dev/null || true
     local resolved
     resolved="$(command -v opencode 2>/dev/null || true)"
     if [[ "$resolved" != "$wrapper_dest" ]]; then
-        log_warn "AVISO: 'opencode' no seu PATH ainda resolve para: ${resolved:-<não encontrado>}"
-        log_warn "O wrapper sandboxed foi instalado em $wrapper_dest, mas não está tendo prioridade."
-        log_warn "Verifique a ordem do seu \$PATH (ex.: 'export PATH=\"\$HOME/.local/bin:\$PATH\"')."
+        log_warn "PATH ainda resolve para: ${resolved:-nao encontrado}"
+        log_warn "Verifique a ordem do \$PATH."
         return 1
     fi
-    log_ok "Wrapper instalado e confirmado ativo em $wrapper_dest"
+    log_ok "Wrapper instalado em $wrapper_dest"
 }
-
 
 install_configured_mcps() {
     local dest="$1"
     local pm="$2"
-    
+
     if command -v node >/dev/null 2>&1; then
-        node - "$dest" "$pm" <<'EOF'
+        node - "$dest" "$pm" <<'NODEEOF'
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
@@ -253,25 +367,20 @@ const opencodePath = [
 ].find(fs.existsSync);
 
 if (!opencodePath) {
-  console.log('\x1b[33m[AVISO] Arquivo opencode.json ou opencode.jsonc não encontrado no destino.\x1b[0m');
   process.exit(0);
 }
 
 try {
   let content = fs.readFileSync(opencodePath, 'utf8');
-  
-  // Regex robusto para remover comentarios multiline e inline
   content = content.replace(/\/\*[\s\S]*?\*\//g, '');
   content = content.replace(/(?:^|[^:])\/\/.*$/gm, '');
-  
   const config = JSON.parse(content);
   
   if (!config.mcp) {
-    console.log('Nenhum servidor MCP configurado no opencode.json.');
     process.exit(0);
   }
   
-  console.log(`\n\x1b[1mVerificando servidores MCP locais configurados...\x1b[0m`);
+  console.log(`\n  Verificando servidores MCP...`);
   
   const missingPackages = [];
   
@@ -291,9 +400,9 @@ try {
       const isInstalled = fs.existsSync(pkgPath);
       
       if (isInstalled) {
-        console.log(`  \x1b[32m[OK]\x1b[0m    Servidor MCP "${mcpName}" (${pkgName}) já está instalado.`);
+        console.log(`  \x1b[32m✔\x1b[0m  MCP "${mcpName}" ok`);
       } else {
-        console.log(`  \x1b[31m[FALTA]\x1b[0m Servidor MCP "${mcpName}" (${pkgName}) não está instalado.`);
+        console.log(`  \x1b[33m⚠\x1b[0m  MCP "${mcpName}" ausente`);
         if (!missingPackages.includes(pkgName)) {
           missingPackages.push(pkgName);
         }
@@ -305,7 +414,7 @@ try {
     let installConfirmed = false;
     try {
       const ttyFd = fs.openSync('/dev/tty', 'r');
-      console.log(`\nDeseja instalar estes MCPs locais ausentes agora? [Y/n]: `);
+      console.log(`\n  Instalar MCPs ausentes? [Y/n]: `);
       const buffer = Buffer.alloc(10);
       const bytesRead = fs.readSync(ttyFd, buffer, 0, 10, null);
       const response = buffer.toString('utf8', 0, bytesRead).trim().toLowerCase();
@@ -313,36 +422,26 @@ try {
       if (response === '' || response === 'y' || response === 'yes') {
         installConfirmed = true;
       }
-    } catch (err) {
-      // Fallback silencioso (assume não interativo)
-    }
+    } catch (err) {}
     
     if (installConfirmed) {
-      console.log(`\nInstalando pacotes de MCPs locais...`);
+      console.log(`\n  Instalando pacotes...`);
       for (const pkg of missingPackages) {
-        console.log(`  Instalando ${pkg}...`);
         const installCmd = pm === 'bun' ? `bun add ${pkg} --save-dev` : `npm install ${pkg} --save-dev`;
         try {
           execSync(installCmd, { cwd: dest, stdio: 'inherit' });
         } catch (e) {
-          console.log(`  \x1b[31m[ERROR] Falha ao instalar ${pkg}.\x1b[0m`);
+          console.log(`  \x1b[31m✖ Falha: ${pkg}\x1b[0m`);
         }
       }
-    } else {
-      console.log(`\n\x1b[33m[AVISO] MCPs locais não instalados.\x1b[0m Para instalá-los manualmente, execute:`);
-      for (const pkg of missingPackages) {
-        const cmd = pm === 'bun' ? `bun add ${pkg} --save-dev` : `npm install ${pkg} --save-dev`;
-        console.log(`  \x1b[1mcd ${dest} && ${cmd}\x1b[0m`);
-      }
-      console.log();
     }
   } else {
-    console.log(`\x1b[32m[OK] Todos os servidores MCP locais estão instalados.\x1b[0m\n`);
+    console.log(`\x1b[32m  ✔ Todos os MCPs instalados\x1b[0m\n`);
   }
 } catch (e) {
-  console.error(`\x1b[31m[Erro] Falha ao analisar configuração do OpenCode (JSON inválido):\x1b[0m`, e.message);
+  console.error(`\x1b[31m  ✖ Erro ao analisar opencode.json\x1b[0m`);
 }
-EOF
+NODEEOF
     fi
 }
 
@@ -351,18 +450,17 @@ setup_git_restore_point() {
     if ! command -v git >/dev/null 2>&1; then
         return 0
     fi
-    
+
     local git_dir="$dir/.git"
     if [[ ! -d "$git_dir" ]]; then
-        log_info "Iniciando repositório Git preventivo para versionamento..."
+        log_info "Iniciando repositorio Git..."
         git init "$dir" >/dev/null 2>&1 || true
-        
         local gitignore="$dir/.gitignore"
         if [[ ! -f "$gitignore" ]]; then
             printf "backup/\ntmp/\nnode_modules/\n" > "$gitignore"
         fi
     fi
-    
+
     (cd "$dir" && git add . && git commit -m "Backup harness-v6 antes da alteracao: $(date '+%Y-%m-%d %H:%M:%S')" >/dev/null 2>&1 || true)
 }
 
@@ -379,7 +477,7 @@ revert_git_state() {
     local dir="$1"
     local git_dir="$dir/.git"
     if command -v git >/dev/null 2>&1 && [[ -d "$git_dir" ]]; then
-        log_info "Revertendo modificações via Git..."
+        log_info "Revertendo via Git..."
         (cd "$dir" && git reset --hard HEAD~1 >/dev/null 2>&1 || true)
     fi
 }
@@ -398,92 +496,20 @@ has_existing_harness_files() {
 copy_directory_exclude_backup() {
     local src="$1"
     local dest="$2"
-    
+
     mkdir -p "$dest"
-    
-    # Copia itens da raiz excluindo backup, .git, tmp e node_modules
+
     for item in "$src"/* "$src"/.*; do
         local base
         base=$(basename "$item")
         if [[ "$base" == "." || "$base" == ".." || "$base" == "backup" || "$base" == ".git" || "$base" == "tmp" || "$base" == "node_modules" ]]; then
             continue
         fi
-        
+
         if [[ -e "$item" ]]; then
             cp -r "$item" "$dest/" 2>/dev/null || true
         fi
     done
-}
-
-# ============================================================================
-# Menu Interativo Estilizado
-# ============================================================================
-
-show_menu() {
-    local selected="$1"
-    shift
-    local options=("$@")
-    
-    # Limpa apenas as opcoes e a quebra de linha final
-    if [[ ${MENU_RENDERED:-0} -eq 1 ]]; then
-        for ((i=0; i<${#options[@]}+1; i++)); do
-            printf "\033[F\033[K"
-        done
-    fi
-    MENU_RENDERED=1
-
-    local idx=0
-    for opt in "${options[@]}"; do
-        if [[ $idx -eq $selected ]]; then
-            printf "  ${GREEN}❯${NC} ${BOLD}${GREEN}%s${NC}\n" "$opt"
-        else
-            printf "    %s\n" "$opt"
-        fi
-        idx=$idx+1
-    done
-    printf "\n"
-}
-
-select_option() {
-    local options=("$@")
-    local selected=0
-    local key=""
-    local ESC=$'\x1b'
-    
-    # Oculta o cursor do terminal
-    tput civis 2>/dev/null || printf "\033[?25l"
-    
-    # Handler para restaurar o cursor se o usuário der Ctrl+C
-    trap 'tput cnorm 2>/dev/null || printf "\033[?25h"; exit 1' INT TERM
-
-    MENU_RENDERED=0
-    show_menu "$selected" "${options[@]}"
-
-    while true; do
-        # Lê 1 caractere de entrada de /dev/tty. Se for escape, lê mais para identificar as setas.
-        read -s -n1 key < /dev/tty
-        
-        # Detecta sequência de escape para as setas do teclado
-        if [[ "$key" == "$ESC" ]]; then
-            read -s -n2 -t 0.05 key < /dev/tty
-            if [[ "$key" == "[A" ]]; then # Seta para CIMA
-                selected=$(( (selected - 1 + ${#options[@]}) % ${#options[@]} ))
-                show_menu "$selected" "${options[@]}"
-            elif [[ "$key" == "[B" ]]; then # Seta para BAIXO
-                selected=$(( (selected + 1) % ${#options[@]} ))
-                show_menu "$selected" "${options[@]}"
-            fi
-        # Detecta tecla Enter
-        elif [[ "$key" == "" ]]; then
-            break
-        fi
-    done
-
-    # Restaura o cursor
-    tput cnorm 2>/dev/null || printf "\033[?25h"
-    trap - INT TERM
-    
-    return "$selected"
 }
 
 # ============================================================================
@@ -496,7 +522,6 @@ detect_os() {
 
     case "$uname_s" in
         Linux*)
-            # Detecta WSL (Windows Subsystem for Linux)
             if grep -qiE "microsoft|wsl" /proc/version 2>/dev/null; then
                 echo "wsl"
             else
@@ -513,12 +538,9 @@ get_install_dir() {
     local os="$1"
     case "$os" in
         linux|wsl|macos|windows-gitbash)
-            # OpenCode usa ~/.config/opencode/ cross-platform
-            # (https://opencode.ai/docs/config/#locations)
             echo "${HOME}/.config/opencode"
             ;;
         *)
-            # Fallback para Linux-style
             echo "${HOME}/.config/opencode"
             ;;
     esac
@@ -528,13 +550,11 @@ get_source_dir() {
     local script_dir
     script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd 2>/dev/null || pwd)"
 
-    # Se os arquivos básicos existirem no diretório do script, rodamos em modo local (offline/dev)
     if [[ -d "$script_dir/agents" && -f "$script_dir/opencode.json" ]]; then
         echo "$script_dir"
         return 0
     fi
 
-    # Caso contrário, rodamos em modo remoto (download temporário via GitHub)
     local tmp_dir
     tmp_dir=$(mktemp -d -t harness-install.XXXXXX 2>/dev/null || mktemp -d /tmp/harness-install.XXXXXX)
     TEMP_SOURCE_DIR="$tmp_dir"
@@ -542,127 +562,56 @@ get_source_dir() {
     local tarball_url="https://github.com/alexandre-henrique-rp/harnes-opencode/archive/refs/heads/main.tar.gz"
     local tar_file="$tmp_dir/harness.tar.gz"
 
-    log_bold ""
-    log_bold "[3/4] Baixando e Extraindo os Arquivos do GitHub..."
-    log_bold ""
-
-    log_info "Baixando pacote do repositório GitHub..."
+    log_info "Baixando pacote do GitHub..."
     if command -v curl >/dev/null 2>&1; then
         curl -L --progress-bar "$tarball_url" -o "$tar_file"
     elif command -v wget >/dev/null 2>&1; then
         wget --show-progress "$tarball_url" -O "$tar_file"
     else
-        log_err "Erro: É necessário ter 'curl' ou 'wget' instalado para rodar a instalação remota."
-        exit 1
+        die "Necessario 'curl' ou 'wget' para instalacao remota."
     fi
 
-    log_info "Extraindo arquivos do Harness..."
+    log_info "Extraindo arquivos..."
     if ! tar -xzf "$tar_file" -C "$tmp_dir"; then
-        log_err "Erro: Falha ao extrair os arquivos baixados do GitHub."
-        exit 1
+        die "Falha ao extrair arquivos do GitHub."
     fi
-    log_ok "Arquivos de estrutura baixados e extraídos com sucesso."
+    log_ok "Arquivos extraidos com sucesso."
 
-    # Encontra a pasta extraída (que o GitHub nomeia como 'harnes-opencode-main')
     local extracted_dir
     extracted_dir=$(find "$tmp_dir" -maxdepth 2 -type d -name "harnes-opencode-*" | head -n 1)
 
     if [[ -z "$extracted_dir" ]]; then
-        log_err "Erro: Estrutura do repositório baixado está inválida."
-        exit 1
+        die "Estrutura do repositorio invalida."
     fi
 
     echo "$extracted_dir"
 }
 
 # ============================================================================
-# Banner e help
+# Help
 # ============================================================================
-
-print_banner() {
-    local logo="
-${BLUE}██╗  ██╗ █████╗ ██████╗ ███╗   ██╗███████╗███████╗███████╗
-██║  ██║██╔══██╗██╔══██╗████╗  ██║██╔════╝██╔════╝██╔════╝
-███████║███████║██████╔╝██╔██╗ ██║█████╗  ███████╗███████╗
-██╔══██║██╔══██║██╔══██╗██║╚██╗██║██╔══╝  ╚════██║╚════██║
-██║  ██║██║  ██║██║  ██║██║ ╚████║███████╗███████║███████║
-╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝╚══════╝╚══════╝${NC}"
-
-    printf "%b\n" "$logo"
-    printf "  ${BOLD}Harness v6 Installer${NC} — ${BLUE}%s${NC}\n" "${OS:-platform}"
-    printf "  ${BOLD}Versão:${NC} %s\n" "${HARNESS_VERSION}"
-    
-    local node_color="${RED}" npm_color="${RED}" opencode_color="${RED}"
-    [[ "$NODE_STATUS" == *"✓"* ]] && node_color="${GREEN}"
-    [[ "$NPM_STATUS" == *"✓"* ]] && npm_color="${GREEN}"
-    [[ "$OPENCODE_STATUS" == *"✓"* ]] && opencode_color="${GREEN}"
-    
-    printf "  ${BOLD}Ambiente:${NC} Node.js (${node_color}%s${NC}) • npm (${npm_color}%s${NC}) • OpenCode (${opencode_color}%s${NC})\n" \
-        "${NODE_STATUS}" "${NPM_STATUS}" "${OPENCODE_STATUS}"
-    printf "  ${BLUE}──────────────────────────────────────────────────${NC}\n"
-}
 
 print_help() {
     cat <<EOF
-Uso: ./install.sh [OPCOES]
+  ${BOLD}Uso:${NC} ./install.sh [OPCOES]
 
-Detecta automaticamente o sistema operacional e instala o Harness v6
-no diretorio de configuracao do OpenCode (~/.config/opencode/).
+  Detecta automaticamente o OS e instala o Harness v6
+  no diretorio de configuracao do OpenCode (~/.config/opencode/).
 
-OPCOES:
-  --uninstall         Remove o Harness v6 do OpenCode (com backup)
-  --update            Atualiza preservando customizacoes do usuario
-                      (implica --preserve-config + --preserve-custom)
-  --dry-run           Mostra o que seria feito, sem alterar nada
-  --preserve-config   Nao sobrescreve opencode.json existente (so adiciona arquivos)
-  --version           Mostra a versao
-  --help, -h          Mostra esta ajuda
+  ${BOLD}OPCOES:${NC}
+    --uninstall         Remove o Harness v6 (com backup)
+    --update            Atualiza preservando customizacoes
+    --dry-run           Mostra o que faria, sem alterar nada
+    --preserve-config   Nao sobrescreve opencode.json
+    --version           Mostra a versao
+    --help, -h          Mostra esta ajuda
 
-SISTEMAS SUPORTADOS:
-  - Linux (qualquer distro)
-  - macOS
-  - WSL (Windows Subsystem for Linux)
-  - Git Bash / MSYS2 / Cygwin no Windows
+  ${BOLD}SISTEMAS:${NC}
+    Linux, macOS, WSL, Git Bash/MSYS2/Cygwin
 
-Para Windows nativo (PowerShell/CMD), use WSL ou Git Bash.
-Um script PowerShell estara disponivel em versao futura.
-
-DOCUMENTACAO:
-  - OpenCode config paths: https://opencode.ai/docs/config/#locations
-  - Harness v6 README:      <source>/README.md
+  ${BOLD}DOCUMENTACAO:${NC}
+    https://opencode.ai/docs/config/#locations
 EOF
-}
-
-# ============================================================================
-# Verificacoes pre-instalacao
-# ============================================================================
-
-check_prerequisites() {
-    local os="$1"
-    local src="$2"
-
-    local opencode_found=false
-
-    if command -v opencode >/dev/null 2>&1; then
-        opencode_found=true
-    else
-        if [[ -d "$INSTALL_DIR" ]]; then
-            opencode_found=true
-        else
-            local local_bin="${HOME}/.local/bin/opencode"
-            if [[ -f "$local_bin" ]]; then
-                opencode_found=true
-            fi
-        fi
-    fi
-
-    if ! command -v node >/dev/null 2>&1; then
-        log_warn "Node.js não foi encontrado. Necessário para executar os plugins e MCPs."
-    fi
-
-    if ! command -v npm >/dev/null 2>&1; then
-        log_warn "npm não foi encontrado. Necessário para instalar dependências de plugins."
-    fi
 }
 
 # ============================================================================
@@ -711,17 +660,16 @@ EOF
 consolidate_legacy_backups() {
     local dest="$1"
     local legacy_dir="$dest/backup/legacy"
-    
+
     if ls "$dest"/*.bak.* >/dev/null 2>&1; then
-        log_info "Encontrados backups legados soltos. Consolidando em backup/legacy/..."
+        log_info "Consolidando backups legados..."
         mkdir -p "$legacy_dir"
         mv "$dest"/*.bak.* "$legacy_dir/" 2>/dev/null || true
-        log_ok "Backups legados consolidados com sucesso."
+        log_ok "Backups legados consolidados."
     fi
 }
 
 backup_path() {
-    # Redundância física removida. A reversibilidade agora é confiada de forma limpa ao Git.
     return 0
 }
 
@@ -732,25 +680,19 @@ copy_item() {
     local force_replace="${4:-true}"
 
     if [[ ! -e "$src" ]]; then
-        log_warn "  source nao existe, pulando: $src"
         return
     fi
 
     if $DRY_RUN; then
-        log_info "  [DRY-RUN] $desc: $src -> $dest"
+        log_info "[DRY-RUN] $desc"
         return
     fi
 
-    # Se o destino existe
     if [[ -e "$dest" ]]; then
-        # Se for um diretorio, SEMPRE remove para evitar sujeira (leftover files)
-        # conforme solicitado: 'as demais pode somente subistituir'
         if [[ -d "$dest" ]]; then
             rm -rf "$dest"
         else
-            # Se for arquivo e force_replace for false, faz nada (usado pra configs)
             if ! $force_replace; then
-                log_info "  preservado: $desc (ja existe)"
                 return
             fi
             backup_path "$dest"
@@ -758,7 +700,6 @@ copy_item() {
         fi
     fi
 
-    # Copia (cp -r funciona pra arquivos e diretorios)
     cp -r "$src" "$dest"
 }
 
@@ -770,20 +711,15 @@ do_install() {
     local src="$1"
     local dest="$2"
 
-    log_bold ""
-    log_bold "[1/4] Verificando Pré-requisitos..."
+    print_step 1 4 "Verificando pre-requisitos"
     check_prerequisites "$OS" "$src"
-    log_ok "  Pré-requisitos validados."
+    log_done "Pre-requisitos validados"
 
-    log_bold ""
-    log_bold "[2/4] Preparando Ambiente e Backup..."
-    
+    print_step 2 4 "Preparando ambiente"
     if ! $DRY_RUN; then
         mkdir -p "$dest"
         consolidate_legacy_backups "$dest"
         setup_git_restore_point "$dest"
-    else
-        log_info "  [DRY-RUN] mkdir -p $dest"
     fi
 
     if has_existing_harness_files "$dest"; then
@@ -791,14 +727,15 @@ do_install() {
         timestamp=$(date +%Y%m%d_%H%M%S)
         local backup_dir="$dest/backup/backup_$timestamp"
         copy_directory_exclude_backup "$dest" "$backup_dir"
+        log_ok "Backup criado em backup_$timestamp"
     fi
 
+    log_info "Copiando componentes..."
     copy_item "$src/agents" "$dest/agents" "agents/"
     copy_item "$src/commands" "$dest/commands" "commands/"
     copy_item "$src/templates" "$dest/templates" "templates/"
     copy_item "$src/tools" "$dest/tools" "tools/"
     copy_item "$src/plugins" "$dest/plugins" "plugins/"
-    # Omitido em atualizações para cópia enxuta e portátil
     if ! $UPDATE_MODE; then
         copy_item "$src/examples" "$dest/examples" "examples/"
     fi
@@ -862,11 +799,11 @@ EOF
             local action_choice=0
             if $INTERACTIVE; then
                 printf "\n"
-                printf "${BOLD}Arquivo de configuração opencode.jsonc já existe no destino. Selecione a ação desejada:${NC}\n\n"
+                printf "  ${BOLD}Configuracao opencode.json existente. Acao:${NC}\n\n"
                 local cfg_options=(
-                    "Mesclar (Smart Merge) — Recomendado"
-                    "Sobrescrever (Overwrite)"
-                    "Preservar (Skip)"
+                    "Smart Merge (recomendado)"
+                    "Sobrescrever"
+                    "Preservar"
                 )
                 select_option "${cfg_options[@]}" && action_choice=0 || action_choice=$?
             fi
@@ -886,12 +823,14 @@ version: ${HARNESS_VERSION}
 EOF
     fi
 
+    print_step 3 4 "Instalando dependencias"
     if ! $DRY_RUN; then
-        log_bold ""
-        log_bold "[4/4] Instalando Dependências..."
-        log_bold ""
         local pm="npm"
         install_configured_mcps "$dest" "$pm"
+    fi
+
+    print_step 4 4 "Configurando sandbox"
+    if ! $DRY_RUN; then
         install_ai_jail_if_needed || true
         install_opencode_wrapper || true
     fi
@@ -922,7 +861,6 @@ do_uninstall() {
         done
     fi
 
-    # Remove o wrapper do sandbox no PATH do usuário
     if [[ -f "${HOME}/.local/bin/opencode" ]]; then
         if ! $DRY_RUN; then rm -f "${HOME}/.local/bin/opencode"; fi
     fi
@@ -939,12 +877,20 @@ do_uninstall() {
 }
 
 # ============================================================================
-# Validacao pos-instalacao
+# Verificacoes
 # ============================================================================
 
-post_install_check() {
-    local dest="$1"
-    # Silencioso conforme solicitado
+check_prerequisites() {
+    local os="$1"
+    local src="$2"
+
+    if ! command -v node >/dev/null 2>&1; then
+        log_warn "Node.js nao encontrado. Necessario para plugins."
+    fi
+
+    if ! command -v npm >/dev/null 2>&1; then
+        log_warn "npm nao encontrado. Necessario para dependencias."
+    fi
 }
 
 # ============================================================================
@@ -954,7 +900,26 @@ post_install_check() {
 print_summary() {
     local dest="$1"
     local os="$2"
-    log_info "Instalação concluída com sucesso em: $dest"
+
+    printf "\n"
+    print_divider
+    printf "\n"
+    printf "  ${GREEN}${BOLD}  Instalacao concluida com sucesso!${NC}\n"
+    printf "\n"
+    printf "  ${BOLD}Destino:${NC}   %s\n" "$dest"
+    printf "  ${BOLD}Versao:${NC}    %s\n" "$HARNESS_VERSION"
+    printf "  ${BOLD}Plataforma:${NC} %s\n" "$os"
+    printf "\n"
+    printf "  ${BOLD}Proximos passos:${NC}\n"
+    printf "  ${DIM}  1.${NC} Navegue ate seu projeto\n"
+    printf "  ${DIM}  2.${NC} Execute ${BOLD}opencode${NC}\n"
+    printf "  ${DIM}  3.${NC} Use ${BOLD}/harness${NC} para iniciar o workflow\n"
+    printf "\n"
+    print_divider
+    printf "\n"
+    printf "  ${DIM}Documentacao: https://github.com/alexandre-henrique-rp/harnes-opencode${NC}\n"
+    printf "  ${DIM}Sandbox: ai-jail by @akitaonrails${NC}\n"
+    printf "\n"
 }
 
 # ============================================================================
@@ -966,17 +931,16 @@ main() {
     SOURCE_DIR=$(get_source_dir)
     INSTALL_DIR=$(get_install_dir "$OS")
 
-    # Detecção rápida de ferramentas para o banner
-    NODE_STATUS="✗ ausente"; NPM_STATUS="✗ ausente"; OPENCODE_STATUS="✗ ausente"
-    command -v node >/dev/null 2>&1 && NODE_STATUS="✓ ok"
-    command -v npm >/dev/null 2>&1 && NPM_STATUS="✓ ok"
-    (command -v opencode >/dev/null 2>&1 || [[ -d "${HOME}/.config/opencode" || -f "${HOME}/.local/bin/opencode" ]]) && OPENCODE_STATUS="✓ ok"
+    NODE_STATUS="ausente"; NPM_STATUS="ausente"; OPENCODE_STATUS="ausente"
+    command -v node >/dev/null 2>&1 && NODE_STATUS="ok"
+    command -v npm >/dev/null 2>&1 && NPM_STATUS="ok"
+    (command -v opencode >/dev/null 2>&1 || [[ -d "${HOME}/.config/opencode" || -f "${HOME}/.local/bin/opencode" ]]) && OPENCODE_STATUS="ok"
 
     if [[ $# -eq 0 ]]; then
         INTERACTIVE=true
         print_banner
-        printf "${BOLD}Selecione a ação desejada:${NC}\n\n"
-        local options=("Instalação Limpa" "Atualização" "Desinstalação" "Sair")
+        printf "  ${BOLD}Selecione a acao:${NC}\n\n"
+        local options=("Instalacao Limpa" "Atualizacao" "Desinstalacao" "Sair")
         select_option "${options[@]}" && choice=0 || choice=$?
         case "$choice" in
             0) ;;
@@ -995,18 +959,18 @@ main() {
                 --dir)              INSTALL_DIR="$2"; shift 2 ;;
                 --version)          echo "Harness v6 installer ${HARNESS_VERSION}"; exit 0 ;;
                 --help|-h)          print_help; exit 0 ;;
-                *)                  log_err "Opção desconhecida: $1"; print_help; exit 1 ;;
+                *)                  log_err "Opcao desconhecida: $1"; print_help; exit 1 ;;
             esac
         done
         print_banner
     fi
 
-    # Pre-checks
     check_prerequisites "$OS" "$SOURCE_DIR"
 
-    # Executa
     if $UNINSTALL; then
+        print_step 1 1 "Desinstalando"
         do_uninstall "$INSTALL_DIR"
+        log_done "Desinstalacao concluida"
     else
         do_install "$SOURCE_DIR" "$INSTALL_DIR"
 
@@ -1016,6 +980,10 @@ main() {
 
         print_summary "$INSTALL_DIR" "$OS"
     fi
+}
+
+post_install_check() {
+    local dest="$1"
 }
 
 main "$@"
