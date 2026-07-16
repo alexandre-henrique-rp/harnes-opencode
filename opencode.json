@@ -6,7 +6,8 @@
   "plugin": [
     "./plugins/path-boundary.ts",
     "./plugins/audit-logger.ts",
-    "./plugins/status-injector.ts"
+    "./plugins/status-injector.ts",
+    "./plugins/native-sandbox.ts"
   ],
   "permission": {
     "bash": "allow",
@@ -29,21 +30,21 @@
       "type": "local",
       "command": [
         "node",
-        "/home/kingdev/.config/opencode/node_modules/.bin/playwright-mcp"
+        "./node_modules/.bin/playwright-mcp"
       ]
     },
     "drawio": {
       "type": "local",
       "command": [
         "node",
-        "/home/kingdev/.config/opencode/node_modules/.bin/drawio-mcp"
+        "./node_modules/.bin/drawio-mcp"
       ]
     },
     "chrome-devtools": {
       "type": "local",
       "command": [
         "node",
-        "/home/kingdev/.config/opencode/node_modules/.bin/chrome-devtools-mcp",
+        "./node_modules/.bin/chrome-devtools-mcp",
         "--autoConnect"
       ]
     },
@@ -63,14 +64,14 @@
       "url": "https://stitch.googleapis.com/mcp",
       "enabled": true,
       "headers": {
-        "X-Goog-Api-Key": ""
+        "X-Goog-Api-Key": "${env:STITCH_API_KEY}"
       }
     },
     "duckduckgo-search": {
       "type": "local",
       "command": [
         "node",
-        "/home/kingdev/.config/opencode/node_modules/.bin/ddg-search-mcp",
+        "./node_modules/.bin/ddg-search-mcp",
         "--server"
       ]
     }

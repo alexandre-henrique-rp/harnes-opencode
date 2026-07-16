@@ -9,6 +9,8 @@ import harnessWorkspace from "../tools/harness-workspace.ts";
 import taskBriefer from "../tools/task-briefer.ts";
 import reviewPackager from "../tools/review-packager.ts";
 import taskManager from "../tools/task-manager.ts";
+import harnessCheckpoint from "../tools/harness-checkpoint.ts";
+
 
 const cwd = process.cwd();
 const harnessDir = path.join(cwd, ".harness");
@@ -111,6 +113,77 @@ test("Suíte de Testes do Harness v6 Tools", async (t) => {
     fs.rmSync(path.join(harnessDir, "sprints", sprintId), { recursive: true, force: true });
     if (fs.existsSync(ledgerPath)) {
       fs.rmSync(ledgerPath, { force: true });
+    }
+  });
+
+  await t.test("5. harness-checkpoint - deve criar e listar checkpoints via git stash", async () => {
+    // 1. Cria um arquivo temporário não rastreado para testar o stash
+    const tempFilePath = path.join(cwd, "test-stash-temp.txt");
+    fs.writeFileSync(tempFilePath, "conteudo de teste do stash");
+
+    try {
+      // 2. Cria o checkpoint preventivo
+      const resultCreate = await harnessCheckpoint.execute({
+        action: "create",
+        taskId: "test-task-123"
+      }, { directory: cwd });
+
+      assert.strictEqual(resultCreate.success, true);
+      
+      // O git stash push deve ter guardado e limpo o arquivo do diretório de trabalho
+      assert.ok(!fs.existsSync(tempFilePath), "O arquivo temporário deveria ter sido stashado e removido do workspace.");
+
+      // 3. Lista os checkpoints
+      const resultList = await harnessCheckpoint.execute({
+        action: "list"
+      }, { directory: cwd });
+
+      assert.strictEqual(resultList.success, true);
+      assert.ok(resultList.stashes.length > 0);
+      assert.ok(resultList.stashes[0].message.includes("test-task-123"));
+
+      // 4. Tenta restaurar sem a flag force (deve falhar exigindo force)
+      const resultRestoreNoForce = await harnessCheckpoint.execute({
+        action: "restore",
+        force: false
+      }, { directory: cwd });
+
+      assert.strictEqual(resultRestoreNoForce.success, false);
+      assert.strictEqual(resultRestoreNoForce.requiresForce, true);
+
+      // 5. Restaura com a flag force=true
+      const resultRestoreForce = await harnessCheckpoint.execute({
+        action: "restore",
+        force: true
+      }, { directory: cwd });
+
+      assert.strictEqual(resultRestoreForce.success, true);
+      
+      // O arquivo temporário deve ter voltado ao diretório de trabalho
+      assert.ok(fs.existsSync(tempFilePath), "O arquivo temporário deveria ter retornado ao workspace após o restore.");
+      assert.strictEqual(fs.readFileSync(tempFilePath, "utf8"), "conteudo de teste do stash");
+
+    } finally {
+      // Cleanup: remove o arquivo temporário se ele foi restaurado
+      if (fs.existsSync(tempFilePath)) {
+        fs.rmSync(tempFilePath, { force: true });
+      }
+      
+      // Devolve os arquivos locais de desenvolvimento caso a execução tenha falhado no meio
+      try {
+        const list = execSync("git stash list", { cwd, encoding: "utf8" });
+        if (list.includes("harness-checkpoint: pre-task test-task-123")) {
+          execSync("git stash pop stash@{0}", { cwd, stdio: "ignore" });
+        }
+        
+        // E remove o stash de emergência se ele ainda estiver na pilha
+        const updatedList = execSync("git stash list", { cwd, encoding: "utf8" });
+        if (updatedList.includes("harness-emergency: pre-restore backup")) {
+          execSync("git stash drop stash@{0}", { cwd, stdio: "ignore" });
+        }
+      } catch {
+        // ignore se o stash já foi limpo
+      }
     }
   });
 });

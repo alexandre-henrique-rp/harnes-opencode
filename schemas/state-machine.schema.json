@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Harness State Machine Schema",
+  "type": "object",
+  "properties": {
+    "_type": {
+      "type": "string",
+      "const": "harness-state-machine-v6"
+    },
+    "phases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string" },
+          "owner": { "type": "string" },
+          "outputContract": { "type": "object" }
+        },
+        "required": ["id", "name", "owner", "outputContract"]
+      }
+    }
+  },
+  "required": ["_type", "phases"]
+}

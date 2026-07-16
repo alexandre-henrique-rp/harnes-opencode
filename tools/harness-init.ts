@@ -77,6 +77,41 @@ export default tool({
     }
     fs.copyFileSync(stateMachineSrc, stateMachineDest);
 
+    // Valida o arquivo state-machine.json em runtime
+    const stateMachineContent = fs.readFileSync(stateMachineDest, "utf8");
+    try {
+      const data = JSON.parse(stateMachineContent);
+      if (data._type !== "harness-state-machine-v6") {
+        throw new Error("Chave '_type' inválida no state-machine.json (esperado: 'harness-state-machine-v6')");
+      }
+      if (!Array.isArray(data.phases)) {
+        throw new Error("Propriedade 'phases' deve ser um array");
+      }
+      for (let i = 0; i < data.phases.length; i++) {
+        const phase = data.phases[i];
+        if (typeof phase !== "object" || phase === null) {
+          throw new Error(`Fase no índice ${i} deve ser um objeto JSON`);
+        }
+        if (typeof phase.id !== "number") {
+          throw new Error(`Fase no índice ${i} deve possuir 'id' numérico`);
+        }
+        if (typeof phase.name !== "string" || !phase.name.trim()) {
+          throw new Error(`Fase no índice ${i} deve possuir 'name' não-vazio`);
+        }
+        if (typeof phase.owner !== "string" || !phase.owner.trim()) {
+          throw new Error(`Fase no índice ${i} deve possuir 'owner' não-vazio`);
+        }
+        if (!phase.outputContract || typeof phase.outputContract !== "object") {
+          throw new Error(`Fase no índice ${i} deve possuir objeto 'outputContract'`);
+        }
+      }
+    } catch (e) {
+      return {
+        success: false,
+        error: `O arquivo ${fileName} copiado é estruturalmente inválido: ${(e as Error).message}`
+      };
+    }
+
     // 2.1 Copia failure-protocol.json do template
     let failureProtocolSrc = path.join(cwd, "failure-protocol.json");
     if (!fs.existsSync(failureProtocolSrc)) {

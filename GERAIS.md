@@ -1,6 +1,6 @@
 # GERAIS — Harness v6 System Prompt
 
-> **Instruções globais para todos os 17 agents deste harness (v6.2.0+).**
+> **Instruções globais para todos os 20 agents deste harness (v6.4.0+).**
 > Carregado automaticamente pelo opencode via `opencode.json → instructions: ["~/.config/opencode/GERAIS.md"]`.
 
 ## Idioma
