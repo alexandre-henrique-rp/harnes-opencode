@@ -1,0 +1,23 @@
+# ai-jail sandbox configuration
+# https://github.com/akitaonrails/ai-jail
+# Edit freely. Regenerate with: ai-jail --clean --init
+
+command = ["bash"]
+rw_maps = [
+    "~/.opencode",
+    "~/.opencode/bin",
+    "~/.config/opencode",
+]
+ro_maps = ["~/.opencode/bin"]
+hide_dotdirs = [
+    ".netrc",
+    ".kube",
+]
+mask = [
+    ".env",
+    ".env.local",
+    "credentials.json",
+    "harness-allowlist.json",
+]
+no_docker = true
+private_home = false
