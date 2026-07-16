@@ -1,0 +1,20 @@
+{
+  "comment": "Configuração do ai-jail para o harness. Edit livre.",
+  "rw_maps": [
+    "~/.opencode",
+    "~/.config/opencode"
+  ],
+  "ro_maps": [],
+  "hide_dotdirs": [
+    ".netrc",
+    ".kube"
+  ],
+  "mask": [
+    ".env",
+    ".env.local",
+    "credentials.json",
+    "harness-allowlist.json"
+  ],
+  "no_docker": true,
+  "no_private_home": true
+}

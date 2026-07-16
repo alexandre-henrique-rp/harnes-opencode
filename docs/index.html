@@ -4,13 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>OpenCode Agents v6 — O Harness Multi-Agente Declarativo e Auditável</title>
-  <meta name="description" content="20 agentes especializados coordenados sob 6 fases rígidas baseadas em TDD, Smart Merge de segurança e auditoria total.">
+  <meta name="description" content="20 agentes especializados coordenados sob 6 fases rígidas baseadas em TDD, sandbox ai-jail, Smart Merge de segurança e auditoria total.">
 
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://alexandre-henrique-rp.github.io/harnes-opencode/">
   <meta property="og:title" content="OpenCode Agents v6 — O Harness Multi-Agente Declarativo e Auditável">
-  <meta property="og:description" content="20 agentes especializados coordenados sob 6 fases rígidas baseadas em TDD, Smart Merge de segurança e auditoria total.">
+  <meta property="og:description" content="20 agentes especializados coordenados sob 6 fases rígidas baseadas em TDD, sandbox ai-jail, Smart Merge de segurança e auditoria total.">
   <meta property="og:image" content="https://raw.githubusercontent.com/alexandre-henrique-rp/harnes-opencode/main/docs/assets/logo-harness.png">
   <meta property="og:image:secure_url" content="https://raw.githubusercontent.com/alexandre-henrique-rp/harnes-opencode/main/docs/assets/logo-harness.png">
   <meta property="og:image:type" content="image/png">
@@ -22,815 +22,1296 @@
   <meta property="twitter:card" content="summary_large_image">
   <meta property="twitter:url" content="https://alexandre-henrique-rp.github.io/harnes-opencode/">
   <meta property="twitter:title" content="OpenCode Agents v6 — O Harness Multi-Agente Declarativo e Auditável">
-  <meta property="twitter:description" content="20 agentes especializados coordenados sob 6 fases rígidas baseadas em TDD, Smart Merge de segurança e auditoria total.">
+  <meta property="twitter:description" content="20 agentes especializados coordenados sob 6 fases rígidas baseadas em TDD, sandbox ai-jail, Smart Merge de segurança e auditoria total.">
   <meta property="twitter:image" content="https://raw.githubusercontent.com/alexandre-henrique-rp/harnes-opencode/main/docs/assets/logo-harness.png">
   
-  <!-- Fontes Premium -->
+  <!-- Fontes -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   
-  <!-- Estilos Avançados -->
   <style>
     :root {
-      --bg: #1a1919;
-      --bg-card: rgba(38, 36, 36, 0.85);
-      --border-card: rgba(170, 150, 132, 0.2);
-      --primary: #aa9684;
-      --primary-hover: #928070;
-      --accent: #c5b3a3;
-      --text: #f2efe9;
-      --text-muted: #9c9791;
-      --terminal-bg: #111010;
-      --success: #aa9684;
+      --bg: #0a0a0b;
+      --bg-elevated: #111113;
+      --bg-card: rgba(22, 22, 25, 0.8);
+      --border: rgba(255, 255, 255, 0.06);
+      --border-hover: rgba(255, 255, 255, 0.12);
+      --primary: #c8a882;
+      --primary-dim: rgba(200, 168, 130, 0.15);
+      --accent: #e8d5b7;
+      --text: #f0ece4;
+      --text-secondary: #8a8580;
+      --text-muted: #5a5550;
+      --terminal-bg: #0d0d0e;
+      --success: #34d399;
+      --glow: rgba(200, 168, 130, 0.08);
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      background-color: var(--bg);
+      background: var(--bg);
       color: var(--text);
-      font-family: 'Inter', sans-serif;
-      line-height: 1.6;
+      font-family: 'Inter', -apple-system, sans-serif;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
       overflow-x: hidden;
-      background-image: 
-        radial-gradient(circle at 10% 20%, rgba(170, 150, 132, 0.08) 0%, transparent 40%),
-        radial-gradient(circle at 90% 80%, rgba(197, 179, 163, 0.08) 0%, transparent 40%);
-      background-attachment: fixed;
     }
 
-    header {
+    /* Subtle grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(ellipse at 30% 20%, rgba(200, 168, 130, 0.04) 0%, transparent 50%),
+                  radial-gradient(ellipse at 70% 80%, rgba(200, 168, 130, 0.03) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
       max-width: 1200px;
       margin: 0 auto;
-      padding: 2rem 1.5rem;
+      padding: 0 1.5rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ─── Header ─── */
+    header {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      padding: 1.25rem 0;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: rgba(10, 10, 11, 0.85);
+      backdrop-filter: blur(20px);
+      z-index: 100;
     }
 
     .brand {
       display: flex;
       align-items: center;
-      gap: 0.8rem;
+      gap: 0.75rem;
+      text-decoration: none;
     }
 
-    .brand img {
-      height: 42px;
-      width: auto;
+    .brand img { height: 36px; }
+
+    .brand-text {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--text);
+      letter-spacing: -0.3px;
     }
 
-    .github-link {
+    .header-actions {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      color: var(--text);
-      text-decoration: none;
-      font-weight: 500;
-      font-size: 0.95rem;
-      padding: 0.5rem 1rem;
-      border-radius: 9999px;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--border-card);
-      transition: all 0.3s ease;
+      gap: 0.75rem;
     }
 
-    .github-link:hover {
-      background: rgba(255, 255, 255, 0.1);
-      border-color: rgba(255, 255, 255, 0.2);
-      transform: translateY(-2px);
-    }
-
-    /* Seletor de Idioma */
     .lang-select {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--border-card);
-      color: var(--text);
-      padding: 0.5rem 2rem 0.5rem 1rem;
-      border-radius: 9999px;
-      font-size: 0.85rem;
-      font-weight: 500;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      padding: 0.45rem 1.75rem 0.45rem 0.75rem;
+      border-radius: 8px;
+      font-size: 0.8rem;
       font-family: 'Inter', sans-serif;
       cursor: pointer;
       outline: none;
-      transition: all 0.3s ease;
+      transition: all 0.2s;
+      -webkit-appearance: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%238a8580' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.6rem center;
     }
 
-    .lang-select:hover {
-      background: rgba(255, 255, 255, 0.1);
-      border-color: rgba(255, 255, 255, 0.2);
-    }
+    .lang-select:hover { border-color: var(--border-hover); color: var(--text); }
+    .lang-select option { background: var(--bg); color: var(--text); }
 
-    .lang-select option {
-      background: var(--bg);
-      color: var(--text);
-    }
-
-    /* Hero Section */
-    .hero {
-      max-width: 1000px;
-      margin: 4rem auto 6rem auto;
-      padding: 0 1.5rem;
-      text-align: center;
-    }
-
-    .hero img.hero-logo {
-      display: block;
-      margin: 0 auto 2.5rem auto;
-      max-width: 520px;
-      width: 100%;
-      height: auto;
-      filter: drop-shadow(0 0 30px rgba(170, 150, 132, 0.2));
-    }
-
-    .badge {
+    .btn-header {
       display: inline-flex;
       align-items: center;
       gap: 0.5rem;
-      padding: 0.4rem 1rem;
-      background: rgba(170, 150, 132, 0.12);
-      border: 1px solid rgba(170, 150, 132, 0.3);
-      border-radius: 9999px;
+      color: var(--text-secondary);
+      text-decoration: none;
       font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--primary);
-      text-transform: uppercase;
-      margin-bottom: 2rem;
-      letter-spacing: 0.5px;
-      animation: ripple 2.5s infinite ease-in-out;
+      font-weight: 500;
+      padding: 0.45rem 0.9rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      transition: all 0.2s;
     }
 
-    h1 {
-      font-family: 'Outfit', sans-serif;
-      font-size: 3.5rem;
-      font-weight: 800;
-      line-height: 1.15;
-      letter-spacing: -1.5px;
-      margin-bottom: 1.5rem;
-      background: linear-gradient(135deg, #fff 30%, var(--accent) 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .hero p {
-      font-size: 1.25rem;
-      color: var(--text-muted);
-      max-width: 700px;
-      margin: 0 auto 2.5rem auto;
-    }
-
-    /* Terminal/Installer Command */
-    .terminal-container {
-      max-width: 700px;
-      margin: 0 auto;
-      background: var(--terminal-bg);
-      border: 1px solid var(--border-card);
-      border-radius: 12px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-      overflow: hidden;
-      text-align: left;
-    }
-
-    .terminal-header {
-      background: rgba(255, 255, 255, 0.03);
-      padding: 0.75rem 1rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    .terminal-dots {
-      display: flex;
-      gap: 0.4rem;
-    }
-
-    .dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-    }
-    .dot-red { background: #ef4444; }
-    .dot-yellow { background: #eab308; }
-    .dot-green { background: #22c55e; }
-
-    .terminal-title {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    .terminal-body {
-      padding: 1.25rem;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.95rem;
-      position: relative;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .cmd-prefix {
-      color: var(--success);
-      user-select: none;
-    }
-
-    .cmd-text {
+    .btn-header:hover {
       color: var(--text);
-      word-break: break-all;
+      border-color: var(--border-hover);
+      background: rgba(255,255,255,0.03);
     }
 
-    .copy-btn {
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      color: var(--text);
-      padding: 0.5rem;
-      border-radius: 6px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s ease;
-      flex-shrink: 0;
+    /* ─── Update Banner ─── */
+    .update-banner {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 200;
+      background: linear-gradient(90deg, #1a1510, #0d0d0e, #1a1510);
+      border-bottom: 1px solid var(--primary-dim);
+      transform: translateY(-100%);
+      transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    .copy-btn:hover {
-      background: var(--primary);
-      border-color: var(--primary);
-    }
+    .update-banner.visible { transform: translateY(0); }
 
-    /* Container de Fases */
-    .section-title {
-      text-align: center;
-      font-family: 'Outfit', sans-serif;
-      font-size: 2.25rem;
-      font-weight: 700;
-      margin-bottom: 3rem;
-    }
-
-    .features-grid {
-      max-width: 1200px;
-      margin: 0 auto 6rem auto;
-      padding: 0 1.5rem;
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 2rem;
-    }
-
-    .card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-card);
-      border-radius: 16px;
-      padding: 2rem;
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      transition: all 0.3s ease;
-    }
-
-    .card:hover {
-      transform: translateY(-5px);
-      border-color: rgba(170, 150, 132, 0.4);
-      box-shadow: 0 10px 30px rgba(170, 150, 132, 0.05);
-    }
-
-    .card-icon {
-      font-size: 2rem;
-      margin-bottom: 1rem;
-    }
-
-    .card h3 {
-      font-family: 'Outfit', sans-serif;
-      font-size: 1.35rem;
-      font-weight: 600;
-      margin-bottom: 0.75rem;
-    }
-
-    .card p {
-      color: var(--text-muted);
-      font-size: 0.95rem;
-    }
-
-    /* Workflow Timeline */
-    .timeline-container {
-      max-width: 1000px;
-      margin: 0 auto 6rem auto;
-      padding: 0 1.5rem;
-    }
-
-    .timeline {
-      position: relative;
-      border-left: 2px solid rgba(255, 255, 255, 0.05);
-      padding-left: 2rem;
-      margin-left: 1rem;
-    }
-
-    .timeline-item {
-      position: relative;
-      margin-bottom: 3rem;
-    }
-
-    .timeline-item::before {
-      content: '';
-      position: absolute;
-      left: calc(-2rem - 7px);
-      top: 6px;
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      background: var(--primary);
-      border: 2px solid var(--bg);
-      box-shadow: 0 0 10px var(--primary);
-    }
-
-    .timeline-phase {
-      font-size: 0.85rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin-bottom: 0.25rem;
-      letter-spacing: 1px;
-    }
-
-    .timeline-title-item {
-      font-family: 'Outfit', sans-serif;
-      font-size: 1.25rem;
-      font-weight: 600;
-      margin-bottom: 0.5rem;
-    }
-
-    .timeline-desc {
-      color: var(--text-muted);
-      font-size: 0.95rem;
-    }
-
-    .timeline-gate {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--primary);
-      background: rgba(170, 150, 132, 0.08);
-      padding: 0.2rem 0.6rem;
-      border-radius: 4px;
-      margin-top: 0.75rem;
-      border: 1px solid rgba(170, 150, 132, 0.15);
-    }
-
-    /* Footer */
-    footer {
-      border-top: 1px solid var(--border-card);
-      padding: 4rem 1.5rem;
-      text-align: center;
-      background: rgba(3, 7, 18, 0.4);
-    }
-
-    footer p {
-      color: var(--text-muted);
-      font-size: 0.9rem;
-    }
-
-    /* Animações */
-    @keyframes ripple {
-      0% {
-        box-shadow: 0 0 0 0 rgba(170, 150, 132, 0.4);
-      }
-      70% {
-        box-shadow: 0 0 0 10px rgba(170, 150, 132, 0);
-      }
-      100% {
-        box-shadow: 0 0 0 0 rgba(170, 150, 132, 0);
-      }
-    }
-
-    @media (max-width: 768px) {
-      h1 { 
-        font-size: 2.25rem; 
-        letter-spacing: -1px;
-      }
-      .hero p {
-        font-size: 1.1rem;
-      }
-      .hero img.hero-logo {
-        max-width: 380px;
-      }
-      .terminal-body {
-        font-size: 0.85rem;
-      }
-      .features-grid { 
-        grid-template-columns: 1fr; 
-      }
-      header {
-        flex-direction: column;
-        gap: 1.25rem;
-        padding: 1.5rem 1rem;
-        text-align: center;
-      }
-      .timeline {
-        padding-left: 1.5rem;
-        margin-left: 0.5rem;
-      }
-      .timeline-item::before {
-        left: calc(-1.5rem - 7px);
-      }
-    }
-
-    @media (max-width: 480px) {
-      h1 { 
-        font-size: 1.85rem; 
-      }
-      .hero img.hero-logo {
-        max-width: 290px;
-        margin-bottom: 1.5rem;
-      }
-      .terminal-body {
-        font-size: 0.78rem;
-        padding: 1rem;
-      }
-      .card {
-        padding: 1.5rem;
-      }
-    }
-
-    /* Banner Superior Minimalista (Fidelidade OpenCode) */
-    .update-alert-banner {
-      position: relative;
-      width: 100%;
-      background: #111010;
-      border-bottom: 1px solid rgba(170, 150, 132, 0.15);
-      color: #9c9791;
-      z-index: 9999;
-      font-size: 0.85rem;
-    }
-
-    .update-alert-content {
+    .update-banner-content {
       max-width: 1200px;
       margin: 0 auto;
-      padding: 0.65rem 1.5rem;
+      padding: 0.6rem 1.5rem;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 0.75rem;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
     }
 
-    .badge-new {
-      background: #ffffff;
-      color: #111010;
-      padding: 0.15rem 0.5rem;
+    .update-badge {
+      background: var(--primary);
+      color: var(--bg);
+      padding: 0.15rem 0.55rem;
       border-radius: 4px;
       font-weight: 700;
-      font-size: 0.75rem;
+      font-size: 0.7rem;
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
 
-    .update-link {
-      color: #ffffff;
-      text-decoration: none;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.4);
-      transition: border-color 0.2s ease;
+    .update-banner a {
+      color: var(--text);
+      text-decoration: underline;
+      text-underline-offset: 2px;
     }
 
-    .update-link:hover {
-      border-bottom-color: #ffffff;
-    }
-
-    .update-close-btn {
+    .update-banner-close {
       background: none;
       border: none;
-      color: #9c9791;
-      font-size: 1.25rem;
+      color: var(--text-muted);
       cursor: pointer;
-      font-weight: bold;
-      line-height: 1;
-      margin-left: 1rem;
-      transition: color 0.2s ease;
+      font-size: 1.1rem;
+      padding: 0 0.25rem;
+      transition: color 0.2s;
     }
 
-    .update-close-btn:hover {
-      color: #ffffff;
+    .update-banner-close:hover { color: var(--text); }
+
+    /* ─── Hero ─── */
+    .hero {
+      padding: 6rem 0 5rem;
+      text-align: center;
     }
 
-    /* Terminal Container Estilo OpenCode */
-    .terminal-container {
-      max-width: 760px;
-      margin: 3rem auto 0 auto;
-      background: #111010;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 8px;
+    .hero-logo {
+      display: block;
+      margin: 0 auto 2rem;
+      max-width: 400px;
+      width: 100%;
+      filter: drop-shadow(0 0 40px rgba(200, 168, 130, 0.15));
+    }
+
+    .version-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.35rem 1rem;
+      background: var(--primary-dim);
+      border: 1px solid rgba(200, 168, 130, 0.2);
+      border-radius: 100px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 2rem;
+    }
+
+    .version-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--primary);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: clamp(2.5rem, 5vw, 4rem);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -2px;
+      margin-bottom: 1.5rem;
+      background: linear-gradient(135deg, #fff 20%, var(--accent) 80%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-subtitle {
+      font-size: 1.15rem;
+      color: var(--text-secondary);
+      max-width: 620px;
+      margin: 0 auto 3rem;
+      line-height: 1.8;
+    }
+
+    /* ─── Terminal ─── */
+    .terminal {
+      max-width: 700px;
+      margin: 0 auto;
+      background: var(--terminal-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
       overflow: hidden;
-      text-align: left;
     }
+
+    .terminal-bar {
+      display: flex;
+      align-items: center;
+      padding: 0.65rem 1rem;
+      border-bottom: 1px solid var(--border);
+      gap: 0.5rem;
+    }
+
+    .terminal-dots {
+      display: flex;
+      gap: 5px;
+    }
+
+    .terminal-dots span {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .terminal-dots span:nth-child(1) { background: #ff5f57; }
+    .terminal-dots span:nth-child(2) { background: #febc2e; }
+    .terminal-dots span:nth-child(3) { background: #28c840; }
 
     .terminal-tabs {
       display: flex;
-      background: #161515;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-      padding: 0 1rem;
+      margin-left: 1rem;
+      gap: 0;
     }
 
     .tab-btn {
       background: none;
       border: none;
-      color: #888888;
-      padding: 0.9rem 1.25rem;
+      color: var(--text-muted);
+      padding: 0.35rem 1rem;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.85rem;
-      font-weight: 500;
+      font-size: 0.78rem;
       cursor: pointer;
-      transition: all 0.2s ease;
       border-bottom: 2px solid transparent;
-      outline: none;
+      transition: all 0.2s;
       text-transform: lowercase;
     }
 
-    .tab-btn:hover {
-      color: #ffffff;
-    }
-
-    .tab-btn.active {
-      color: #ffffff;
-      border-bottom-color: #ffffff;
-    }
+    .tab-btn:hover { color: var(--text-secondary); }
+    .tab-btn.active { color: var(--text); border-bottom-color: var(--primary); }
 
     .terminal-body {
-      padding: 1.5rem 1.75rem;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.95rem;
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      gap: 1.5rem;
-      background: #111010;
+      justify-content: space-between;
+      padding: 1rem 1.25rem;
+      gap: 1rem;
     }
 
     .cmd-text {
-      color: #cccccc;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.88rem;
+      color: var(--text-secondary);
       word-break: break-all;
-      line-height: 1.5;
+      flex: 1;
     }
 
     .copy-btn {
       background: none;
-      border: none;
-      color: #666666;
-      padding: 0.5rem;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      width: 34px;
+      height: 34px;
+      border-radius: 6px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: color 0.2s ease;
+      transition: all 0.2s;
       flex-shrink: 0;
     }
 
     .copy-btn:hover {
-      color: #ffffff;
+      color: var(--text);
+      border-color: var(--border-hover);
+      background: rgba(255,255,255,0.03);
     }
 
-    @keyframes slideDown {
-      from { transform: translateY(-100%); }
-      to { transform: translateY(0); }
+    /* ─── Sections ─── */
+    section {
+      padding: 5rem 0;
+      position: relative;
+      z-index: 1;
+    }
+
+    .section-header {
+      text-align: center;
+      margin-bottom: 3.5rem;
+    }
+
+    .section-label {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--primary);
+      margin-bottom: 0.75rem;
+    }
+
+    .section-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: clamp(1.75rem, 3vw, 2.25rem);
+      font-weight: 700;
+      letter-spacing: -1px;
+      color: var(--text);
+    }
+
+    .section-desc {
+      color: var(--text-secondary);
+      font-size: 1rem;
+      max-width: 560px;
+      margin: 0.75rem auto 0;
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 0 auto;
+      max-width: 1200px;
+    }
+
+    /* ─── Pillars Grid ─── */
+    .pillars-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+    }
+
+    .pillar-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .pillar-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--primary-dim), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .pillar-card:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-2px);
+    }
+
+    .pillar-card:hover::before { opacity: 1; }
+
+    .pillar-icon {
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--primary-dim);
+      border-radius: 10px;
+      font-size: 1.3rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .pillar-card h3 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .pillar-card p {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      line-height: 1.7;
+    }
+
+    /* ─── AI-Jail Section ─── */
+    .jail-section {
+      background: linear-gradient(180deg, transparent 0%, rgba(200, 168, 130, 0.02) 50%, transparent 100%);
+    }
+
+    .jail-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3rem;
+      align-items: center;
+    }
+
+    .jail-info h3 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      letter-spacing: -0.5px;
+    }
+
+    .jail-info p {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      margin-bottom: 1.25rem;
+      line-height: 1.8;
+    }
+
+    .jail-features {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 1.5rem;
+    }
+
+    .jail-features li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+      padding: 0.4rem 0;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    .jail-features li::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--primary);
+      margin-top: 0.5rem;
+      flex-shrink: 0;
+    }
+
+    .jail-credit {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      text-decoration: none;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+
+    .jail-credit:hover {
+      border-color: var(--border-hover);
+      color: var(--text);
+    }
+
+    .jail-credit strong { color: var(--text); }
+
+    .jail-config {
+      background: var(--terminal-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .jail-config-header {
+      padding: 0.75rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .jail-config-header span {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .jail-config-body {
+      padding: 1.25rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      line-height: 1.8;
+      color: var(--text-secondary);
+      overflow-x: auto;
+    }
+
+    .jail-config-body .key { color: var(--primary); }
+    .jail-config-body .str { color: var(--success); }
+    .jail-config-body .bool { color: #c084fc; }
+    .jail-config-body .comment { color: var(--text-muted); }
+
+    /* ─── Timeline ─── */
+    .timeline {
+      position: relative;
+      max-width: 800px;
+      margin: 0 auto;
+      padding-left: 3rem;
+    }
+
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 7px;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: linear-gradient(180deg, var(--primary-dim), var(--border), transparent);
+    }
+
+    .timeline-item {
+      position: relative;
+      padding-bottom: 2.5rem;
+    }
+
+    .timeline-item:last-child { padding-bottom: 0; }
+
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: calc(-3rem + 3px);
+      top: 6px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--primary);
+      box-shadow: 0 0 12px rgba(200, 168, 130, 0.3);
+    }
+
+    .timeline-phase {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--primary);
+      margin-bottom: 0.35rem;
+    }
+
+    .timeline-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+    }
+
+    .timeline-desc {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      margin-bottom: 0.6rem;
+    }
+
+    .timeline-gate {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--primary);
+      background: var(--primary-dim);
+      padding: 0.2rem 0.65rem;
+      border-radius: 4px;
+      border: 1px solid rgba(200, 168, 130, 0.15);
+    }
+
+    /* ─── Principles ─── */
+    .principles-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+
+    .principle-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      padding: 1.25rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      transition: border-color 0.2s;
+    }
+
+    .principle-item:hover { border-color: var(--border-hover); }
+
+    .principle-num {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--primary);
+      line-height: 1;
+      min-width: 2rem;
+      opacity: 0.6;
+    }
+
+    .principle-text h4 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 0.2rem;
+    }
+
+    .principle-text p {
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+    }
+
+    /* ─── Failure Protocol ─── */
+    .failure-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .failure-table th {
+      text-align: left;
+      padding: 1rem 1.25rem;
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      background: rgba(255,255,255,0.02);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .failure-table td {
+      padding: 1rem 1.25rem;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .failure-table tr:last-child td { border-bottom: none; }
+
+    .failure-class {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      display: inline-block;
+    }
+
+    .failure-class.transient { background: rgba(52, 211, 153, 0.1); color: var(--success); }
+    .failure-class.quality { background: rgba(200, 168, 130, 0.1); color: var(--primary); }
+    .failure-class.user-action { background: rgba(192, 132, 252, 0.1); color: #c084fc; }
+    .failure-class.fatal { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+
+    /* ─── Footer ─── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 3rem 0;
+      text-align: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .footer-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.85rem;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover { color: var(--text); }
+
+    .footer-copy {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+
+    .footer-credits {
+      margin-top: 0.75rem;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .footer-credits a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+
+    /* ─── Responsive ─── */
+    @media (max-width: 900px) {
+      .pillars-grid { grid-template-columns: 1fr; }
+      .jail-layout { grid-template-columns: 1fr; }
+      .principles-grid { grid-template-columns: 1fr; }
+      .hero { padding: 4rem 0 3rem; }
+    }
+
+    @media (max-width: 640px) {
+      header { flex-direction: column; gap: 1rem; padding: 1rem 0; }
+      .failure-table { font-size: 0.82rem; }
+      .failure-table th, .failure-table td { padding: 0.75rem; }
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
     }
   </style>
 </head>
 <body>
 
-  <!-- Alerta de Atualização (Sticky) -->
-  <div id="updateAlert" class="update-alert-banner" style="display: none;">
-    <div class="update-alert-content">
-      <span class="badge-new">Novo</span>
-      <span id="updateAlertMsg">Uma nova versão do Harness está disponível!</span>
-      <a href="https://github.com/alexandre-henrique-rp/harnes-opencode/releases/latest" target="_blank" class="update-link" data-i18n="update_link">Baixar agora</a>
-      <button class="update-close-btn" onclick="closeUpdateAlert()">×</button>
+  <!-- Update Banner -->
+  <div id="updateBanner" class="update-banner">
+    <div class="update-banner-content">
+      <span class="update-badge">New</span>
+      <span id="updateMsg">Uma nova versao esta disponivel!</span>
+      <a href="https://github.com/alexandre-henrique-rp/harnes-opencode/releases/latest" target="_blank" data-i18n="update_link">Baixar agora</a>
+      <button class="update-banner-close" onclick="closeBanner()">&times;</button>
     </div>
   </div>
 
-  <!-- Menu do Cabeçalho -->
-  <header>
-    <div class="brand">
-      <img src="assets/logo-harness.png" alt="OpenCode Harness Logo" height="42" style="vertical-align: middle;">
-    </div>
-    
-    <!-- Idioma e GitHub -->
-    <div style="display: flex; align-items: center; gap: 1rem;">
-      <select id="langSelect" class="lang-select" onchange="changeLanguage(this.value)" aria-label="Selecione o Idioma / Select Language">
-        <option value="pt">Português</option>
-        <option value="en">English</option>
-      </select>
-
-      <a href="https://github.com/alexandre-henrique-rp/harnes-opencode" class="github-link" target="_blank">
-        <svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
-        </svg>
-        GitHub
+  <!-- Header -->
+  <div class="container">
+    <header>
+      <a href="#" class="brand">
+        <img src="assets/logo-harness.png" alt="Logo" height="36">
+        <span class="brand-text">OpenCode Agents v6</span>
       </a>
-    </div>
-  </header>
+      <div class="header-actions">
+        <select id="langSelect" class="lang-select" onchange="changeLanguage(this.value)">
+          <option value="pt">PT</option>
+          <option value="en">EN</option>
+        </select>
+        <a href="https://github.com/alexandre-henrique-rp/harnes-opencode" class="btn-header" target="_blank">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          GitHub
+        </a>
+      </div>
+    </header>
+  </div>
 
-  <!-- Hero Section -->
+  <!-- Hero -->
   <section class="hero">
-    <img src="assets/logo-harness.png" alt="OpenCode Harness Logo" width="340" class="hero-logo">
-    <div class="badge" data-i18n="badge">Versão 6.4.0 Lançada</div>
-    <h1 data-i18n="hero_title">Desenvolvimento Multi-Agente Declarativo de Alta Fidelidade</h1>
-    <p data-i18n="hero_desc">O harness estruturado para o OpenCode. 20 agentes especializados coordenados sob 6 fases rígidas baseadas em TDD, Smart Merge de segurança e auditoria total.</p>
-    
-    <!-- Painel de Instalação -->
-    <div class="terminal-container">
-      <div class="terminal-tabs">
-        <button class="tab-btn active" onclick="selectOS('curl')">curl</button>
-        <button class="tab-btn" onclick="selectOS('powershell')">powershell</button>
-        <button class="tab-btn" onclick="selectOS('macos')">macos</button>
+    <div class="container">
+      <img src="assets/logo-harness.png" alt="Logo" width="320" class="hero-logo">
+      <div class="version-badge">
+        <span class="version-dot"></span>
+        <span data-i18n="badge">Versao 6.4.1</span>
       </div>
-      <div class="terminal-body">
-        <div>
-          <span class="cmd-text" id="installCmd">curl -fsSL https://raw.githubusercontent.com/alexandre-henrique-rp/harnes-opencode/main/install.sh | bash</span>
+      <h1 data-i18n="hero_title">Desenvolvimento Multi-Agente de Alta Fidelidade</h1>
+      <p class="hero-subtitle" data-i18n="hero_desc">O harness estruturado para o OpenCode. 20 agentes especializados coordenados sob 6 fases rigidas baseadas em TDD, sandbox ai-jail e auditoria total.</p>
+
+      <div class="terminal">
+        <div class="terminal-bar">
+          <div class="terminal-dots"><span></span><span></span><span></span></div>
+          <div class="terminal-tabs">
+            <button class="tab-btn active" onclick="selectOS('curl')">curl</button>
+            <button class="tab-btn" onclick="selectOS('powershell')">powershell</button>
+            <button class="tab-btn" onclick="selectOS('macos')">macos</button>
+          </div>
         </div>
-        <button class="copy-btn" onclick="copyCommand()" title="Copiar Comando">
-          <svg id="copyIcon" height="18" width="18" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-          </svg>
-          <svg id="checkIcon" height="18" width="18" fill="currentColor" viewBox="0 0 16 16" style="display: none; color: #aa9684;">
-            <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425a.247.247 0 0 1 .02-.022z"/>
-          </svg>
-        </button>
+        <div class="terminal-body">
+          <span class="cmd-text" id="installCmd">curl -fsSL https://raw.githubusercontent.com/alexandre-henrique-rp/harnes-opencode/main/install.sh | bash</span>
+          <button class="copy-btn" onclick="copyCommand()" title="Copiar">
+            <svg id="copyIcon" width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+            <svg id="checkIcon" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="display:none;color:var(--primary)"><path d="M12.736 3.97a.733.733 0 011.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 01-1.065.02L3.217 8.384a.757.757 0 010-1.06.733.733 0 011.047 0l3.052 3.093 5.4-6.425a.247.247 0 01.02-.022z"/></svg>
+          </button>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- Diferenciais Principais -->
-  <section style="max-width: 1200px; margin: 0 auto;">
-    <h2 class="section-title" data-i18n="pillars_title">Pilares do Harness</h2>
-    <div class="features-grid">
-      <div class="card">
-        <div class="card-icon">🛡️</div>
-        <h3 data-i18n="pilar1_title">boundaries Rígidos</h3>
-        <p data-i18n="pilar1_desc">Modelo de segurança baseado em 3 camadas (tool whitelist, path boundary e capability grant). IAs não escrevem fora de seu escopo.</p>
+  <div class="divider"></div>
+
+  <!-- Pillars -->
+  <section>
+    <div class="container">
+      <div class="section-header">
+        <span class="section-label" data-i18n="pillars_label">Fundamentos</span>
+        <h2 class="section-title" data-i18n="pillars_title">Pilares do Harness</h2>
       </div>
-      <div class="card">
-        <div class="card-icon">🧪</div>
-        <h3 data-i18n="pilar2_title">TDD Obrigatório</h3>
-        <p data-i18n="pilar2_desc">Ciclo estrito de Red-Green-Refactor. Código de funcionalidade sem caso de teste falhando antes é bloqueado no portão de build.</p>
-      </div>
-      <div class="card">
-        <div class="card-icon">⚖️</div>
-        <h3 data-i18n="pilar3_title">Auditoria LGPD/DPO</h3>
-        <p data-i18n="pilar3_desc">Um agente DPO dedicado que inspeciona de forma autônoma a infraestrutura de dados e a arquitetura contra vazamento de dados pessoais.</p>
+      <div class="pillars-grid">
+        <div class="pillar-card">
+          <div class="pillar-icon">&#x1f6e1;</div>
+          <h3 data-i18n="pilar1_title">Boundaries Rigidos</h3>
+          <p data-i18n="pilar1_desc">Modelo de seguranca em 3 camadas: tool whitelist, path boundary por agente e capability grant. IAs nao escrevem fora do seu escopo.</p>
+        </div>
+        <div class="pillar-card">
+          <div class="pillar-icon">&#x1f9ea;</div>
+          <h3 data-i18n="pilar2_title">TDD Obrigatorio</h3>
+          <p data-i18n="pilar2_desc">Ciclo estrito de Red-Green-Refactor. Codigo sem caso de teste falhando antes e bloqueado no gate de build.</p>
+        </div>
+        <div class="pillar-card">
+          <div class="pillar-icon">&#x2696;</div>
+          <h3 data-i18n="pilar3_title">Auditoria LGPD/DPO</h3>
+          <p data-i18n="pilar3_desc">Agente DPO dedicado que inspeciona autonomamente infraestrutura de dados e arquitetura contra vazamento de dados pessoais.</p>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- Ciclo de 6 Fases -->
-  <section class="timeline-container">
-    <h2 class="section-title" data-i18n="workflow_title">O Workflow de 6 Fases</h2>
-    <div class="timeline">
-      <div class="timeline-item">
-        <div class="timeline-phase">Fase 0</div>
-        <h3 class="timeline-title-item" data-i18n="fase0_title">Briefing e Definição</h3>
-        <p class="timeline-desc" data-i18n="fase0_desc">O agente briefing analisa o escopo do software proposto, mapeia funcionalidades e solicita a aprovação explícita do desenvolvedor humano.</p>
-        <span class="timeline-gate" data-i18n="gate0">Aprovação Manual do Usuário</span>
+  <div class="divider"></div>
+
+  <!-- AI-Jail -->
+  <section class="jail-section">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-label">Seguranca</span>
+        <h2 class="section-title">Sandbox ai-jail</h2>
+        <p class="section-desc" data-i18n="jail_desc">Execucao isolada em nivel de kernel para proteger o sistema host durante a execucao de agentes.</p>
       </div>
-      <div class="timeline-item">
-        <div class="timeline-phase">Fase 1</div>
-        <h3 class="timeline-title-item" data-i18n="fase1_title">Documentação e RAG</h3>
-        <p class="timeline-desc" data-i18n="fase1_desc">Construção do mapa de contexto do projeto e catalogação de RAGs locais e documentações. Criação do arquivo central de atalhos AGENTS.md.</p>
-        <span class="timeline-gate" data-i18n="gate1">Presença de ≥3 Docs Relevantes</span>
-      </div>
-      <div class="timeline-item">
-        <div class="timeline-phase">Fase 2</div>
-        <h3 class="timeline-title-item" data-i18n="fase2_title">Requisitos Técnicos</h3>
-        <p class="timeline-desc" data-i18n="fase2_desc">Elaboração do PRD (Requisitos de Produto) e da SPEC técnica (Especificação de Código) com auditoria de agentes de revisão adicionais.</p>
-        <span class="timeline-gate" data-i18n="gate2">Score de PRD ≥ 80 e SPEC ≥ 85</span>
-      </div>
-      <div class="timeline-item">
-        <div class="timeline-phase">Fase 3</div>
-        <h3 class="timeline-title-item" data-i18n="fase3_title">Design e Componentização</h3>
-        <p class="timeline-desc" data-i18n="fase3_desc">Mapeamento de telas, layouts e designs de UI. Integração com as 14 novas skills do Google Stitch para geração rápida de interfaces.</p>
-        <span class="timeline-gate" data-i18n="gate3">Pontuação Estética ≥ 70</span>
-      </div>
-      <div class="timeline-item">
-        <div class="timeline-phase">Fase 4</div>
-        <h3 class="timeline-title-item" data-i18n="fase4_title">Planejamento de Sprints</h3>
-        <p class="timeline-desc" data-i18n="fase4_desc">Decomposição das especificações em tarefas gerenciáveis de Sprints. Cobertura de 100% dos requisitos de código da especificação.</p>
-        <span class="timeline-gate" data-i18n="gate4">Mapeamento de 100% dos Itens da SPEC</span>
-      </div>
-      <div class="timeline-item">
-        <div class="timeline-phase">Fase 5</div>
-        <h3 class="timeline-title-item" data-i18n="fase5_title">Build + Quality</h3>
-        <p class="timeline-desc" data-i18n="fase5_desc">Codificação paralela de Backend/Frontend, criação e execução de testes TDD, varreduras automatizadas de segurança e DPO/LGPD.</p>
-        <span class="timeline-gate" data-i18n="gate5">Cobertura de Testes ≥ 85% & 0 Falhas Graves</span>
+      <div class="jail-layout">
+        <div class="jail-info">
+          <h3 data-i18n="jail_title">Protecao Nativa do Sistema</h3>
+          <p data-i18n="jail_p1">O harness utiliza o <strong>ai-jail</strong> para isolar a execucao dos agentes usando bubblewrap (Linux) ou sandbox-exec (macOS). Comandos perigosos sao bloqueados automaticamente.</p>
+          <ul class="jail-features">
+            <li data-i18n="jail_f1">Bloqueio de comandos destrutivos (rm -rf /, fork bombs)</li>
+            <li data-i18n="jail_f2">Mascaramento de arquivos sensiveis (.env, credentials)</li>
+            <li data-i18n="jail_f3">Ocultacao de diretorios privados (.netrc, .kube)</li>
+            <li data-i18n="jail_f4">Acesso preservado a config do opencode (agents, commands)</li>
+            <li data-i18n="jail_f5">Configuracao customizavel por projeto via .harness/ai-jail.json</li>
+          </ul>
+          <a href="https://akitaonrails.com/2026/05/24/dicas-e-toolkit-de-ia-do-akita-ai-jail-ai-memory-ai-usagebar/" class="jail-credit" target="_blank">
+            <span>Criado por <strong>Fabio Akita</strong> (@akitaonrails)</span>
+            <span>&rarr;</span>
+          </a>
+        </div>
+        <div class="jail-config">
+          <div class="jail-config-header">
+            <span>.harness/ai-jail.json</span>
+          </div>
+          <div class="jail-config-body">
+<span class="comment">// Configuracao do sandbox por projeto</span>
+{
+  <span class="key">"rw_maps"</span>: [
+    <span class="str">"~/.opencode"</span>,
+    <span class="str">"~/.config/opencode"</span>
+  ],
+  <span class="key">"mask"</span>: [
+    <span class="str">".env"</span>,
+    <span class="str">"credentials.json"</span>
+  ],
+  <span class="key">"hide_dotdirs"</span>: [<span class="str">".netrc"</span>, <span class="str">".kube"</span>],
+  <span class="key">"no_docker"</span>: <span class="bool">true</span>,
+  <span class="key">"no_private_home"</span>: <span class="bool">true</span>
+}
+          </div>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- Rodapé -->
+  <div class="divider"></div>
+
+  <!-- Workflow -->
+  <section>
+    <div class="container">
+      <div class="section-header">
+        <span class="section-label" data-i18n="workflow_label">Workflow</span>
+        <h2 class="section-title" data-i18n="workflow_title">6 Fases Controladas</h2>
+        <p class="section-desc" data-i18n="workflow_desc">Cada fase possui um gate binario que precisa ser aprovado para avancar.</p>
+      </div>
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="timeline-phase">Fase 0</div>
+          <h3 class="timeline-title" data-i18n="fase0_title">Briefing e Definicao</h3>
+          <p class="timeline-desc" data-i18n="fase0_desc">Analise do escopo, mapeamento de funcionalidades e aprovacao do desenvolvedor.</p>
+          <span class="timeline-gate" data-i18n="gate0">Aprovacao Manual</span>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-phase">Fase 1</div>
+          <h3 class="timeline-title" data-i18n="fase1_title">Documentacao e RAG</h3>
+          <p class="timeline-desc" data-i18n="fase1_desc">Construcao do mapa de contexto e catalogacao de documentacoes do projeto.</p>
+          <span class="timeline-gate" data-i18n="gate1">&ge;3 Docs Relevantes</span>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-phase">Fase 2</div>
+          <h3 class="timeline-title" data-i18n="fase2_title">Requisitos Tecnicos</h3>
+          <p class="timeline-desc" data-i18n="fase2_desc">Elaboracao do PRD e SPEC tecnica com auditoria de revisores.</p>
+          <span class="timeline-gate" data-i18n="gate2">PRD &ge; 80 &amp; SPEC &ge; 85</span>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-phase">Fase 3</div>
+          <h3 class="timeline-title" data-i18n="fase3_title">Design e Componentizacao</h3>
+          <p class="timeline-desc" data-i18n="fase3_desc">Mapeamento de telas e integracao com Google Stitch para geracao de interfaces.</p>
+          <span class="timeline-gate" data-i18n="gate3">Score Estetico &ge; 70</span>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-phase">Fase 4</div>
+          <h3 class="timeline-title" data-i18n="fase4_title">Planejamento de Sprints</h3>
+          <p class="timeline-desc" data-i18n="fase4_desc">Decomposicao em tarefas gerenciaveis com 100% de cobertura da SPEC.</p>
+          <span class="timeline-gate" data-i18n="gate4">100% Cobertura SPEC</span>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-phase">Fase 5</div>
+          <h3 class="timeline-title" data-i18n="fase5_title">Build + Quality</h3>
+          <p class="timeline-desc" data-i18n="fase5_desc">Codificacao, testes TDD, varreduras de seguranca e conformidade LGPD.</p>
+          <span class="timeline-gate" data-i18n="gate5">Testes &ge; 85% &amp; 0 Falhas</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- Principles -->
+  <section>
+    <div class="container">
+      <div class="section-header">
+        <span class="section-label" data-i18n="principles_label">Regras</span>
+        <h2 class="section-title" data-i18n="principles_title">Principios Nao-Negociaveis</h2>
+      </div>
+      <div class="principles-grid">
+        <div class="principle-item">
+          <span class="principle-num">01</span>
+          <div class="principle-text">
+            <h4 data-i18n="p1_title">Single Responsibility</h4>
+            <p data-i18n="p1_desc">Cada agente resolve apenas um problema delimitado.</p>
+          </div>
+        </div>
+        <div class="principle-item">
+          <span class="principle-num">02</span>
+          <div class="principle-text">
+            <h4 data-i18n="p2_title">Defense in Depth</h4>
+            <p data-i18n="p2_desc">3 camadas de permissao protegem a execucao de comandos e arquivos.</p>
+          </div>
+        </div>
+        <div class="principle-item">
+          <span class="principle-num">03</span>
+          <div class="principle-text">
+            <h4 data-i18n="p3_title">Declarative State</h4>
+            <p data-i18n="p3_desc">Maquina de estados e fluxo declarados em contratos JSON auditaveis.</p>
+          </div>
+        </div>
+        <div class="principle-item">
+          <span class="principle-num">04</span>
+          <div class="principle-text">
+            <h4 data-i18n="p4_title">Lean Context</h4>
+            <p data-i18n="p4_desc">RAGs locais crescem organicamente sem inflar o contexto de prompt.</p>
+          </div>
+        </div>
+        <div class="principle-item">
+          <span class="principle-num">05</span>
+          <div class="principle-text">
+            <h4 data-i18n="p5_title">Audit Total</h4>
+            <p data-i18n="p5_desc">Toda chamada de ferramenta e gravada em logs append-only.</p>
+          </div>
+        </div>
+        <div class="principle-item">
+          <span class="principle-num">06</span>
+          <div class="principle-text">
+            <h4 data-i18n="p6_title">TDD Obrigatorio</h4>
+            <p data-i18n="p6_desc">Codigo sem teste automatizado correspondente e bloqueado.</p>
+          </div>
+        </div>
+        <div class="principle-item">
+          <span class="principle-num">07</span>
+          <div class="principle-text">
+            <h4 data-i18n="p7_title">API Docs Estrita</h4>
+            <p data-i18n="p7_desc">Funcoes publicas devem conter JSDoc/docstring com @param e @returns.</p>
+          </div>
+        </div>
+        <div class="principle-item">
+          <span class="principle-num">08</span>
+          <div class="principle-text">
+            <h4 data-i18n="p8_title">Simplicidade (YAGNI/KISS)</h4>
+            <p data-i18n="p8_desc">Abstracoes so a partir da terceira repeticao do mesmo padrao.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- Failure Protocol -->
+  <section>
+    <div class="container">
+      <div class="section-header">
+        <span class="section-label" data-i18n="failure_label">Resiliencia</span>
+        <h2 class="section-title" data-i18n="failure_title">Protocolo de Falhas</h2>
+      </div>
+      <table class="failure-table">
+        <thead>
+          <tr>
+            <th data-i18n="th_class">Classe</th>
+            <th data-i18n="th_trigger">Gatilho</th>
+            <th data-i18n="th_action">Acao Corretiva</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="failure-class transient">transient</span></td>
+            <td data-i18n="fail_transient_trigger">Erro de rede, API fora do ar</td>
+            <td data-i18n="fail_transient_action">Auto-retry 3x com backoff (1s, 3s, 9s)</td>
+          </tr>
+          <tr>
+            <td><span class="failure-class quality">quality</span></td>
+            <td data-i18n="fail_quality_trigger">Score abaixo do limite</td>
+            <td data-i18n="fail_quality_action">Rework automatizado (limite 2x)</td>
+          </tr>
+          <tr>
+            <td><span class="failure-class user-action">user-action</span></td>
+            <td data-i18n="fail_user_trigger">Permissao ou ambiguidade</td>
+            <td data-i18n="fail_user_action">Pausa e escalacao para o usuario</td>
+          </tr>
+          <tr>
+            <td><span class="failure-class fatal">fatal</span></td>
+            <td data-i18n="fail_fatal_trigger">Erro de compilacao ou JSON corrompido</td>
+            <td data-i18n="fail_fatal_action">Halt imediato, correcao manual</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Footer -->
   <footer>
-    <p data-i18n="footer">© 2026 OpenCode Agents v6. Desenvolvido para a CLI oficial do OpenCode. Licença MIT.</p>
+    <div class="container">
+      <div class="footer-links">
+        <a href="https://github.com/alexandre-henrique-rp/harnes-opencode" target="_blank" data-i18n="footer_github">GitHub</a>
+        <a href="https://github.com/alexandre-henrique-rp/harnes-opencode/blob/main/CONTRIBUTING.md" target="_blank" data-i18n="footer_contrib">Contribuir</a>
+        <a href="https://github.com/alexandre-henrique-rp/harnes-opencode/blob/main/LICENSE" target="_blank" data-i18n="footer_license">Licenca MIT</a>
+        <a href="https://akitaonrails.com/2026/05/24/dicas-e-toolkit-de-ia-do-akita-ai-jail-ai-memory-ai-usagebar/" target="_blank" data-i18n="footer_jail">ai-jail by Akita</a>
+      </div>
+      <p class="footer-copy">&copy; 2026 OpenCode Agents v6.</p>
+      <p class="footer-credits">Sandbox ai-jail por <a href="https://github.com/akitaonrails" target="_blank">Fabio Akita</a> &middot; Runtime por <a href="https://opencode.ai" target="_blank">OpenCode</a></p>
+    </div>
   </footer>
 
-  <!-- Lógica de Cópia e Idioma -->
   <script>
-    // Dicionário de Traduções
     const translations = {
       pt: {
-        title: "OpenCode Agents v6 — O Harness Multi-Agente Declarativo e Auditável",
-        badge: "Versão 6.4.0 Lançada",
-        hero_title: "Desenvolvimento Multi-Agente Declarativo de Alta Fidelidade",
-        hero_desc: "O harness estruturado para o OpenCode. 20 agentes especializados coordenados sob 6 fases rígidas baseadas em TDD, Smart Merge de segurança e auditoria total.",
+        badge: "Versao 6.4.1",
+        hero_title: "Desenvolvimento Multi-Agente de Alta Fidelidade",
+        hero_desc: "O harness estruturado para o OpenCode. 20 agentes especializados coordenados sob 6 fases rigidas baseadas em TDD, sandbox ai-jail e auditoria total.",
         update_link: "Baixar agora",
+        pillars_label: "Fundamentos",
         pillars_title: "Pilares do Harness",
-        pilar1_title: "boundaries Rígidos",
-        pilar1_desc: "Modelo de segurança baseado em 3 camadas (tool whitelist, path boundary e capability grant). IAs não escrevem fora de seu escopo.",
-        pilar2_title: "TDD Obrigatório",
-        pilar2_desc: "Ciclo estrito de Red-Green-Refactor. Código de funcionalidade sem caso de teste falhando antes é bloqueado no portão de build.",
+        pilar1_title: "Boundaries Rigidos",
+        pilar1_desc: "Modelo de seguranca em 3 camadas: tool whitelist, path boundary por agente e capability grant. IAs nao escrevem fora do seu escopo.",
+        pilar2_title: "TDD Obrigatorio",
+        pilar2_desc: "Ciclo estrito de Red-Green-Refactor. Codigo sem caso de teste falhando antes e bloqueado no gate de build.",
         pilar3_title: "Auditoria LGPD/DPO",
-        pilar3_desc: "Um agente DPO dedicado que inspeciona de forma autônoma a infraestrutura de dados e a arquitetura contra vazamento de dados pessoais.",
-        workflow_title: "O Workflow de 6 Fases",
-        fase0_title: "Briefing e Definição",
-        fase0_desc: "O agente briefing analisa o escopo do software proposto, mapeia funcionalidades e solicita a aprovação explícita do desenvolvedor humano.",
-        gate0: "Aprovação Manual do Usuário",
-        fase1_title: "Documentação e RAG",
-        fase1_desc: "Construção do mapa de contexto do projeto e catalogação de RAGs locais e documentações. Criação do arquivo central de atalhos AGENTS.md.",
-        gate1: "Presença de ≥3 Docs Relevantes",
-        fase2_title: "Requisitos Técnicos",
-        fase2_desc: "Elaboração do PRD (Requisitos de Produto) e da SPEC técnica (Especificação de Código) com auditoria de agentes de revisão adicionais.",
-        gate2: "Score de PRD ≥ 80 e SPEC ≥ 85",
-        fase3_title: "Design e Componentização",
-        fase3_desc: "Mapeamento de telas, layouts e designs de UI. Integração com as 14 novas skills do Google Stitch para geração rápida de interfaces.",
-        gate3: "Pontuação Estética ≥ 70",
+        pilar3_desc: "Agente DPO dedicado que inspeciona autonomamente infraestrutura de dados e arquitetura contra vazamento de dados pessoais.",
+        jail_desc: "Execucao isolada em nivel de kernel para proteger o sistema host durante a execucao de agentes.",
+        jail_title: "Protecao Nativa do Sistema",
+        jail_p1: "O harness utiliza o <strong>ai-jail</strong> para isolar a execucao dos agentes usando bubblewrap (Linux) ou sandbox-exec (macOS). Comandos perigosos sao bloqueados automaticamente.",
+        jail_f1: "Bloqueio de comandos destrutivos (rm -rf /, fork bombs)",
+        jail_f2: "Mascaramento de arquivos sensiveis (.env, credentials)",
+        jail_f3: "Ocultacao de diretorios privados (.netrc, .kube)",
+        jail_f4: "Acesso preservado a config do opencode (agents, commands)",
+        jail_f5: "Configuracao customizavel por projeto via .harness/ai-jail.json",
+        workflow_label: "Workflow",
+        workflow_title: "6 Fases Controladas",
+        workflow_desc: "Cada fase possui um gate binario que precisa ser aprovado para avancar.",
+        fase0_title: "Briefing e Definicao",
+        fase0_desc: "Analise do escopo, mapeamento de funcionalidades e aprovacao do desenvolvedor.",
+        gate0: "Aprovacao Manual",
+        fase1_title: "Documentacao e RAG",
+        fase1_desc: "Construcao do mapa de contexto e catalogacao de documentacoes do projeto.",
+        gate1: "\u22653 Docs Relevantes",
+        fase2_title: "Requisitos Tecnicos",
+        fase2_desc: "Elaboracao do PRD e SPEC tecnica com auditoria de revisores.",
+        gate2: "PRD \u2265 80 & SPEC \u2265 85",
+        fase3_title: "Design e Componentizacao",
+        fase3_desc: "Mapeamento de telas e integracao com Google Stitch para geracao de interfaces.",
+        gate3: "Score Estetico \u2265 70",
         fase4_title: "Planejamento de Sprints",
-        fase4_desc: "Decomposição das especificações em tarefas gerenciáveis de Sprints. Cobertura de 100% dos requisitos de código da especificação.",
-        gate4: "Mapeamento de 100% dos Itens da SPEC",
+        fase4_desc: "Decomposicao em tarefas gerenciaveis com 100% de cobertura da SPEC.",
+        gate4: "100% Cobertura SPEC",
         fase5_title: "Build + Quality",
-        fase5_desc: "Codificação paralela de Backend/Frontend, criação e execução de testes TDD, varreduras automatizadas de segurança e DPO/LGPD.",
-        gate5: "Cobertura de Testes ≥ 85% & 0 Falhas Graves",
-        footer: "© 2026 OpenCode Agents v6. Desenvolvido para a CLI oficial do OpenCode. Licença MIT."
+        fase5_desc: "Codificacao, testes TDD, varreduras de seguranca e conformidade LGPD.",
+        gate5: "Testes \u2265 85% & 0 Falhas",
+        principles_label: "Regras",
+        principles_title: "Principios Nao-Negociaveis",
+        p1_title: "Single Responsibility",
+        p1_desc: "Cada agente resolve apenas um problema delimitado.",
+        p2_title: "Defense in Depth",
+        p2_desc: "3 camadas de permissao protegem a execucao de comandos e arquivos.",
+        p3_title: "Declarative State",
+        p3_desc: "Maquina de estados e fluxo declarados em contratos JSON auditaveis.",
+        p4_title: "Lean Context",
+        p4_desc: "RAGs locais crescem organicamente sem inflar o contexto de prompt.",
+        p5_title: "Audit Total",
+        p5_desc: "Toda chamada de ferramenta e gravada em logs append-only.",
+        p6_title: "TDD Obrigatorio",
+        p6_desc: "Codigo sem teste automatizado correspondente e bloqueado.",
+        p7_title: "API Docs Estrita",
+        p7_desc: "Funcoes publicas devem conter JSDoc/docstring com @param e @returns.",
+        p8_title: "Simplicidade (YAGNI/KISS)",
+        p8_desc: "Abstracoes so a partir da terceira repeticao do mesmo padrao.",
+        failure_label: "Resiliencia",
+        failure_title: "Protocolo de Falhas",
+        th_class: "Classe",
+        th_trigger: "Gatilho",
+        th_action: "Acao Corretiva",
+        fail_transient_trigger: "Erro de rede, API fora do ar",
+        fail_transient_action: "Auto-retry 3x com backoff (1s, 3s, 9s)",
+        fail_quality_trigger: "Score abaixo do limite",
+        fail_quality_action: "Rework automatizado (limite 2x)",
+        fail_user_trigger: "Permissao ou ambiguidade",
+        fail_user_action: "Pausa e escalacao para o usuario",
+        fail_fatal_trigger: "Erro de compilacao ou JSON corrompido",
+        fail_fatal_action: "Halt imediato, correcao manual",
+        footer_github: "GitHub",
+        footer_contrib: "Contribuir",
+        footer_license: "Licenca MIT",
+        footer_jail: "ai-jail by Akita"
       },
       en: {
-        title: "OpenCode Agents v6 — The Declarative & Auditable Multi-Agent Harness",
-        badge: "Version 6.4.0 Released",
-        hero_title: "High-Fidelity Declarative Multi-Agent Development",
-        hero_desc: "The structured workflow harness for OpenCode. 20 specialized agents coordinated across 6 rigid phases based on TDD, security Smart Merge, and total audit log.",
+        badge: "Version 6.4.1",
+        hero_title: "High-Fidelity Multi-Agent Development",
+        hero_desc: "The structured workflow harness for OpenCode. 20 specialized agents coordinated across 6 rigid phases based on TDD, ai-jail sandbox, and total audit.",
         update_link: "Download now",
+        pillars_label: "Foundations",
         pillars_title: "Harness Pillars",
         pilar1_title: "Hard Boundaries",
-        pilar1_desc: "Security model based on 3 layers (tool whitelist, path boundary, and capability grant). AIs never write outside their boundaries.",
+        pilar1_desc: "Security model in 3 layers: tool whitelist, path boundary per agent, and capability grant. AIs never write outside their scope.",
         pilar2_title: "Mandatory TDD",
-        pilar2_desc: "Strict Red-Green-Refactor cycle. Feature code without a failing test case is blocked at the build gate.",
+        pilar2_desc: "Strict Red-Green-Refactor cycle. Feature code without a failing test is blocked at the build gate.",
         pilar3_title: "LGPD/DPO Audits",
-        pilar3_desc: "A dedicated DPO agent that autonomously inspects data infrastructure and database architecture against leaks of personal data.",
-        workflow_title: "The 6-Phase Workflow",
+        pilar3_desc: "Dedicated DPO agent that autonomously inspects data infrastructure and architecture against personal data leaks.",
+        jail_desc: "Kernel-level isolated execution to protect the host system during agent execution.",
+        jail_title: "Native System Protection",
+        jail_p1: "The harness uses <strong>ai-jail</strong> to isolate agent execution using bubblewrap (Linux) or sandbox-exec (macOS). Dangerous commands are automatically blocked.",
+        jail_f1: "Destructive command blocking (rm -rf /, fork bombs)",
+        jail_f2: "Sensitive file masking (.env, credentials)",
+        jail_f3: "Private directory hiding (.netrc, .kube)",
+        jail_f4: "Preserved access to opencode config (agents, commands)",
+        jail_f5: "Per-project configuration via .harness/ai-jail.json",
+        workflow_label: "Workflow",
+        workflow_title: "6 Controlled Phases",
+        workflow_desc: "Each phase has a binary gate that must be approved to advance.",
         fase0_title: "Briefing and Definition",
-        fase0_desc: "The briefing agent analyzes the scope of the proposed software, maps features, and requests explicit approval from the human developer.",
-        gate0: "Manual User Approval",
+        fase0_desc: "Scope analysis, feature mapping, and developer approval.",
+        gate0: "Manual Approval",
         fase1_title: "Documentation and RAG",
-        fase1_desc: "Context map creation and cataloging of local RAGs and documentations. Generation of the central AGENTS.md shortcut file.",
-        gate1: "Presence of ≥3 Relevant Docs",
+        fase1_desc: "Context map building and project documentation cataloging.",
+        gate1: "\u22653 Relevant Docs",
         fase2_title: "Technical Requirements",
-        fase2_desc: "Drafting the PRD (Product Requirements) and the technical SPEC (Code Specification) with additional reviewer agent audits.",
-        gate2: "PRD Score ≥ 80 & SPEC ≥ 85",
+        fase2_desc: "PRD and technical SPEC drafting with reviewer audits.",
+        gate2: "PRD \u2265 80 & SPEC \u2265 85",
         fase3_title: "Design and Components",
-        fase3_desc: "Mapping screens, layouts, and UI designs. Integration with 14 new Google Stitch skills for rapid interface generation.",
-        gate3: "Aesthetic Score ≥ 70",
+        fase3_desc: "Screen mapping and Google Stitch integration for interface generation.",
+        gate3: "Aesthetic Score \u2265 70",
         fase4_title: "Sprint Planning",
-        fase4_desc: "Decomposition of specifications into manageable sprint tasks. Mapped with 100% coverage of SPEC technical requirements.",
-        gate4: "100% SPEC Coverage Mapping",
-        fase5_title: "Build & Quality",
-        fase5_desc: "Parallel Backend/Frontend coding, creation and execution of TDD tests, automated security scans, and DPO/LGPD compliance.",
-        gate5: "Test Coverage ≥ 85% & 0 Severe Flaws",
-        footer: "© 2026 OpenCode Agents v6. Developed for the official OpenCode CLI. MIT License."
+        fase4_desc: "Decomposition into manageable tasks with 100% SPEC coverage.",
+        gate4: "100% SPEC Coverage",
+        fase5_title: "Build + Quality",
+        fase5_desc: "Coding, TDD tests, security scans, and LGPD compliance.",
+        gate5: "Tests \u2265 85% & 0 Failures",
+        principles_label: "Rules",
+        principles_title: "Non-Negotiable Principles",
+        p1_title: "Single Responsibility",
+        p1_desc: "Each agent solves only one bounded problem.",
+        p2_title: "Defense in Depth",
+        p2_desc: "3 permission layers protect command and file execution.",
+        p3_title: "Declarative State",
+        p3_desc: "State machine and flow declared in auditable JSON contracts.",
+        p4_title: "Lean Context",
+        p4_desc: "Local RAGs grow organically without inflating prompt context.",
+        p5_title: "Total Audit",
+        p5_desc: "Every tool call is logged in append-only logs.",
+        p6_title: "Mandatory TDD",
+        p6_desc: "Code without a corresponding automated test is blocked.",
+        p7_title: "Strict API Docs",
+        p7_desc: "Public functions must have JSDoc/docstring with @param and @returns.",
+        p8_title: "Simplicity (YAGNI/KISS)",
+        p8_desc: "Abstractions only from the third repetition of the same pattern.",
+        failure_label: "Resilience",
+        failure_title: "Failure Protocol",
+        th_class: "Class",
+        th_trigger: "Trigger",
+        th_action: "Corrective Action",
+        fail_transient_trigger: "Network error, API down",
+        fail_transient_action: "Auto-retry 3x with backoff (1s, 3s, 9s)",
+        fail_quality_trigger: "Score below threshold",
+        fail_quality_action: "Automated rework (limit 2x)",
+        fail_user_trigger: "Permission or ambiguity",
+        fail_user_action: "Pause and escalation to user",
+        fail_fatal_trigger: "Compilation error or corrupted JSON",
+        fail_fatal_action: "Immediate halt, manual fix",
+        footer_github: "GitHub",
+        footer_contrib: "Contribute",
+        footer_license: "MIT License",
+        footer_jail: "ai-jail by Akita"
       }
     };
 
     function applyTranslations(lang) {
-      document.title = translations[lang].title;
-      
-      const elements = document.querySelectorAll('[data-i18n]');
-      elements.forEach(el => {
+      document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
-        if (translations[lang][key]) {
-          el.innerText = translations[lang][key];
-        }
+        if (translations[lang][key]) el.innerHTML = translations[lang][key];
       });
-      
       document.getElementById('langSelect').value = lang;
     }
 
     function initLanguage() {
       let lang = localStorage.getItem('harness-lang');
-      
       if (!lang) {
         const userLang = navigator.language || navigator.userLanguage;
-        if (userLang && userLang.toLowerCase().startsWith('pt')) {
-          lang = 'pt';
-        } else {
-          lang = 'en';
-        }
+        lang = (userLang && userLang.toLowerCase().startsWith('pt')) ? 'pt' : 'en';
       }
-      
       applyTranslations(lang);
     }
 
@@ -839,7 +1320,6 @@
       applyTranslations(lang);
     }
 
-    // Comandos de instalação por OS
     const commands = {
       curl: "curl -fsSL https://raw.githubusercontent.com/alexandre-henrique-rp/harnes-opencode/main/install.sh | bash",
       powershell: "bash -c \"curl -fsSL https://raw.githubusercontent.com/alexandre-henrique-rp/harnes-opencode/main/install.sh | bash\"",
@@ -847,87 +1327,58 @@
     };
 
     function selectOS(os) {
-      // Atualiza os botões das abas
-      const tabs = document.querySelectorAll('.tab-btn');
-      tabs.forEach(tab => {
-        if (tab.getAttribute('onclick').includes(os)) {
-          tab.classList.add('active');
-        } else {
-          tab.classList.remove('active');
-        }
+      document.querySelectorAll('.tab-btn').forEach(tab => {
+        tab.classList.toggle('active', tab.getAttribute('onclick').includes(os));
       });
-
-      // Atualiza o comando
       document.getElementById('installCmd').innerText = commands[os];
     }
 
-    // Lógica do botão de Copiar
     function copyCommand() {
-      const cmdText = document.getElementById('installCmd').innerText;
-      
-      navigator.clipboard.writeText(cmdText).then(() => {
-        const copyIcon = document.getElementById('copyIcon');
-        const checkIcon = document.getElementById('checkIcon');
-        
-        copyIcon.style.display = 'none';
-        checkIcon.style.display = 'block';
-        
+      navigator.clipboard.writeText(document.getElementById('installCmd').innerText).then(() => {
+        document.getElementById('copyIcon').style.display = 'none';
+        document.getElementById('checkIcon').style.display = 'block';
         setTimeout(() => {
-          copyIcon.style.display = 'block';
-          checkIcon.style.display = 'none';
+          document.getElementById('copyIcon').style.display = 'block';
+          document.getElementById('checkIcon').style.display = 'none';
         }, 2000);
-      }).catch(err => {
-        console.error('Falha ao copiar comando: ', err);
       });
     }
 
-    // Verificação Dinâmica de Release no GitHub
-    const CURRENT_VERSION = "6.4.0";
+    const CURRENT_VERSION = "6.4.1";
 
     function checkForUpdates() {
       fetch("https://api.github.com/repos/alexandre-henrique-rp/harnes-opencode/releases/latest")
-        .then(response => {
-          if (!response.ok) return null;
-          return response.json();
-        })
+        .then(r => r.ok ? r.json() : null)
         .then(data => {
           if (!data || !data.tag_name) return;
-          
-          const latestVersion = data.tag_name.replace(/^v/, "");
-          
-          if (isVersionGreater(latestVersion, CURRENT_VERSION)) {
-            const msgPt = `Uma nova versão está disponível! v${latestVersion} (Você está rodando a v${CURRENT_VERSION}).`;
-            const msgEn = `A new version is available! v${latestVersion} (You are running v${CURRENT_VERSION}).`;
-            
+          const latest = data.tag_name.replace(/^v/, "");
+          if (isVersionGreater(latest, CURRENT_VERSION)) {
             const lang = localStorage.getItem('harness-lang') || 'pt';
-            document.getElementById('updateAlertMsg').innerText = lang === 'pt' ? msgPt : msgEn;
-            document.getElementById('updateAlert').style.display = 'block';
-            
-            // Margem no topo para não quebrar o layout do cabeçalho
-            document.body.style.paddingTop = "40px";
+            const msg = lang === 'pt'
+              ? `Nova versao disponivel! v${latest} (voce esta na v${CURRENT_VERSION}).`
+              : `New version available! v${latest} (you are on v${CURRENT_VERSION}).`;
+            document.getElementById('updateMsg').innerText = msg;
+            document.getElementById('updateBanner').classList.add('visible');
+            document.body.style.paddingTop = '40px';
           }
         })
-        .catch(err => console.error("Erro ao verificar atualizações:", err));
+        .catch(() => {});
     }
 
-    function isVersionGreater(latest, current) {
-      const parse = (v) => v.split('.').map(Number);
-      const [lMajor, lMinor, lPatch] = parse(latest);
-      const [cMajor, cMinor, cPatch] = parse(current);
-
-      if (lMajor > cMajor) return true;
-      if (lMajor < cMajor) return false;
-      if (lMinor > cMinor) return true;
-      if (lMinor < cMinor) return false;
-      return lPatch > cPatch;
+    function isVersionGreater(a, b) {
+      const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
+      for (let i = 0; i < 3; i++) {
+        if ((pa[i] || 0) > (pb[i] || 0)) return true;
+        if ((pa[i] || 0) < (pb[i] || 0)) return false;
+      }
+      return false;
     }
 
-    function closeUpdateAlert() {
-      document.getElementById('updateAlert').style.display = 'none';
-      document.body.style.paddingTop = "0";
+    function closeBanner() {
+      document.getElementById('updateBanner').classList.remove('visible');
+      document.body.style.paddingTop = '0';
     }
 
-    // Inicializa idioma e verifica atualizações no carregamento do DOM
     window.addEventListener('DOMContentLoaded', () => {
       initLanguage();
       checkForUpdates();

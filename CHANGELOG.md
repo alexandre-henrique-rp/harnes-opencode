@@ -5,6 +5,20 @@ All notable changes to OpenCode Agents v6 are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.4.1] - 2026-07-15
+
+### Fixed — ai-jail Sandbox Integration
+- **Wrapper do opencode (`install.sh`)**: Corrigido `--private-home` → `--no-private-home` para permitir acesso a `~/.config/opencode` (agents, commands) e `~/.opencode` (plugins) dentro do sandbox. Antes, o ai-jail isolava o home directory e bloqueava o acesso aos agents e funções do opencode.
+- **harness-workspace.ts**: Ferramenta agora lê `.harness/ai-jail.json` para gerar o `.ai-jail` dinamicamente, em vez de usar flags hardcoded.
+
+### Added — Configuração do ai-jail por Projeto
+- **`.harness/ai-jail.json`**: Novo arquivo de configuração do ai-jail por projeto. Permite customizar `rw_maps`, `ro_maps`, `hide_dotdirs`, `mask`, `no_docker` e `no_private_home` por projeto.
+- **Documentação ai-jail**: Seção completa no README explicando a integração, o criador (Fabio Akita) e como customizar o sandbox.
+
+### Changed
+- Wrapper do opencode usa `--no-private-home` para preservar acesso ao config do opencode.
+- Configuração do `.ai-jail` atualizada com `private_home = false`.
+
 ## [6.3.1] - 2026-06-24
 
 ### Fixed — Correções Críticas de Segurança & Sandboxing

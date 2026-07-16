@@ -101,6 +101,139 @@ install_bun_if_needed() {
     return 1
 }
 
+AI_JAIL_PINNED_VERSION="v1.4.3"
+
+install_ai_jail_if_needed() {
+    if command -v ai-jail >/dev/null 2>&1; then
+        log_ok "ai-jail $(ai-jail --version 2>/dev/null | head -n1) já instalado"
+        return 0
+    fi
+
+    [[ -t 0 || -c /dev/tty ]] || { log_warn "Sessão não-interativa, pulando instalação."; return 1; }
+
+    printf "\n${YELLOW}O ai-jail isola o agente em nível de kernel (bwrap/seatbelt).${NC}\n"
+    read -rp "Instalar agora? [Y/n] " resp < /dev/tty
+    [[ -z "$resp" || "$resp" =~ ^[Yy]$ ]] || return 1
+
+    # Canais oficiais primeiro (checksum e upgrade já resolvidos por eles)
+    if command -v mise >/dev/null 2>&1; then
+        mise use -g "github:akitaonrails/ai-jail@${AI_JAIL_PINNED_VERSION}" && return 0
+    fi
+    if command -v brew >/dev/null 2>&1; then
+        brew tap akitaonrails/tap && brew install ai-jail && return 0
+    fi
+    if command -v cargo >/dev/null 2>&1; then
+        cargo install ai-jail --version "${AI_JAIL_PINNED_VERSION#v}" && return 0
+    fi
+
+    # Fallback: download direto, com deteccao real de SO/arquitetura + checksum obrigatorio
+    local os_kind arch asset bin_dest="${HOME}/.local/bin"
+    os_kind="$(detect_os)"   # reaproveita a funcao ja existente no install.sh
+    arch="$(uname -m)"
+
+    case "$os_kind" in
+        linux|wsl)
+            if ! command -v bwrap >/dev/null 2>&1; then
+                log_warn "bubblewrap (bwrap) não encontrado. Instale via apt/pacman/dnf."
+                log_warn "Em Ubuntu 24.04+/Debian 13+, bwrap pode falhar com 'Permission denied'"
+                log_warn "por restrição de AppArmor a user namespaces — ver docs do ai-jail."
+            fi
+            asset="ai-jail-linux-x86_64.tar.gz" ;;
+        macos)
+            [[ "$arch" == "arm64" ]] && asset="ai-jail-macos-aarch64.tar.gz" \
+                || asset="ai-jail-macos-x86_64.tar.gz" ;;
+        windows-gitbash)
+            log_err "Windows nativo não é suportado pelo ai-jail (sem bwrap/seatbelt equivalente)."
+            log_err "Use WSL2: https://aka.ms/wsl2 — o checkpoint via git stash continua funcionando."
+            return 1 ;;
+        *) log_err "SO não suportado: $os_kind"; return 1 ;;
+    esac
+
+    mkdir -p "$bin_dest"
+    local base="https://github.com/akitaonrails/ai-jail/releases/download/${AI_JAIL_PINNED_VERSION}"
+
+    curl -fsSL "${base}/${asset}" -o "/tmp/${asset}" || { log_err "Falha no download"; return 1; }
+
+    # Checksum obrigatorio - aborta se nao disponivel, nunca instala sem verificar
+    if curl -fsSL "${base}/${asset}.sha256" -o "/tmp/${asset}.sha256" 2>/dev/null; then
+        (cd /tmp && sha256sum -c "${asset}.sha256") || {
+            log_err "Checksum inválido! Abortando instalação."
+            rm -f "/tmp/${asset}" "/tmp/${asset}.sha256"
+            return 1
+        }
+    else
+        log_err "Checksum não disponível para esta release. Abortando por segurança."
+        rm -f "/tmp/${asset}"
+        return 1
+    fi
+
+    tar -xzf "/tmp/${asset}" -C "$bin_dest"
+    rm -f "/tmp/${asset}" "/tmp/${asset}.sha256"
+    chmod +x "$bin_dest/ai-jail"
+    export PATH="$bin_dest:${PATH}"
+    log_ok "ai-jail ${AI_JAIL_PINNED_VERSION} instalado em $bin_dest/ai-jail!"
+}
+
+# Trecho do install.sh que instala o wrapper
+install_opencode_wrapper() {
+    local wrapper_dest="${HOME}/.local/bin/opencode"
+
+    # Resolve o binario REAL antes de qualquer coisa, seguindo symlinks
+    local real_bin
+    real_bin="$(command -v opencode 2>/dev/null || true)"
+    if [[ -z "$real_bin" ]]; then
+        log_warn "opencode não encontrado no PATH — wrapper não instalado."
+        return 1
+    fi
+    real_bin="$(readlink -f "$real_bin" 2>/dev/null || echo "$real_bin")"
+
+    # Nunca sobrescreve o proprio wrapper caso opencode ja resolva pra ele
+    if [[ "$real_bin" == "$wrapper_dest" ]]; then
+        log_info "Wrapper já instalado e ativo."
+        return 0
+    fi
+
+    mkdir -p "$(dirname "$wrapper_dest")"
+    cat > "$wrapper_dest" <<EOF
+#!/usr/bin/env bash
+# Gerado por harnes-opencode install.sh — NAO editar a mao.
+# Caminho do binario real resolvido em tempo de instalacao:
+REAL_OPENCODE_BIN="${real_bin}"
+
+if [[ ! -x "\$REAL_OPENCODE_BIN" ]]; then
+    echo "opencode real nao encontrado em \$REAL_OPENCODE_BIN (foi movido/reinstalado?)" >&2
+    exit 1
+fi
+
+# Evita nesting caso ja estejamos dentro de um sandbox ai-jail
+if [[ -n "\${AI_JAIL_ACTIVE:-}" ]]; then
+    exec "\$REAL_OPENCODE_BIN" "\$@"
+fi
+
+if ! command -v ai-jail >/dev/null 2>&1; then
+    exec "\$REAL_OPENCODE_BIN" "\$@"
+fi
+
+exec env AI_JAIL_ACTIVE=1 ai-jail --exec --no-private-home --no-docker \\
+    --hide-dotdir .netrc --hide-dotdir .kube \\
+    "\$REAL_OPENCODE_BIN" "\$@"
+EOF
+    chmod +x "$wrapper_dest"
+
+    # Verificacao pos-instalacao: garante que o PATH realmente aponta pro wrapper.
+    hash -r 2>/dev/null || true
+    local resolved
+    resolved="$(command -v opencode 2>/dev/null || true)"
+    if [[ "$resolved" != "$wrapper_dest" ]]; then
+        log_warn "AVISO: 'opencode' no seu PATH ainda resolve para: ${resolved:-<não encontrado>}"
+        log_warn "O wrapper sandboxed foi instalado em $wrapper_dest, mas não está tendo prioridade."
+        log_warn "Verifique a ordem do seu \$PATH (ex.: 'export PATH=\"\$HOME/.local/bin:\$PATH\"')."
+        return 1
+    fi
+    log_ok "Wrapper instalado e confirmado ativo em $wrapper_dest"
+}
+
+
 install_configured_mcps() {
     local dest="$1"
     local pm="$2"
@@ -575,16 +708,21 @@ EOF
 # Backup e copia
 # ============================================================================
 
-backup_path() {
-    local path="$1"
-    if [[ -e "$path" ]]; then
-        local backup="${path}.bak.$(date +%Y%m%d%H%M%S)"
-        if $DRY_RUN; then
-            log_info "  [DRY-RUN] backup: $path -> $backup"
-        else
-            cp -r "$path" "$backup"
-        fi
+consolidate_legacy_backups() {
+    local dest="$1"
+    local legacy_dir="$dest/backup/legacy"
+    
+    if ls "$dest"/*.bak.* >/dev/null 2>&1; then
+        log_info "Encontrados backups legados soltos. Consolidando em backup/legacy/..."
+        mkdir -p "$legacy_dir"
+        mv "$dest"/*.bak.* "$legacy_dir/" 2>/dev/null || true
+        log_ok "Backups legados consolidados com sucesso."
     fi
+}
+
+backup_path() {
+    # Redundância física removida. A reversibilidade agora é confiada de forma limpa ao Git.
+    return 0
 }
 
 copy_item() {
@@ -642,12 +780,10 @@ do_install() {
     
     if ! $DRY_RUN; then
         mkdir -p "$dest"
+        consolidate_legacy_backups "$dest"
+        setup_git_restore_point "$dest"
     else
         log_info "  [DRY-RUN] mkdir -p $dest"
-    fi
-
-    if ! $DRY_RUN; then
-        setup_git_restore_point "$dest"
     fi
 
     if has_existing_harness_files "$dest"; then
@@ -662,7 +798,10 @@ do_install() {
     copy_item "$src/templates" "$dest/templates" "templates/"
     copy_item "$src/tools" "$dest/tools" "tools/"
     copy_item "$src/plugins" "$dest/plugins" "plugins/"
-    copy_item "$src/examples" "$dest/examples" "examples/"
+    # Omitido em atualizações para cópia enxuta e portátil
+    if ! $UPDATE_MODE; then
+        copy_item "$src/examples" "$dest/examples" "examples/"
+    fi
     copy_item "$src/skills" "$dest/skills" "skills/"
 
     if ! $DRY_RUN; then
@@ -752,8 +891,9 @@ EOF
         log_bold "[4/4] Instalando Dependências..."
         log_bold ""
         local pm="npm"
-        (cd "$dest" && npm install >/dev/null 2>&1) || true
         install_configured_mcps "$dest" "$pm"
+        install_ai_jail_if_needed || true
+        install_opencode_wrapper || true
     fi
 
     if ! $DRY_RUN; then
@@ -780,6 +920,11 @@ do_uninstall() {
                 cp -r "$dest/$item" "$backup_root/" 2>/dev/null || true
             fi
         done
+    fi
+
+    # Remove o wrapper do sandbox no PATH do usuário
+    if [[ -f "${HOME}/.local/bin/opencode" ]]; then
+        if ! $DRY_RUN; then rm -f "${HOME}/.local/bin/opencode"; fi
     fi
 
     for item in agents commands templates tools plugins examples skills GERAIS.md state-machine.json state-machine-lean.json failure-protocol.json HARNESS-README.md package.json harness-allowlist.json .harness-version; do
