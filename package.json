@@ -5,12 +5,14 @@
   "author": "Alexandre Henrique",
   "github": "https://github.com/alexandre-henrique-rp",
   "private": true,
+  "type": "module",
   "scripts": {
     "validate:syntax": "bash -n install.sh",
     "validate:types": "tsc --noEmit",
     "test": "node --experimental-strip-types --test tests/harness-tools.test.ts tests/harness-db.test.ts"
   },
   "devDependencies": {
+    "@opencode-ai/plugin": "^1.18.3",
     "@types/node": "^26.1.1",
     "typescript": "^7.0.2"
   }
