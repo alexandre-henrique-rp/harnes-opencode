@@ -828,6 +828,7 @@ FOLDER|training
 FILE|AGENTS.md
 FILE|GERAIS.md
 FILE|opencode.json
+FILE|skills-lock.json
 EOF
 }
 
@@ -954,7 +955,7 @@ const baseAllow = [
   "src/**", "agents/**", "training/**", "templates/**", "tools/**", "plugins/**", "commands/**",
   "state-machine.json", "failure-protocol.json", "opencode.json", "opencode.jsonc", "install.sh",
   "GERAIS.md", "README.md", "HARNESS-README.md", "CHANGELOG.md", "examples/**", "skills/**",
-  "harness-allowlist.json"
+  "skills-lock.json", "harness-allowlist.json"
 ];
 const deny = [".env", ".env.*", "secrets/**", "*.pem", "*.key"];
 
@@ -991,7 +992,7 @@ base_allow = [
   "src/**", "agents/**", "training/**", "templates/**", "tools/**", "plugins/**", "commands/**",
   "state-machine.json", "failure-protocol.json", "opencode.json", "opencode.jsonc", "install.sh",
   "GERAIS.md", "README.md", "HARNESS-README.md", "CHANGELOG.md", "examples/**", "skills/**",
-  "harness-allowlist.json"
+  "skills-lock.json", "harness-allowlist.json"
 ]
 deny = [".env", ".env.*", "secrets/**", "*.pem", "*.key"]
 
@@ -1022,7 +1023,7 @@ PYEOF
     else
         cat > "$allowlist" <<EOF
 {
-  "allow": ["src/**", "agents/**", "training/**", "templates/**", "tools/**", "plugins/**", "commands/**", "state-machine.json", "failure-protocol.json", "opencode.json", "opencode.jsonc", "install.sh", "GERAIS.md", "README.md", "HARNESS-README.md", "CHANGELOG.md", "examples/**", "skills/**", "harness-allowlist.json"],
+  "allow": ["src/**", "agents/**", "training/**", "templates/**", "tools/**", "plugins/**", "commands/**", "state-machine.json", "failure-protocol.json", "opencode.json", "opencode.jsonc", "install.sh", "GERAIS.md", "README.md", "HARNESS-README.md", "CHANGELOG.md", "examples/**", "skills/**", "skills-lock.json", "harness-allowlist.json"],
   "deny": [".env", ".env.*", "secrets/**", "*.pem", "*.key"]
 }
 EOF
