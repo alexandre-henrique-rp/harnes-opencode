@@ -105,9 +105,11 @@ function analyzeFile(targetPath: string) {
     }
 }
 
-const target = process.argv[2];
-if (!target) {
-    console.log("Uso: npx ts-node ast-analyzer.ts <arquivo.ts|js>");
-    process.exit(1);
+if (process.argv[1] && process.argv[1].endsWith('ast-analyzer.ts')) {
+    const target = process.argv[2];
+    if (!target) {
+        console.log("Uso: npx ts-node ast-analyzer.ts <arquivo.ts|js>");
+        process.exit(1);
+    }
+    analyzeFile(target);
 }
-analyzeFile(target);

@@ -40,5 +40,7 @@ function reportAudit(audit: any) {
     }
 }
 
-const target = process.argv[2] || process.cwd();
-checkVulnerabilities(target);
+if (process.argv[1] && process.argv[1].endsWith('vuln-checker.ts')) {
+    const target = process.argv[2] || process.cwd();
+    checkVulnerabilities(target);
+}

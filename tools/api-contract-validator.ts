@@ -38,10 +38,12 @@ function validateContract(specPath: string, codePath: string) {
     }
 }
 
-const spec = process.argv[2];
-const code = process.argv[3];
-if (!spec || !code) {
-    console.log("Uso: npx ts-node api-contract-validator.ts <SPEC.md> <arquivo_backend.ts>");
-    process.exit(1);
+if (process.argv[1] && process.argv[1].endsWith('api-contract-validator.ts')) {
+    const spec = process.argv[2];
+    const code = process.argv[3];
+    if (!spec || !code) {
+        console.log("Uso: npx ts-node api-contract-validator.ts <SPEC.md> <arquivo_backend.ts>");
+        process.exit(1);
+    }
+    validateContract(spec, code);
 }
-validateContract(spec, code);

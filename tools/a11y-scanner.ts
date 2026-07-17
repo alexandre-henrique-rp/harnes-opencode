@@ -32,9 +32,11 @@ function scan(targetPath: string) {
     }
 }
 
-const target = process.argv[2];
-if (!target) {
-    console.log("Uso: npx ts-node a11y-scanner.ts <arquivo.html ou componente>");
-    process.exit(1);
+if (process.argv[1] && process.argv[1].endsWith('a11y-scanner.ts')) {
+    const target = process.argv[2];
+    if (!target) {
+        console.log("Uso: npx ts-node a11y-scanner.ts <arquivo.html ou componente>");
+        process.exit(1);
+    }
+    scan(target);
 }
-scan(target);
