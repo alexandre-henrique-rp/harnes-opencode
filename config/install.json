@@ -7,5 +7,5 @@
   { "templates": "templates", "type": "folder" },
   { "tools": "tools", "type": "folder" },
   { "training": "training", "type": "folder" },
-  { "guidelines": ["AGENTS.md", "GERAIS.md", "opencode.json", "package.json", "tsconfig.json", "global.d.ts"], "type": "file" }
+  { "guidelines": ["AGENTS.md", "GERAIS.md", "opencode.json", "package.json", "tsconfig.json", "global.d.ts", "skills-lock.json"], "type": "file" }
 ]
