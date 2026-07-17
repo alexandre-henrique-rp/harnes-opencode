@@ -1,0 +1,89 @@
+{
+  "_type": "harness-failure-protocol-v6",
+  "version": 1,
+  "description": "Protocolo de falhas para v6. 3 classes cobríveis + 1 fatal. Auto-detecção por sintoma.",
+  "classes": {
+    "transient": {
+      "name": "Transient",
+      "description": "Falha temporária que se auto-recupera com retry",
+      "maxAutoRetries": 3,
+      "backoff": "exponential",
+      "delaysMs": [1000, 3000, 9000],
+      "onExhaustion": "promote-to-user-action",
+      "autoDetect": {
+        "httpStatus": [502, 503, 504],
+        "errorCodes": ["ECONNRESET", "ETIMEDOUT", "ENOTFOUND", "rate_limit_exceeded", "quota_exceeded"]
+      },
+      "examples": [
+        "LLM retorna 502/503/504",
+        "MCP timeout",
+        "state.json race condition (optimistic-lock failed)",
+        "Hook de permission crashou por race"
+      ]
+    },
+    "quality": {
+      "name": "Quality",
+      "description": "Output não atingiu threshold declarado. Rework com loopback.",
+      "maxAutoRetries": 2,
+      "loopbackTo": "declared-in-phase.onFailure.loopbackTo",
+      "onExhaustion": "block-and-escalate",
+      "autoDetect": {
+        "scoreBelowThreshold": true,
+        "coverageBelowMin": true,
+        "vulnCountAboveMax": true
+      },
+      "examples": [
+        "PRD review score 65/100 (min 80) → loopbackTo phase.2.requisitos",
+        "Coverage 78% < 85% → loopbackTo phase.5.build",
+        "Security critical=1 (max 0) → loopbackTo phase.5.build (security NUNCA corrige)"
+      ]
+    },
+    "user-action": {
+      "name": "User Action",
+      "description": "Bloqueia e escala para humano decidir ambiguidade",
+      "maxAutoRetries": 0,
+      "behavior": "block",
+      "userPrompt": "structured question with context + options",
+      "autoDetect": {
+        "userExplicitReject": true,
+        "ambiguousDecision": true,
+        "scoreInReworkZone": true
+      },
+      "examples": [
+        "Brief.md: usuário precisa aprovar antes de phase 1",
+        "PRD score 70 (entre 60-79, rework zone) com dúvida de escopo",
+        "Decisão de stack: 'use Postgres ou Mongo?'",
+        "Permission boundary: humano precisa revisar antes de override"
+      ]
+    },
+    "fatal": {
+      "name": "Fatal",
+      "description": "Para tudo. Requer intervenção manual.",
+      "maxAutoRetries": 0,
+      "behavior": "halt-and-require-manual-fix",
+      "notify": ["user", "audit log", "events.jsonl"],
+      "autoDetect": {
+        "schemaCorrupted": true,
+        "hookException": true,
+        "infrastructureBroken": true,
+        "retriesExhausted5x": true
+      },
+      "examples": [
+        "state.json corrompido e events.jsonl inconsistente",
+        "Permission hook crashou (não consegue nem bloquear)",
+        "Detectado vazamento de credencial real (não de teste)",
+        "5+ retries em transient sem sucesso = vira fatal"
+      ]
+    }
+  },
+  "decisionMatrix": {
+    "description": "Sintoma → classe. Ambíguo default = user-action (escalation é mais barato que retry errado).",
+    "rules": [
+      { "symptom": "HTTP 502/503/504, ECONNRESET, ETIMEDOUT", "class": "transient" },
+      { "symptom": "score < threshold declarado", "class": "quality" },
+      { "symptom": "User disse 'não' explicitamente", "class": "user-action" },
+      { "symptom": "Schema/state corrompido, ou hook exception", "class": "fatal" },
+      { "symptom": "Ambíguo", "class": "user-action" }
+    ]
+  }
+}

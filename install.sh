@@ -953,9 +953,9 @@ const allowlistPath = process.argv[3];
 
 const baseAllow = [
   "src/**", "agents/**", "training/**", "templates/**", "tools/**", "plugins/**", "commands/**",
-  "state-machine.json", "failure-protocol.json", "opencode.json", "opencode.jsonc", "install.sh",
+  "state-machine.json", "state-machine-lean.json", "failure-protocol.json", "opencode.json", "opencode.jsonc", "install.sh",
   "GERAIS.md", "README.md", "HARNESS-README.md", "CHANGELOG.md", "examples/**", "skills/**",
-  "skills-lock.json", "harness-allowlist.json"
+  "skills-lock.json", "harness-allowlist.json", ".ai-jail"
 ];
 const deny = [".env", ".env.*", "secrets/**", "*.pem", "*.key"];
 
@@ -990,9 +990,9 @@ allowlist_path = sys.argv[2]
 
 base_allow = [
   "src/**", "agents/**", "training/**", "templates/**", "tools/**", "plugins/**", "commands/**",
-  "state-machine.json", "failure-protocol.json", "opencode.json", "opencode.jsonc", "install.sh",
+  "state-machine.json", "state-machine-lean.json", "failure-protocol.json", "opencode.json", "opencode.jsonc", "install.sh",
   "GERAIS.md", "README.md", "HARNESS-README.md", "CHANGELOG.md", "examples/**", "skills/**",
-  "skills-lock.json", "harness-allowlist.json"
+  "skills-lock.json", "harness-allowlist.json", ".ai-jail"
 ]
 deny = [".env", ".env.*", "secrets/**", "*.pem", "*.key"]
 
@@ -1023,7 +1023,7 @@ PYEOF
     else
         cat > "$allowlist" <<EOF
 {
-  "allow": ["src/**", "agents/**", "training/**", "templates/**", "tools/**", "plugins/**", "commands/**", "state-machine.json", "failure-protocol.json", "opencode.json", "opencode.jsonc", "install.sh", "GERAIS.md", "README.md", "HARNESS-README.md", "CHANGELOG.md", "examples/**", "skills/**", "skills-lock.json", "harness-allowlist.json"],
+  "allow": ["src/**", "agents/**", "training/**", "templates/**", "tools/**", "plugins/**", "commands/**", "state-machine.json", "state-machine-lean.json", "failure-protocol.json", "opencode.json", "opencode.jsonc", "install.sh", "GERAIS.md", "README.md", "HARNESS-README.md", "CHANGELOG.md", "examples/**", "skills/**", "skills-lock.json", "harness-allowlist.json", ".ai-jail"],
   "deny": [".env", ".env.*", "secrets/**", "*.pem", "*.key"]
 }
 EOF

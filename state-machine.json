@@ -1,0 +1,240 @@
+{
+  "_type": "harness-state-machine-v6",
+  "version": 1,
+  "schema": {
+    "phase": {
+      "id": "phase.{0-5}.{kebab-name}",
+      "name": "Human readable",
+      "owner": "agent-name",
+      "auxiliaries": ["optional sub-agents"],
+      "workers": ["optional parallel agents in phase 5"],
+      "inputFrom": ["phase-ids this phase consumes"],
+      "outputContract": {
+        "files": [
+          { "path": "relative/path", "required": true, "minLines": 0, "minSections": 0, "maxCharsPerSection": 3000 }
+        ],
+        "metrics": { "key": { "min": 0, "max": 0, "scope": "per-sprint|per-project" } }
+      },
+      "gate": {
+        "type": "user-approval|presence-and-min|score-threshold|coverage-check|all-of",
+        "checks": [],
+        "onFail": { "action": "block|rework|restart", "loopbackTo": "phase.id", "message": "..." }
+      },
+      "next": ["phase.ids"],
+      "onFailure": { "class": "transient|quality|user-action|fatal", "maxAutoRetries": 0, "backoff": "exponential|none", "delays": [1000, 3000, 9000] }
+    }
+  },
+  "phases": [
+    {
+      "id": "phase.0.briefing",
+      "name": "Briefing",
+      "owner": "briefing",
+      "auxiliaries": [],
+      "workers": [],
+      "inputFrom": [],
+      "outputContract": {
+        "files": [
+          { "path": ".harness/brief.md", "required": true, "minLines": 5 }
+        ]
+      },
+      "gate": {
+        "type": "user-approval",
+        "checks": [
+          { "file": ".harness/brief.md", "approver": "user" }
+        ],
+        "onFail": { "action": "block", "message": "Aguardando aprovacao humana do brief.md" }
+      },
+      "next": ["phase.1.documentacao"],
+      "onFailure": { "class": "user-action", "maxAutoRetries": 0, "backoff": "none", "delays": [] }
+    },
+    {
+      "id": "phase.1.documentacao",
+      "name": "Documentacao + RAG",
+      "owner": "documenter",
+      "auxiliaries": ["rag-curator"],
+      "workers": [],
+      "inputFrom": ["phase.0.briefing"],
+      "outputContract": {
+        "files": [
+          { "path": ".harness/AGENTS.md", "required": true, "minLines": 50 },
+          { "path": ".harness/ARCH.md", "required": true, "minLines": 20 },
+          { "path": ".harness/RAG/index.json", "required": true, "minDocs": 3 }
+        ]
+      },
+      "gate": {
+        "type": "presence-and-min",
+        "checks": [
+          { "file": ".harness/AGENTS.md", "minLines": 50 },
+          { "file": ".harness/ARCH.md", "minLines": 20 },
+          { "file": ".harness/RAG/index.json", "minDocs": 3 }
+        ],
+        "onFail": { "action": "block", "message": "AGENTS.md, ARCH.md ou RAG/index.json incompletos" }
+      },
+      "next": ["phase.2.requisitos"],
+      "onFailure": { "class": "quality", "maxAutoRetries": 2, "backoff": "none", "delays": [], "loopbackTo": "phase.1.documentacao" }
+    },
+    {
+      "id": "phase.2.requisitos",
+      "name": "Requisitos (PRD + SPEC)",
+      "owner": "requirements",
+      "auxiliaries": [],
+      "workers": ["prd-reviewer", "spec-reviewer"],
+      "inputFrom": ["phase.1.documentacao"],
+      "outputContract": {
+        "files": [
+          { "path": ".harness/PRD.md", "required": true, "minSections": 5, "maxCharsPerSection": 3000 },
+          { "path": ".harness/SPEC.md", "required": true, "minSections": 10, "maxCharsPerSection": 3000 }
+        ],
+        "schema": "markdown-with-embedded-json"
+      },
+      "gate": {
+        "type": "score-threshold",
+        "checks": [
+          { "agent": "prd-reviewer", "file": ".harness/PRD.md", "minScore": 80 },
+          { "agent": "spec-reviewer", "file": ".harness/SPEC.md", "minScore": 85 }
+        ],
+        "onFail": { "action": "rework", "loopbackTo": "phase.2.requisitos", "message": "PRD ou SPEC abaixo do score minimo" }
+      },
+      "next": ["phase.3.design"],
+      "onFailure": { "class": "quality", "maxAutoRetries": 2, "backoff": "none", "delays": [], "loopbackTo": "phase.2.requisitos" }
+    },
+    {
+      "id": "phase.3.design",
+      "name": "Design (PRODUCT + DESIGN + PROMPT)",
+      "owner": "designer",
+      "auxiliaries": [],
+      "workers": ["design-reviewer"],
+      "inputFrom": ["phase.2.requisitos"],
+      "outputContract": {
+        "files": [
+          { "path": ".harness/PRODUCT.md", "required": true },
+          { "path": ".harness/design/*.DESIGN.md", "required": true, "glob": ".harness/design/*.DESIGN.md" },
+          { "path": ".harness/design/*.PROMPT.md", "required": true, "glob": ".harness/design/*.PROMPT.md" }
+        ]
+      },
+      "gate": {
+        "type": "score-threshold",
+        "checks": [
+          { "agent": "design-reviewer", "minScore": 70, "glob": ".harness/design/*.{DESIGN,PROMPT}.md" }
+        ],
+        "onFail": { "action": "rework", "loopbackTo": "phase.3.design", "message": "Design abaixo do score minimo" }
+      },
+      "next": ["phase.4.planejamento"],
+      "onFailure": { "class": "quality", "maxAutoRetries": 2, "backoff": "none", "delays": [], "loopbackTo": "phase.3.design" }
+    },
+    {
+      "id": "phase.4.planejamento",
+      "name": "Sprint Planning (Fractal)",
+      "owner": "sprint-tasker",
+      "auxiliaries": [],
+      "workers": ["planning-reviewer"],
+      "inputFrom": ["phase.3.design"],
+      "outputContract": {
+        "files": [
+          { "path": ".harness/milestones.json", "required": true },
+          { "path": ".harness/sprints/index.json", "required": true },
+          { "path": ".harness/sprints/S*/SPRINT_PLAN.md", "required": true },
+          { "path": ".harness/sprints/S*/tasks/T*_PROMPT.md", "required": true },
+          { "path": ".harness/registry.json", "required": true }
+        ]
+      },
+      "gate": {
+        "type": "coverage-check",
+        "checks": [
+          { "type": "spec-coverage", "min": 100, "message": "100% do SPEC deve estar em sprints/tasks" },
+          { "type": "fractal-structure-check" }
+        ],
+        "onFail": { "action": "rework", "loopbackTo": "phase.4.planejamento", "message": "Sprints ou structure fractal incompletos" }
+      },
+      "next": ["phase.5.build"],
+      "onFailure": { "class": "quality", "maxAutoRetries": 2, "backoff": "none", "delays": [], "loopbackTo": "phase.4.planejamento" }
+    },
+    {
+      "id": "phase.5.build",
+      "name": "Build + Quality (paralelo, max 3 workers)",
+      "owner": "orchestrator",
+      "auxiliaries": [],
+      "workers": ["backend", "frontend", "tester"],
+      "inputFrom": ["phase.4.planejamento"],
+      "outputContract": {
+        "metrics": {
+          "coverage": { "min": 85, "scope": "per-sprint" },
+          "vulnerabilities": { "maxCritical": 0, "maxHigh": 0, "scope": "per-sprint" },
+          "reviewScore": { "min": 70, "scope": "per-sprint" },
+          "lgpdStatus": { "min": "warning", "scope": "per-sprint" }
+        }
+      },
+      "gate": {
+        "type": "all-of",
+        "checks": [
+          { "type": "coverage", "min": 85 },
+          { "type": "security", "maxCritical": 0, "maxHigh": 0 },
+          { "type": "review", "agent": "code-reviewer", "min": 70 },
+          { "type": "lgpd", "status": "non-blocking", "min": "warning", "maxCritical": 0, "maxHigh": 0 }
+        ],
+        "onFail": { "action": "rework", "loopbackTo": "phase.5.build", "message": "Qualidade abaixo do threshold na sprint" }
+      },
+      "next": ["phase.6.ux-gate"],
+      "onFailure": { "class": "quality", "maxAutoRetries": 2, "backoff": "none", "delays": [], "loopbackTo": "phase.5.build" }
+    },
+    {
+      "id": "phase.6.ux-gate",
+      "name": "UX Milestone Gate",
+      "owner": "orchestrator",
+      "auxiliaries": ["designer", "qa-gate"],
+      "workers": [],
+      "inputFrom": ["phase.5.build"],
+      "outputContract": {
+        "files": [
+          { "path": ".harness/milestones.json", "required": true }
+        ]
+      },
+      "gate": {
+        "type": "user-approval",
+        "checks": [
+          { "type": "milestone-ux-check", "approver": "user" }
+        ],
+        "onFail": { "action": "block", "message": "Aguardando aprovação de UX para fechar Marco." }
+      },
+      "next": ["phase.5.complete"],
+      "onFailure": { "class": "user-action", "maxAutoRetries": 0, "backoff": "none", "delays": [] }
+    }
+  ],
+  "globalFailureProtocol": {
+    "_type": "harness-failure-protocol-v6",
+    "version": 1,
+    "classes": {
+      "transient": {
+        "maxAutoRetries": 3,
+        "backoff": "exponential",
+        "delays": [1000, 3000, 9000],
+        "onExhaustion": "promote-to-user-action",
+        "examples": ["LLM 502/503/504", "MCP timeout", "state.json race condition"]
+      },
+      "quality": {
+        "maxAutoRetries": 2,
+        "loopbackTo": "declared-in-phase.onFailure",
+        "onExhaustion": "block-and-escalate",
+        "examples": ["PRD score 65/100", "Coverage 78% < 85%", "Security critical=1"]
+      },
+      "user-action": {
+        "maxAutoRetries": 0,
+        "behavior": "block",
+        "userPrompt": "structured question with context + options",
+        "examples": ["Brief rejected", "Score between threshold and rework", "Stack decision"]
+      },
+      "fatal": {
+        "maxAutoRetries": 0,
+        "behavior": "halt-and-require-manual-fix",
+        "notify": ["user", "audit log"],
+        "examples": ["state.json corrupted", "permission hook crashed", "5+ retries exhausted"]
+      }
+    },
+    "autoDetection": {
+      "transient": ["HTTP 502", "HTTP 503", "HTTP 504", "ECONNRESET", "ETIMEDOUT"],
+      "quality": ["score < threshold", "coverage < min", "vuln count > max"],
+      "user-action": ["user explicit reject", "ambiguous decision"],
+      "fatal": ["schema corrupted", "hook exception", "infrastructure broken"]
+    }
+  }
+}
