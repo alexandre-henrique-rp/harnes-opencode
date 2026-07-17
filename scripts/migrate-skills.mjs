@@ -132,6 +132,7 @@ const SECTOR_MAP = {
   "writing-skills":               "geral",
   "writing-tech-post":            "geral",
   "decision-log":                 "geral",
+  "lean-response":                "geral",
 
   // SEGURANÇA
   "reverse-shell-techniques":     "seguranca",

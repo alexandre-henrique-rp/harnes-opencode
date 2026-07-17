@@ -822,6 +822,7 @@ FOLDER|commands
 FOLDER|plugins
 FOLDER|schemas
 FOLDER|skills
+FOLDER|system
 FOLDER|templates
 FOLDER|tools
 FOLDER|training
@@ -952,7 +953,7 @@ const manifestPath = process.argv[2];
 const allowlistPath = process.argv[3];
 
 const baseAllow = [
-  "src/**", "agents/**", "training/**", "templates/**", "tools/**", "plugins/**", "commands/**",
+  "src/**", "agents/**", "training/**", "templates/**", "tools/**", "plugins/**", "commands/**", "system/**",
   "state-machine.json", "state-machine-lean.json", "failure-protocol.json", "opencode.json", "opencode.jsonc", "install.sh",
   "GERAIS.md", "README.md", "HARNESS-README.md", "CHANGELOG.md", "examples/**", "skills/**",
   "skills-lock.json", "harness-allowlist.json", ".ai-jail"
@@ -989,7 +990,7 @@ manifest_path = sys.argv[1]
 allowlist_path = sys.argv[2]
 
 base_allow = [
-  "src/**", "agents/**", "training/**", "templates/**", "tools/**", "plugins/**", "commands/**",
+  "src/**", "agents/**", "training/**", "templates/**", "tools/**", "plugins/**", "commands/**", "system/**",
   "state-machine.json", "state-machine-lean.json", "failure-protocol.json", "opencode.json", "opencode.jsonc", "install.sh",
   "GERAIS.md", "README.md", "HARNESS-README.md", "CHANGELOG.md", "examples/**", "skills/**",
   "skills-lock.json", "harness-allowlist.json", ".ai-jail"
@@ -1023,7 +1024,7 @@ PYEOF
     else
         cat > "$allowlist" <<EOF
 {
-  "allow": ["src/**", "agents/**", "training/**", "templates/**", "tools/**", "plugins/**", "commands/**", "state-machine.json", "state-machine-lean.json", "failure-protocol.json", "opencode.json", "opencode.jsonc", "install.sh", "GERAIS.md", "README.md", "HARNESS-README.md", "CHANGELOG.md", "examples/**", "skills/**", "skills-lock.json", "harness-allowlist.json", ".ai-jail"],
+  "allow": ["src/**", "agents/**", "training/**", "templates/**", "tools/**", "plugins/**", "commands/**", "system/**", "state-machine.json", "state-machine-lean.json", "failure-protocol.json", "opencode.json", "opencode.jsonc", "install.sh", "GERAIS.md", "README.md", "HARNESS-README.md", "CHANGELOG.md", "examples/**", "skills/**", "skills-lock.json", "harness-allowlist.json", ".ai-jail"],
   "deny": [".env", ".env.*", "secrets/**", "*.pem", "*.key"]
 }
 EOF

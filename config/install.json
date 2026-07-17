@@ -4,6 +4,7 @@
   { "plugins": "plugins", "type": "folder" },
   { "schemas": "schemas", "type": "folder" },
   { "skills": "skills", "type": "folder" },
+  { "system": "system", "type": "folder" },
   { "templates": "templates", "type": "folder" },
   { "tools": "tools", "type": "folder" },
   { "training": "training", "type": "folder" },

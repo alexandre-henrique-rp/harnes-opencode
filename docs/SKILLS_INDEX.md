@@ -1,7 +1,7 @@
 # 📚 Índice de Skills por Setor
 
 > Gerado automaticamente por `scripts/migrate-skills.mjs`  
-> Total: **106 skills** em **7 setores**
+> Total: **107 skills** em **7 setores**
 
 ---
 
@@ -141,7 +141,7 @@
 
 > Git, Shell, Contexto, Documentação, Tooling
 
-**Pasta:** `skills/geral/`  |  **Skills:** 10
+**Pasta:** `skills/geral/`  |  **Skills:** 11
 
 | Skill | Descrição |
 |-------|----------|
@@ -149,6 +149,7 @@
 | `decision-log` | Persist grill-me and architectural decisions to durable file in ADR format. Future agents read this … |
 | `find-docs` | >- |
 | `git-rebase` | Intelligently handle git rebase operations and resolve merge conflicts while preserving features and… |
+| `lean-response` | How to write dense, objective responses that minimize output tokens. Skip validation, filler, and ti… |
 | `shell` | Shell scripting best practices for writing safe, portable, and maintainable bash/sh scripts. Use whe… |
 | `shellcheck-configuration` | Master ShellCheck static analysis configuration and usage for shell script quality. Use when setting… |
 | `ship-pr` | Ships a finished feature, bug fix, or refactor end-to-end — explores the change's impact on docs/sit… |

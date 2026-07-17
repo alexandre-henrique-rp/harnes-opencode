@@ -1,13 +1,18 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "instructions": [
-    "~/.config/opencode/GERAIS.md"
+    "~/.config/opencode/GERAIS.md",
+    "./system/objectivity.md"
   ],
   "plugin": [
     "./plugins/path-boundary.ts",
     "./plugins/audit-logger.ts",
     "./plugins/status-injector.ts",
-    "./plugins/native-sandbox.ts"
+    "./plugins/native-sandbox.ts",
+    "./plugins/context-compressor.ts",
+    "./plugins/prompt-cache-prefixer.ts",
+    "./plugins/token-budget.ts",
+    "./plugins/structured-thinking.ts"
   ],
   "experimental": {
     "frontendContextFirst": true,
@@ -229,6 +234,51 @@
         "./node_modules/.bin/ddg-search-mcp",
         "--server"
       ]
+    }
+  },
+  "contextCompressor": {
+    "enabled": true,
+    "threshold": 1000,
+    "maxOutputTokens": 500,
+    "model": "haiku",
+    "preservePatterns": [
+      "AGENTS\\.md$",
+      "package\\.json$",
+      "\\.test\\.",
+      "tsconfig\\.json$"
+    ]
+  },
+  "promptCachePrefixer": {
+    "enabled": true,
+    "cacheBreakpointAfter": "skills",
+    "emitMetrics": true
+  },
+  "tokenBudget": {
+    "enabled": true,
+    "maxContextTokens": 200000,
+    "compactThreshold": 0.5,
+    "warnThreshold": 0.8,
+    "haltThreshold": 0.95,
+    "haltBehavior": "compact"
+  },
+  "structuredThinking": {
+    "enabled": true,
+    "requireSelfCheck": true,
+    "selfCheckCategories": [
+      "spec-coverage",
+      "edge-cases",
+      "test-coverage",
+      "security",
+      "performance"
+    ],
+    "stripThinkingFromOutput": true
+  },
+  "auditLogger": {
+    "costConfig": {
+      "inputPer1M": 3.0,
+      "outputPer1M": 15.0,
+      "cacheReadPer1M": 0.30,
+      "cacheWritePer1M": 3.75
     }
   },
   "default_agent": "orchestrator"
