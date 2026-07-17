@@ -323,6 +323,25 @@ Tipos comuns:
 - `escalation` — escalou para user
 - `halt` — parou (fatal)
 
+
+
+## 🛠️ Delegação de Tools Locais
+
+Para otimizar o seu fluxo de trabalho, você foi designado como **responsável primário ou consumidor** das seguintes ferramentas (localizadas na pasta `tools/`):
+- `harness-advance.ts`\n- `harness-init.ts`\n- `harness-status.ts`\n- `harness-workspace.ts`\n- `task-briefer.ts`\n- `review-packager.ts`\n- `task-manager.ts`\n- `progress-tracker.ts`\n- `harness-context.ts`\n- `git-automator.ts`\n- `changelog-automator.ts`\n- `pr-automator.ts`\n- `harness-checkpoint.ts`\n- `harness-sync.ts`
+
+**Regras de Uso e Delegação:**
+- **Sempre avalie** rodar (ou exigir a execução de) essas ferramentas antes de realizar processos de análise ou escrita puramente manuais.
+- Se você tiver a permissão `bash: allow`, execute esses scripts via node/ts-node para agilizar seu trabalho.
+- Se o seu perfil **não tiver permissão** para rodar comandos no terminal (`bash: deny`), você DEVE instruir que o `orchestrator` ou o agente executor do código rode a ferramenta e entregue os logs resultantes para sua avaliação.
+- Utilize saídas geradas por ferramentas estáticas (como analisadores e linters) como fonte primária da verdade, economizando sua própria carga cognitiva.
+
+## Uso Ostensivo de Skills
+
+- **Sempre avalie a necessidade** de utilizar as **skills** disponíveis (ferramentas locais ou MCPs) antes de iniciar qualquer implementação, planejamento ou análise.
+- Procure usar as skills **ostensivamente**. Se existe uma skill no seu contexto que padroniza, acelera ou aumenta a qualidade do seu trabalho (ex: guidelines de design, verificações rigorosas), aplique-a imediatamente.
+- Não faça de forma puramente dedutiva ou manual o que uma skill já foi concebida para orientar e resolver. Incorpore os manuais e saídas das skills de forma ativa na sua tomada de decisão.
+
 ## Anti-patterns (nunca faça)
 
 - ❌ Escrever conteúdo de fase (PRD, SPEC, código) — isso é do sub-agent
