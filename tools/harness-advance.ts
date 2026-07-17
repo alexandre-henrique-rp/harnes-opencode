@@ -150,262 +150,293 @@ export default tool({
     const failureClass = gateResult.failureClass;
     const phaseFailure = phase.onFailure || {};
     const classConfig = failureProtocol?.classes?.[failureClass];
+    return handleFailureClass(failureClass, phaseState, classConfig, phaseFailure, phase, gateResult, mcpResponse, eventsPath);
+  },
+});
 
-    if (failureClass === "transient") {
-      const maxRetries = classConfig?.maxAutoRetries || 3;
-      if (phaseState.attempt < maxRetries) {
-        return mcpResponse({
-          success: false,
-          gateResult,
-          action: "retry",
-          message: `Transient failure (attempt ${phaseState.attempt}/${maxRetries}). Retrying com backoff.`,
-        });
-      }
-      // Esgotou — promove a user-action
-      return mcpResponse({
-        success: false,
-        gateResult,
-        action: "escalate",
-        message: `Transient failure esgotou ${maxRetries} retries. Escala para user-action.`,
-      });
-    }
-
-    if (failureClass === "quality") {
-      const maxRetries = phaseFailure.maxAutoRetries || 2;
-      const loopbackTo = phaseFailure.loopbackTo || phase.id;
-      if (phaseState.attempt < maxRetries) {
-        return mcpResponse({
-          success: false,
-          gateResult,
-          action: "rework",
-          loopbackTo,
-          message: `Quality failure (attempt ${phaseState.attempt}/${maxRetries}). Rework com loopbackTo: ${loopbackTo}.`,
-        });
-      }
-      return mcpResponse({
-        success: false,
-        gateResult,
-        action: "escalate",
-        message: `Quality failure esgotou ${maxRetries} retries. Escala para user-action.`,
-      });
-    }
-
-    if (failureClass === "user-action") {
-      return mcpResponse({
-        success: false,
-        gateResult,
-        action: "block",
-        message: `User-action needed. Bloqueia ate decisao humana.`,
-        userPrompt: gateResult.userPrompt || "Decisao humana necessaria para avancar.",
-      });
-    }
-
-    if (failureClass === "fatal") {
-      appendEvent(eventsPath, {
-        event: "halt",
-        phase: phase.id,
-        reason: gateResult.reason,
-      });
-      return mcpResponse({
-        success: false,
-        gateResult,
-        action: "halt",
-        message: `FATAL: ${gateResult.reason}. Requer fix manual antes de continuar.`,
-      });
-    }
-
+function handleFailureClass(failureClass: string, phaseState: any, classConfig: any, phaseFailure: any, phase: any, gateResult: any, mcpResponse: any, eventsPath: string) {
+  if (failureClass === "transient") {
+    return handleTransientFailure(phaseState, classConfig, gateResult, mcpResponse);
+  }
+  if (failureClass === "quality") {
+    return handleQualityFailure(phaseState, phaseFailure, phase.id, gateResult, mcpResponse);
+  }
+  if (failureClass === "user-action") {
     return mcpResponse({
       success: false,
       gateResult,
-      action: "unknown",
-      message: `Failure class '${failureClass}' nao reconhecida.`,
+      action: "block",
+      message: `User-action needed. Bloqueia ate decisao humana.`,
+      userPrompt: gateResult.userPrompt || "Decisao humana necessaria para avancar.",
     });
-  },
-});
+  }
+  if (failureClass === "fatal") {
+    appendEvent(eventsPath, {
+      event: "halt",
+      phase: phase.id,
+      reason: gateResult.reason,
+    });
+    return mcpResponse({
+      success: false,
+      gateResult,
+      action: "halt",
+      message: `FATAL: ${gateResult.reason}. Requer fix manual antes de continuar.`,
+    });
+  }
+
+  return mcpResponse({
+    success: false,
+    gateResult,
+    action: "unknown",
+    message: `Failure class '${failureClass}' nao reconhecida.`,
+  });
+}
+
+function handleTransientFailure(phaseState: any, classConfig: any, gateResult: any, mcpResponse: any) {
+  const maxRetries = classConfig?.maxAutoRetries || 3;
+  if (phaseState.attempt < maxRetries) {
+    return mcpResponse({
+      success: false,
+      gateResult,
+      action: "retry",
+      message: `Transient failure (attempt ${phaseState.attempt}/${maxRetries}). Retrying com backoff.`,
+    });
+  }
+  return mcpResponse({
+    success: false,
+    gateResult,
+    action: "escalate",
+    message: `Transient failure esgotou ${maxRetries} retries. Escala para user-action.`,
+  });
+}
+
+function handleQualityFailure(phaseState: any, phaseFailure: any, phaseId: string, gateResult: any, mcpResponse: any) {
+  const maxRetries = phaseFailure.maxAutoRetries || 2;
+  const loopbackTo = phaseFailure.loopbackTo || phaseId;
+  if (phaseState.attempt < maxRetries) {
+    return mcpResponse({
+      success: false,
+      gateResult,
+      action: "rework",
+      loopbackTo,
+      message: `Quality failure (attempt ${phaseState.attempt}/${maxRetries}). Rework com loopbackTo: ${loopbackTo}.`,
+    });
+  }
+  return mcpResponse({
+    success: false,
+    gateResult,
+    action: "escalate",
+    message: `Quality failure esgotou ${maxRetries} retries. Escala para user-action.`,
+  });
+}
+
+function validateUserApproval(userApproval: any) {
+  const passed = userApproval === true;
+  return {
+    passed,
+    failureClass: passed ? null : "user-action",
+    reason: passed ? "User approved" : "User did not approve (ou parametro userApproval nao foi true)",
+    details: { userApproval },
+    userPrompt: passed
+      ? null
+      : "Brief.md foi rejeitado ou ainda nao foi aprovado. Revise o conteudo e aprove para continuar.",
+  };
+}
+
+function checkMinLines(filePath: string, minLines: number): string | null {
+  const content = fs.readFileSync(filePath, "utf8");
+  const lines = content.split("\n").filter((l) => l.trim().length > 0).length;
+  if (lines < minLines) return `${path.basename(filePath)} tem ${lines} linhas (min ${minLines})`;
+  return null;
+}
+
+function checkMinDocs(filePath: string, minDocs: number): string | null {
+  try {
+    const json = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    const count = json.totalDocs || (json.docs ? json.docs.length : 0);
+    if (count < minDocs) return `${path.basename(filePath)} tem ${count} docs (min ${minDocs})`;
+  } catch {
+    return `${path.basename(filePath)} nao e JSON valido`;
+  }
+  return null;
+}
+
+function checkMinSections(filePath: string, minSections: number): string | null {
+  const content = fs.readFileSync(filePath, "utf8");
+  const sections = (content.match(/<section|<h1/g) || []).length;
+  if (sections < minSections) return `${path.basename(filePath)} tem ${sections} sections (min ${minSections})`;
+  return null;
+}
+
+function validatePresenceAndMin(gate: any, cwd: string) {
+  const failures: string[] = [];
+  for (const check of gate.checks || []) {
+    const filePath = path.join(cwd, check.file);
+    if (!fs.existsSync(filePath)) {
+      failures.push(`${check.file} nao existe`);
+      continue;
+    }
+    if (check.minLines) {
+      const err = checkMinLines(filePath, check.minLines);
+      if (err) failures.push(err);
+    }
+    if (check.minDocs) {
+      const err = checkMinDocs(filePath, check.minDocs);
+      if (err) failures.push(err);
+    }
+    if (check.minSections) {
+      const err = checkMinSections(filePath, check.minSections);
+      if (err) failures.push(err);
+    }
+  }
+  const passed = failures.length === 0;
+  return {
+    passed,
+    failureClass: passed ? null : "quality",
+    reason: passed ? "All checks passed" : failures.join("; "),
+    details: { checks: gate.checks, failures },
+  };
+}
+
+function validateScoreThreshold(gate: any, scores: any, cwd: string) {
+  const failures: string[] = [];
+  const actualScores: Record<string, number> = {};
+
+  for (const check of gate.checks || []) {
+    const realScore = getRealReviewScore(cwd, check.agent);
+    const paramScore = scores?.[check.agent];
+
+    if (realScore === null) {
+      failures.push(`Arquivo de auditoria fisica para o agent '${check.agent}' nao encontrado em .harness/reviews/. Execute o review antes de avancar.`);
+      continue;
+    }
+
+    actualScores[check.agent] = realScore;
+
+    if (paramScore !== undefined && paramScore !== realScore) {
+      failures.push(`Fraude ou divergencia detectada para '${check.agent}': score fornecido (${paramScore}) nao bate com o score real do relatorio (${realScore})`);
+      continue;
+    }
+
+    if (realScore < check.minScore) {
+      failures.push(`${check.agent} score real ${realScore} < ${check.minScore} (em ${check.file || check.glob})`);
+    }
+  }
+  const passed = failures.length === 0;
+  return {
+    passed,
+    failureClass: passed ? null : "quality",
+    reason: passed ? "All scores above threshold (validado fisicamente)" : failures.join("; "),
+    details: { checks: gate.checks, scores: actualScores },
+  };
+}
+
+function validateCoverageCheck(gate: any, sprintCoverage: any) {
+  if (sprintCoverage === undefined) {
+    return {
+      passed: false,
+      failureClass: "quality",
+      reason: "sprintCoverage nao foi fornecido",
+      details: { checks: gate.checks },
+    };
+  }
+  const coverageCheck = (gate.checks || []).find((c: any) => c.type === "spec-coverage");
+  const minCoverage = coverageCheck?.min || 100;
+  const passed = sprintCoverage >= minCoverage;
+  return {
+    passed,
+    failureClass: passed ? null : "quality",
+    reason: passed
+      ? `Coverage ${sprintCoverage}% >= ${minCoverage}%`
+      : `Coverage ${sprintCoverage}% < ${minCoverage}%`,
+    details: { sprintCoverage, minCoverage },
+  };
+}
+
+function checkCoverageMetrics(check: any, buildMetrics: any, failures: string[]) {
+  const cov = buildMetrics?.coverage;
+  if (cov === undefined || cov < check.min) {
+    failures.push(`Coverage ${cov ?? "undefined"} < ${check.min}`);
+  }
+}
+
+function checkSecurityMetrics(check: any, buildMetrics: any, failures: string[]) {
+  const crit = buildMetrics?.criticalVulns || 0;
+  const high = buildMetrics?.highVulns || 0;
+  if (crit > (check.maxCritical || 0)) {
+    failures.push(`Critical vulns ${crit} > ${check.maxCritical}`);
+  }
+  if (high > (check.maxHigh || 0)) {
+    failures.push(`High vulns ${high} > ${check.maxHigh}`);
+  }
+}
+
+function checkReviewMetrics(check: any, buildMetrics: any, failures: string[]) {
+  const score = buildMetrics?.reviewScore;
+  if (score === undefined || score < check.min) {
+    failures.push(`Review score ${score ?? "undefined"} < ${check.min}`);
+  }
+}
+
+function checkLgpdMetrics(check: any, buildMetrics: any, failures: string[]) {
+  const status = buildMetrics?.lgpdStatus;
+  const lgpdCrit = buildMetrics?.lgpdCriticalFindings || 0;
+  const lgpdHigh = buildMetrics?.lgpdHighFindings || 0;
+  const minStatus = check.min || "warning";
+  const maxCrit = check.maxCritical ?? 0;
+  const maxHigh = check.maxHigh ?? 0;
+
+  const statusRank: Record<string, number> = {
+    compliant: 0,
+    warning: 1,
+    "non-compliant": 2,
+  };
+  const requiredRank = statusRank[minStatus] ?? 1;
+  const actualRank = statusRank[status ?? "non-compliant"] ?? 2;
+
+  if (actualRank > requiredRank) {
+    failures.push(`LGPD status '${status ?? "undefined"}' below required '${minStatus}'`);
+  }
+  if (lgpdCrit > maxCrit) {
+    failures.push(`LGPD critical findings ${lgpdCrit} > ${maxCrit}`);
+  }
+  if (lgpdHigh > maxHigh) {
+    failures.push(`LGPD high findings ${lgpdHigh} > ${maxHigh}`);
+  }
+}
+
+function validateAllOf(gate: any, buildMetrics: any) {
+  const failures: string[] = [];
+  for (const check of gate.checks || []) {
+    if (check.type === "coverage") checkCoverageMetrics(check, buildMetrics, failures);
+    if (check.type === "security") checkSecurityMetrics(check, buildMetrics, failures);
+    if (check.type === "review") checkReviewMetrics(check, buildMetrics, failures);
+    if (check.type === "lgpd") checkLgpdMetrics(check, buildMetrics, failures);
+  }
+  const passed = failures.length === 0;
+  return {
+    passed,
+    failureClass: passed ? null : "quality",
+    reason: passed ? "All build checks passed" : failures.join("; "),
+    details: { checks: gate.checks, buildMetrics },
+  };
+}
 
 function validateGate(phase: any, params: any): any {
   const gate = phase.gate;
   const { userApproval, scores, sprintCoverage, buildMetrics, cwd } = params;
 
   switch (gate.type) {
-    case "user-approval": {
-      const passed = userApproval === true;
-      return {
-        passed,
-        failureClass: passed ? null : "user-action",
-        reason: passed ? "User approved" : "User did not approve (ou parametro userApproval nao foi true)",
-        details: { userApproval },
-        userPrompt: passed
-          ? null
-          : "Brief.md foi rejeitado ou ainda nao foi aprovado. Revise o conteudo e aprove para continuar.",
-      };
-    }
-
-    case "presence-and-min": {
-      const failures: string[] = [];
-      for (const check of gate.checks || []) {
-        const filePath = path.join(cwd, check.file);
-        if (!fs.existsSync(filePath)) {
-          failures.push(`${check.file} nao existe`);
-          continue;
-        }
-        if (check.minLines) {
-          const content = fs.readFileSync(filePath, "utf8");
-          const lines = content.split("\n").filter((l) => l.trim().length > 0).length;
-          if (lines < check.minLines) {
-            failures.push(`${check.file} tem ${lines} linhas (min ${check.minLines})`);
-          }
-        }
-        if (check.minDocs) {
-          try {
-            const json = JSON.parse(fs.readFileSync(filePath, "utf8"));
-            const count = json.totalDocs || (json.docs ? json.docs.length : 0);
-            if (count < check.minDocs) {
-              failures.push(`${check.file} tem ${count} docs (min ${check.minDocs})`);
-            }
-          } catch {
-            failures.push(`${check.file} nao e JSON valido`);
-          }
-        }
-        if (check.minSections) {
-          const content = fs.readFileSync(filePath, "utf8");
-          const sections = (content.match(/<section|<h1/g) || []).length;
-          if (sections < check.minSections) {
-            failures.push(`${check.file} tem ${sections} sections (min ${check.minSections})`);
-          }
-        }
-      }
-      const passed = failures.length === 0;
-      return {
-        passed,
-        failureClass: passed ? null : "quality",
-        reason: passed ? "All checks passed" : failures.join("; "),
-        details: { checks: gate.checks, failures },
-      };
-    }
-
-    case "score-threshold": {
-      const failures: string[] = [];
-      const actualScores: Record<string, number> = {};
-
-      for (const check of gate.checks || []) {
-        // Busca score real no arquivo físico de review mais recente
-        const realScore = getRealReviewScore(cwd, check.agent);
-        const paramScore = scores?.[check.agent];
-
-        if (realScore === null) {
-          failures.push(`Arquivo de auditoria fisica para o agent '${check.agent}' nao encontrado em .harness/reviews/. Execute o review antes de avancar.`);
-          continue;
-        }
-
-        actualScores[check.agent] = realScore;
-
-        // Compara se o score passado como parâmetro é diferente do gravado fisicamente (antifraude)
-        if (paramScore !== undefined && paramScore !== realScore) {
-          failures.push(`Fraude ou divergencia detectada para '${check.agent}': score fornecido (${paramScore}) nao bate com o score real do relatorio (${realScore})`);
-          continue;
-        }
-
-        if (realScore < check.minScore) {
-          failures.push(`${check.agent} score real ${realScore} < ${check.minScore} (em ${check.file || check.glob})`);
-        }
-      }
-      const passed = failures.length === 0;
-      return {
-        passed,
-        failureClass: passed ? null : "quality",
-        reason: passed ? "All scores above threshold (validado fisicamente)" : failures.join("; "),
-        details: { checks: gate.checks, scores: actualScores },
-      };
-    }
-
-    case "coverage-check": {
-      if (sprintCoverage === undefined) {
-        return {
-          passed: false,
-          failureClass: "quality",
-          reason: "sprintCoverage nao foi fornecido",
-          details: { checks: gate.checks },
-        };
-      }
-      const coverageCheck = (gate.checks || []).find((c: any) => c.type === "spec-coverage");
-      const minCoverage = coverageCheck?.min || 100;
-      const passed = sprintCoverage >= minCoverage;
-      return {
-        passed,
-        failureClass: passed ? null : "quality",
-        reason: passed
-          ? `Coverage ${sprintCoverage}% >= ${minCoverage}%`
-          : `Coverage ${sprintCoverage}% < ${minCoverage}%`,
-        details: { sprintCoverage, minCoverage },
-      };
-    }
-
-    case "all-of": {
-      const failures: string[] = [];
-      for (const check of gate.checks || []) {
-        if (check.type === "coverage") {
-          const cov = buildMetrics?.coverage;
-          if (cov === undefined || cov < check.min) {
-            failures.push(`Coverage ${cov ?? "undefined"} < ${check.min}`);
-          }
-        }
-        if (check.type === "security") {
-          const crit = buildMetrics?.criticalVulns || 0;
-          const high = buildMetrics?.highVulns || 0;
-          if (crit > (check.maxCritical || 0)) {
-            failures.push(`Critical vulns ${crit} > ${check.maxCritical}`);
-          }
-          if (high > (check.maxHigh || 0)) {
-            failures.push(`High vulns ${high} > ${check.maxHigh}`);
-          }
-        }
-        if (check.type === "review") {
-          const score = buildMetrics?.reviewScore;
-          if (score === undefined || score < check.min) {
-            failures.push(`Review score ${score ?? "undefined"} < ${check.min}`);
-          }
-        }
-        // v6.2.0+ — LGPD check (lgpd-officer output)
-        // Aceita buildMetrics.lgpdStatus ("compliant"|"warning"|"non-compliant")
-        // E/OU buildMetrics.lgpdCriticalFindings, buildMetrics.lgpdHighFindings
-        if (check.type === "lgpd") {
-          const status = buildMetrics?.lgpdStatus;
-          const lgpdCrit = buildMetrics?.lgpdCriticalFindings || 0;
-          const lgpdHigh = buildMetrics?.lgpdHighFindings || 0;
-          const minStatus = check.min || "warning";
-          const maxCrit = check.maxCritical ?? 0;
-          const maxHigh = check.maxHigh ?? 0;
-
-          // Hierarchy: non-compliant > warning > compliant
-          const statusRank: Record<string, number> = {
-            compliant: 0,
-            warning: 1,
-            "non-compliant": 2,
-          };
-          const requiredRank = statusRank[minStatus] ?? 1;
-          const actualRank = statusRank[status ?? "non-compliant"] ?? 2;
-
-          if (actualRank > requiredRank) {
-            failures.push(`LGPD status '${status ?? "undefined"}' below required '${minStatus}'`);
-          }
-          if (lgpdCrit > maxCrit) {
-            failures.push(`LGPD critical findings ${lgpdCrit} > ${maxCrit}`);
-          }
-          if (lgpdHigh > maxHigh) {
-            failures.push(`LGPD high findings ${lgpdHigh} > ${maxHigh}`);
-          }
-        }
-      }
-      const passed = failures.length === 0;
-      return {
-        passed,
-        failureClass: passed ? null : "quality",
-        reason: passed ? "All build checks passed" : failures.join("; "),
-        details: { checks: gate.checks, buildMetrics },
-      };
-    }
-
+    case "user-approval":
+      return validateUserApproval(userApproval);
+    case "presence-and-min":
+      return validatePresenceAndMin(gate, cwd);
+    case "score-threshold":
+      return validateScoreThreshold(gate, scores, cwd);
+    case "coverage-check":
+      return validateCoverageCheck(gate, sprintCoverage);
+    case "all-of":
+      return validateAllOf(gate, buildMetrics);
     default:
       return {
         passed: false,

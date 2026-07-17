@@ -13,10 +13,10 @@ function validateContract(specPath: string, codePath: string) {
     const codeContent = fs.readFileSync(codePath, 'utf-8');
     
     // Procura padrões de endpoints no SPEC.md (ex: POST /api/users)
-    const specEndpoints = [...specContent.matchAll(/(GET|POST|PUT|DELETE|PATCH)\\s+(\\/[a-zA-Z0-9_/-]+)/gi)].map(m => `${m[1].toUpperCase()} ${m[2]}`);
+    const specEndpoints = [...specContent.matchAll(/(GET|POST|PUT|DELETE|PATCH)\s+(\/[a-zA-Z0-9_/-]+)/gi)].map(m => `${m[1].toUpperCase()} ${m[2]}`);
     
     // Procura padrões equivalentes na implementação Express/Fastify/Nest
-    const codeEndpoints = [...codeContent.matchAll(/(get|post|put|delete|patch)\\(['"](\\/[a-zA-Z0-9_/-]+)['"]/gi)].map(m => `${m[1].toUpperCase()} ${m[2]}`);
+    const codeEndpoints = [...codeContent.matchAll(/(get|post|put|delete|patch)\(['"](\/[a-zA-Z0-9_/-]+)['"]/gi)].map(m => `${m[1].toUpperCase()} ${m[2]}`);
     
     if (specEndpoints.length === 0) {
         console.log("[API Validator] Nenhum endpoint REST explícito encontrado na SPEC para validação.");
