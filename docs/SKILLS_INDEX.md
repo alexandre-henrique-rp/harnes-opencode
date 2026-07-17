@@ -1,7 +1,7 @@
 # 📚 Índice de Skills por Setor
 
 > Gerado automaticamente por `scripts/migrate-skills.mjs`  
-> Total: **96 skills** em **7 setores**
+> Total: **106 skills** em **7 setores**
 
 ---
 
@@ -9,11 +9,13 @@
 
 > React, TanStack, Tailwind, Storybook, TypeScript
 
-**Pasta:** `skills/frontend/`  |  **Skills:** 17
+**Pasta:** `skills/frontend/`  |  **Skills:** 19
 
 | Skill | Descrição |
 |-------|----------|
 | `app-renderer-systems` | Guides creation and modification of domain feature systems organized under a systems/ directory. Cov… |
+| `frontend-context-first` | Required protocol for the frontend agent. Defines the context-first flow: read AGENTS.md, run grill-… |
+| `frontend-style-guide` | Project-specific visual rules, design tokens, and forbidden patterns. Loaded by frontend agent when … |
 | `react` | Comprehensive React development guide covering component architecture, hooks, state management, Type… |
 | `react-router-v7` | React Router v7 best practices for data-driven routing. Use when implementing routes, loaders, actio… |
 | `react-router-v7-expert` | Use this skill when you need expert guidance on React development with React Router V7, including co… |
@@ -37,10 +39,12 @@
 
 > NestJS, Laravel, Go, Rust, Drizzle, Sentry
 
-**Pasta:** `skills/backend/`  |  **Skills:** 29
+**Pasta:** `skills/backend/`  |  **Skills:** 31
 
 | Skill | Descrição |
 |-------|----------|
+| `backend-api-design` | REST API contract standards. Reference for backend agent when designing endpoints. |
+| `backend-tdd` | Required protocol for the backend agent. Classic TDD: RED → GREEN → REFACTOR. No compromise. |
 | `bubbletea` | Build terminal user interfaces with Go and Bubbletea framework. Use when creating TUI apps with the … |
 | `drizzle-safe-migrations` | Production-safe Drizzle migration workflow for schema changes that require data backfills or constra… |
 | `golang-code-style` | "Golang code style conventions — line length and breaking, variable declarations, control flow clari… |
@@ -77,11 +81,12 @@
 
 > Google Stitch, UI Craft, Design System, Assets
 
-**Pasta:** `skills/design/`  |  **Skills:** 17
+**Pasta:** `skills/design/`  |  **Skills:** 18
 
 | Skill | Descrição |
 |-------|----------|
 | `design-md` | Analyze Stitch projects and synthesize a semantic design system into DESIGN.md files |
+| `design-system` | Design tokens, component inventory, and visual rules. Loaded on demand by frontend and designer agen… |
 | `enhance-prompt` | Transforms vague UI ideas into polished, Stitch-optimized prompts. Enhances specificity, adds UI/UX … |
 | `google-stitch-frontend` | Orquestração de Frontend e integração com o Google Stitch MCP. Mapeia design tokens, grids de respon… |
 | `impeccable` | Use when the user wants to design, redesign, shape, critique, audit, polish, clarify, distill, harde… |
@@ -105,7 +110,7 @@
 
 > Meta-harness: agentes, QA, revisão de código, análise
 
-**Pasta:** `skills/harness/`  |  **Skills:** 18
+**Pasta:** `skills/harness/`  |  **Skills:** 20
 
 | Skill | Descrição |
 |-------|----------|
@@ -115,11 +120,13 @@
 | `architectural-analysis` | Architectural audit that hunts dead code, duplicated functionality, anti-patterns, type confusion, a… |
 | `deep-review` | Deep, CodeRabbit-grade review of a branch diff, working tree, or GitHub PR at any size — funnels cha… |
 | `deslop` | Remove AI-generated code slop from the branch diff. Use before claiming any coding task complete, be… |
-| `grill-me` | A relentless interview to sharpen a plan or design. |
+| `docs-curator` | Standard for generating AGENTS.md per folder. Used by the documenter agent and any agent that needs … |
+| `grill-me` | Use this skill when about to make a non-trivial design decision. Switches the agent from executor mo… |
 | `grill-with-docs` | A relentless interview to sharpen a plan or design, which also creates docs (ADR's and glossary) as … |
 | `herdr-orchestration` | Orchestrate Claude and Codex worker TUIs from a controller agent through herdr panes and the herdr s… |
 | `impl-peer-review` | >- |
 | `no-workarounds` | Fix problems at their root cause instead of patching symptoms. Use when debugging, fixing bugs, reso… |
+| `qa-e2e` | How the tester agent operates. Reference for orchestrator and reviewer agents. |
 | `qa-execution` | >- |
 | `qa-report` | >- |
 | `refactoring-analysis` | > |
@@ -134,11 +141,12 @@
 
 > Git, Shell, Contexto, Documentação, Tooling
 
-**Pasta:** `skills/geral/`  |  **Skills:** 9
+**Pasta:** `skills/geral/`  |  **Skills:** 10
 
 | Skill | Descrição |
 |-------|----------|
 | `context7-mcp` | This skill should be used when the user asks about libraries, frameworks, API references, or needs c… |
+| `decision-log` | Persist grill-me and architectural decisions to durable file in ADR format. Future agents read this … |
 | `find-docs` | >- |
 | `git-rebase` | Intelligently handle git rebase operations and resolve merge conflicts while preserving features and… |
 | `shell` | Shell scripting best practices for writing safe, portable, and maintainable bash/sh scripts. Use whe… |
@@ -154,11 +162,13 @@
 
 > Pentest, auditoria de segurança, técnicas ofensivas
 
-**Pasta:** `skills/seguranca/`  |  **Skills:** 1
+**Pasta:** `skills/seguranca/`  |  **Skills:** 3
 
 | Skill | Descrição |
 |-------|----------|
+| `lgpd-compliance` | LGPD (Brazilian GDPR) compliance checklist. Applied when feature touches personal data of Brazilian … |
 | `reverse-shell-techniques` | >- |
+| `security-audit` | Security checklist applied by backend agent before GREEN. Validates input handling, secrets, PII, ra… |
 
 ---
 

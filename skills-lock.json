@@ -4,7 +4,7 @@
     "agent-browser": {
       "source": "vercel-labs/agent-browser",
       "sourceType": "github",
-      "skillPath": "skills/harness/agent-browser/SKILL.md",
+      "skillPath": "skills/harness/harness/harness/agent-browser/SKILL.md",
       "computedHash": "ecc7641aea05f85ca3b11e7759d32aaf52fe05946ab4b63739c7bf78a41237a2"
     },
     "design-md": {
@@ -22,85 +22,85 @@
     "golang-code-style": {
       "source": "samber/cc-skills-golang",
       "sourceType": "github",
-      "skillPath": "skills/backend/golang-code-style/SKILL.md",
+      "skillPath": "skills/backend/backend/backend/golang-code-style/SKILL.md",
       "computedHash": "1c949d9721fac34faf39e640a08c9f17b6449a64183824ac99d2e3785b1fef57"
     },
     "golang-design-patterns": {
       "source": "samber/cc-skills-golang",
       "sourceType": "github",
-      "skillPath": "skills/backend/golang-design-patterns/SKILL.md",
+      "skillPath": "skills/backend/backend/backend/golang-design-patterns/SKILL.md",
       "computedHash": "be80b0298aa92d2563dae317e4558f96f0f4990684254c41e644bf35b7c40b5e"
     },
     "golang-documentation": {
       "source": "samber/cc-skills-golang",
       "sourceType": "github",
-      "skillPath": "skills/backend/golang-documentation/SKILL.md",
+      "skillPath": "skills/backend/backend/backend/golang-documentation/SKILL.md",
       "computedHash": "9ac7585cd6df629c6862c68c4f65db1cb16ea73d3c6655c6fb5dacc89ac36fba"
     },
     "golang-performance": {
       "source": "samber/cc-skills-golang",
       "sourceType": "github",
-      "skillPath": "skills/backend/golang-performance/SKILL.md",
+      "skillPath": "skills/backend/backend/backend/golang-performance/SKILL.md",
       "computedHash": "56a9621bfd52c2674a27217f8e223df117b605b15fe06be8ec666c5d2c02604e"
     },
     "golang-security": {
       "source": "samber/cc-skills-golang",
       "sourceType": "github",
-      "skillPath": "skills/backend/golang-security/SKILL.md",
+      "skillPath": "skills/backend/backend/backend/golang-security/SKILL.md",
       "computedHash": "ec7a8da21c7ca213783cc1631c3496c841209ba92fdf8155c1c9e45dfee38c94"
     },
     "golang-testing": {
       "source": "samber/cc-skills-golang",
       "sourceType": "github",
-      "skillPath": "skills/backend/golang-testing/SKILL.md",
+      "skillPath": "skills/backend/backend/backend/golang-testing/SKILL.md",
       "computedHash": "150dfb5fe4c56b8d3c141c4b3e70326743b591c1dedf9a32cfba64619bab8784"
     },
     "grill-me": {
       "source": "mattpocock/skills",
       "sourceType": "github",
-      "skillPath": "skills/harness/productivity/grill-me/SKILL.md",
+      "skillPath": "skills/harness/harness/harness/productivity/grill-me/SKILL.md",
       "computedHash": "f321507f77702a54af1db66549ec1685fc625390d06c57d7949cdcda8eb1b5c7"
     },
     "grill-with-docs": {
       "source": "mattpocock/skills",
       "sourceType": "github",
-      "skillPath": "skills/harness/engineering/grill-with-docs/SKILL.md",
+      "skillPath": "skills/harness/harness/harness/engineering/grill-with-docs/SKILL.md",
       "computedHash": "e7ef25bbee50cda2eb7b3a8ef541db0a0396dad7d369f7d14fb610671dd1864b"
     },
     "laravel-patterns": {
       "source": "affaan-m/everything-claude-code",
       "sourceType": "github",
-      "skillPath": "skills/backend/laravel-patterns/SKILL.md",
+      "skillPath": "skills/backend/backend/backend/laravel-patterns/SKILL.md",
       "computedHash": "baf54bb931610e753b3c67bebdc333ae1d344a5fe0babcfc60746e9df1c43c5e"
     },
     "laravel-plugin-discovery": {
       "source": "affaan-m/everything-claude-code",
       "sourceType": "github",
-      "skillPath": "skills/backend/laravel-plugin-discovery/SKILL.md",
+      "skillPath": "skills/backend/backend/backend/laravel-plugin-discovery/SKILL.md",
       "computedHash": "37de064b97a53a24437e3d78a9fae84736a4cd945b02b0ef023fb4d2148ad987"
     },
     "laravel-security": {
       "source": "affaan-m/everything-claude-code",
       "sourceType": "github",
-      "skillPath": "skills/backend/laravel-security/SKILL.md",
+      "skillPath": "skills/backend/backend/backend/laravel-security/SKILL.md",
       "computedHash": "6ec0611d65b0787530f725ca630d9075e5e2eb3d7779abb43447983174dce854"
     },
     "laravel-specialist": {
       "source": "jeffallan/claude-skills",
       "sourceType": "github",
-      "skillPath": "skills/backend/laravel-specialist/SKILL.md",
+      "skillPath": "skills/backend/backend/backend/laravel-specialist/SKILL.md",
       "computedHash": "d58e2ed3488398cb94a039f25b9d270e55dc434e16102abff9035608bec3db90"
     },
     "laravel-tdd": {
       "source": "affaan-m/everything-claude-code",
       "sourceType": "github",
-      "skillPath": "skills/backend/laravel-tdd/SKILL.md",
+      "skillPath": "skills/backend/backend/backend/laravel-tdd/SKILL.md",
       "computedHash": "50679a26ab7d00a736add58f9354b5fd4b8db202d764982ce7ba51fdd9eaaa5a"
     },
     "laravel-verification": {
       "source": "affaan-m/everything-claude-code",
       "sourceType": "github",
-      "skillPath": "skills/backend/laravel-verification/SKILL.md",
+      "skillPath": "skills/backend/backend/backend/laravel-verification/SKILL.md",
       "computedHash": "f8b71c1f60d295e1a38545c65a491eb612337d6c3fcaf3f87b364e25b4160a34"
     },
     "nestjs-best-practices": {
@@ -112,13 +112,13 @@
     "nestjs-expert": {
       "source": "jeffallan/claude-skills",
       "sourceType": "github",
-      "skillPath": "skills/backend/nestjs-expert/SKILL.md",
+      "skillPath": "skills/backend/backend/backend/nestjs-expert/SKILL.md",
       "computedHash": "0775f4ba14e4f372b894cc86feb0bf58a51b2038bc98b3ff18f2021565cea494"
     },
     "nestjs-patterns": {
       "source": "affaan-m/everything-claude-code",
       "sourceType": "github",
-      "skillPath": "skills/backend/nestjs-patterns/SKILL.md",
+      "skillPath": "skills/backend/backend/backend/nestjs-patterns/SKILL.md",
       "computedHash": "b0ba81185468f7c6e950b4de91fae8004a5d56501a31ea63caa5f7cc3854e6a7"
     },
     "react-router-v7": {
@@ -141,73 +141,73 @@
     "reverse-shell-techniques": {
       "source": "yaklang/hack-skills",
       "sourceType": "github",
-      "skillPath": "skills/seguranca/reverse-shell-techniques/SKILL.md",
+      "skillPath": "skills/seguranca/seguranca/seguranca/reverse-shell-techniques/SKILL.md",
       "computedHash": "df3df6645e2240292da00826de34e125a8fd5a96bc74d0c0910a3b4d3bc4910c"
     },
     "sentry-create-alert": {
       "source": "getsentry/sentry-for-ai",
       "sourceType": "github",
-      "skillPath": "skills/backend/sentry-create-alert/SKILL.md",
+      "skillPath": "skills/backend/backend/backend/sentry-create-alert/SKILL.md",
       "computedHash": "05f78a17a70f3e38d283fef4f97b013024a01093ef436b96df12d51e2f1a7b00"
     },
     "sentry-debug-issue": {
       "source": "getsentry/sentry-for-ai",
       "sourceType": "github",
-      "skillPath": "skills/backend/sentry-debug-issue/SKILL.md",
+      "skillPath": "skills/backend/backend/backend/sentry-debug-issue/SKILL.md",
       "computedHash": "761d1e7b8c7165afed3a19fe18d4184107d6d1b94db12dc8d7e227c9d041fc78"
     },
     "sentry-feature-setup": {
       "source": "getsentry/sentry-for-ai",
       "sourceType": "github",
-      "skillPath": "skills/backend/sentry-feature-setup/SKILL.md",
+      "skillPath": "skills/backend/backend/backend/sentry-feature-setup/SKILL.md",
       "computedHash": "bc80b751e003b09e09135d897ca66caa2d6745d58b877acabd72f3791b8c44ce"
     },
     "sentry-get-started": {
       "source": "getsentry/sentry-for-ai",
       "sourceType": "github",
-      "skillPath": "skills/backend/sentry-get-started/SKILL.md",
+      "skillPath": "skills/backend/backend/backend/sentry-get-started/SKILL.md",
       "computedHash": "dbf946e996b55195d067edc604322c01c1b625d176aff2401bc94b6a95330d3c"
     },
     "sentry-instrument": {
       "source": "getsentry/sentry-for-ai",
       "sourceType": "github",
-      "skillPath": "skills/backend/sentry-instrument/SKILL.md",
+      "skillPath": "skills/backend/backend/backend/sentry-instrument/SKILL.md",
       "computedHash": "bc94ad809ec8e7765c3373e4bbfa2507ac98e1e85f3f2aa26bf6f87c5f4d86d0"
     },
     "sentry-otel-exporter-setup": {
       "source": "getsentry/sentry-for-ai",
       "sourceType": "github",
-      "skillPath": "skills/backend/sentry-otel-exporter-setup/SKILL.md",
+      "skillPath": "skills/backend/backend/backend/sentry-otel-exporter-setup/SKILL.md",
       "computedHash": "621384dc6f606bc5a028cc1194b3cdbb1e44de6fcaa608cb5566e01a4b89f5a1"
     },
     "sentry-pr-code-review": {
       "source": "getsentry/sentry-for-ai",
       "sourceType": "github",
-      "skillPath": "skills/backend/sentry-pr-code-review/SKILL.md",
+      "skillPath": "skills/backend/backend/backend/sentry-pr-code-review/SKILL.md",
       "computedHash": "50d60bad66edd86ebda5302b67fb2980396b942fb125f70858f103c5a7692eb7"
     },
     "sentry-sdk-upgrade": {
       "source": "getsentry/sentry-for-ai",
       "sourceType": "github",
-      "skillPath": "skills/backend/sentry-sdk-upgrade/SKILL.md",
+      "skillPath": "skills/backend/backend/backend/sentry-sdk-upgrade/SKILL.md",
       "computedHash": "ef1881ddfe80380e6814cc2dcd072c6c238783ebc3985acc46d3141b2c3fdf6b"
     },
     "sentry-setup-ai-monitoring": {
       "source": "getsentry/sentry-for-ai",
       "sourceType": "github",
-      "skillPath": "skills/backend/sentry-setup-ai-monitoring/SKILL.md",
+      "skillPath": "skills/backend/backend/backend/sentry-setup-ai-monitoring/SKILL.md",
       "computedHash": "0605173648caed2d2385b0e7ba03a3fcb90ec63171685ec97e97f5f75413e697"
     },
     "sentry-snapshots-cocoa": {
       "source": "getsentry/sentry-for-ai",
       "sourceType": "github",
-      "skillPath": "skills/backend/sentry-snapshots-cocoa/SKILL.md",
+      "skillPath": "skills/backend/backend/backend/sentry-snapshots-cocoa/SKILL.md",
       "computedHash": "2e3ded8e0683fd5082bbe6bc81f979bbf2d69ca1e0453b8a5c58f8c85ea04873"
     },
     "sentry-workflow": {
       "source": "getsentry/sentry-for-ai",
       "sourceType": "github",
-      "skillPath": "skills/backend/sentry-workflow/SKILL.md",
+      "skillPath": "skills/backend/backend/backend/sentry-workflow/SKILL.md",
       "computedHash": "219e8f7bd0de395531b28974272859a5df2c9f52271152aeb3d4b0cd07a20f76"
     },
     "shadcn-ui": {
@@ -219,7 +219,7 @@
     "shell": {
       "source": "pproenca/dot-skills",
       "sourceType": "github",
-      "skillPath": "skills/geral/.experimental/shell/SKILL.md",
+      "skillPath": "skills/geral/geral/geral/.experimental/shell/SKILL.md",
       "computedHash": "aec0cec9d04d4b969eba0255822bccae96512adb3aa6f80e90adf5884f60f5a8"
     },
     "shellcheck-configuration": {
@@ -231,7 +231,7 @@
     "skill-creator": {
       "source": "anthropics/skills",
       "sourceType": "github",
-      "skillPath": "skills/harness/skill-creator/SKILL.md",
+      "skillPath": "skills/harness/harness/harness/skill-creator/SKILL.md",
       "computedHash": "5ea13a6d9f0d4bb694405d79acd00cadec0d21bb138c4dd10fcf3c500cb835c2"
     },
     "stitch-loop": {
@@ -309,7 +309,7 @@
     "tanstack-query-best-practices": {
       "source": "deckardger/tanstack-agent-skills",
       "sourceType": "github",
-      "skillPath": "skills/frontend/tanstack-query/SKILL.md",
+      "skillPath": "skills/frontend/frontend/frontend/tanstack-query/SKILL.md",
       "computedHash": "21d2e8b7468a81d772b6527ad8ca178cc2f3f08af777bb9061333013ee88a0c9"
     },
     "tanstack-router": {
@@ -321,7 +321,7 @@
     "tanstack-router-best-practices": {
       "source": "deckardger/tanstack-agent-skills",
       "sourceType": "github",
-      "skillPath": "skills/frontend/tanstack-router/SKILL.md",
+      "skillPath": "skills/frontend/frontend/frontend/tanstack-router/SKILL.md",
       "computedHash": "65764bc7b90e47f6023cb7f89b3af93eaaafc517754f10b9382e184d4646a77d"
     },
     "tanstack-start": {
@@ -339,7 +339,7 @@
     "web-design-guidelines": {
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",
-      "skillPath": "skills/design/web-design-guidelines/SKILL.md",
+      "skillPath": "skills/design/design/design/web-design-guidelines/SKILL.md",
       "computedHash": "f3bc47f890f42a44db1007ab390709ec368e4b8c089baee6b0007182236ac474"
     }
   }

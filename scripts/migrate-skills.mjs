@@ -43,6 +43,8 @@ const SECTOR_MAP = {
   "remotion":                     "frontend",
   "app-renderer-systems":         "frontend",
   "typescript-advanced":          "frontend",
+  "frontend-context-first":       "frontend",
+  "frontend-style-guide":         "frontend",
 
   // BACKEND
   "nestjs-best-practices":        "backend",
@@ -74,6 +76,8 @@ const SECTOR_MAP = {
   "sentry-setup-ai-monitoring":   "backend",
   "sentry-snapshots-cocoa":       "backend",
   "sentry-workflow":              "backend",
+  "backend-tdd":                  "backend",
+  "backend-api-design":           "backend",
 
   // DESIGN
   "stitch-code-to-design":        "design",
@@ -93,6 +97,7 @@ const SECTOR_MAP = {
   "web-design-guidelines":        "design",
   "tech-logos":                   "design",
   "enhance-prompt":               "design",
+  "design-system":                "design",
 
   // HARNESS (meta-harness: agentes, QA, review)
   "qa-execution":                 "harness",
@@ -113,6 +118,8 @@ const SECTOR_MAP = {
   "testing-boss":                 "harness",
   "grill-me":                     "harness",
   "grill-with-docs":              "harness",
+  "qa-e2e":                       "harness",
+  "docs-curator":                 "harness",
 
   // GERAL (tooling, docs, git, contexto)
   "git-rebase":                   "geral",
@@ -124,9 +131,12 @@ const SECTOR_MAP = {
   "to-prompt":                    "geral",
   "writing-skills":               "geral",
   "writing-tech-post":            "geral",
+  "decision-log":                 "geral",
 
   // SEGURANÇA
   "reverse-shell-techniques":     "seguranca",
+  "security-audit":               "seguranca",
+  "lgpd-compliance":              "seguranca",
 
   // PESSOAL (fora de escopo — mover para repo separado)
   "yc-apply":                     "pessoal",

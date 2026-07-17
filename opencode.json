@@ -9,6 +9,10 @@
     "./plugins/status-injector.ts",
     "./plugins/native-sandbox.ts"
   ],
+  "experimental": {
+    "frontendContextFirst": true,
+    "_comment": "v6.5.0 — habilita novo fluxo frontend (context-first + grill-me). Set false para reverter para o legacy behavior."
+  },
   "permission": {
     "bash": "allow",
     "edit": "allow",
@@ -24,6 +28,157 @@
     "websearch": "allow",
     "question": "allow",
     "task": "deny"
+  },
+  "agent": {
+    "frontend": {
+      "tools": {
+        "skill": true
+      },
+      "permission": {
+        "write": {
+          "allow": [
+            "src/**",
+            "public/**",
+            ".harness/decisions/**",
+            "**/*.stories.tsx",
+            "**/*.stories.ts"
+          ],
+          "deny": [
+            "**/*.test.ts",
+            "**/*.test.tsx",
+            "**/*.spec.ts",
+            "**/*.spec.tsx",
+            "tests/**",
+            "test/**",
+            "qa/**",
+            "e2e/**"
+          ]
+        },
+        "edit": {
+          "allow": [
+            "src/**",
+            "public/**",
+            ".harness/decisions/**",
+            "**/*.stories.tsx",
+            "**/*.stories.ts"
+          ],
+          "deny": [
+            "**/*.test.ts",
+            "**/*.test.tsx",
+            "**/*.spec.ts",
+            "**/*.spec.tsx",
+            "tests/**",
+            "test/**",
+            "qa/**",
+            "e2e/**"
+          ]
+        },
+        "skill": {
+          "frontend-*": "allow",
+          "grill-me": "allow",
+          "docs-curator": "allow",
+          "decision-log": "allow",
+          "design-system": "allow",
+          "backend-*": "deny",
+          "qa-e2e": "deny",
+          "security-audit": "deny",
+          "lgpd-compliance": "deny"
+        }
+      }
+    },
+    "backend": {
+      "tools": {
+        "skill": true
+      },
+      "permission": {
+        "write": {
+          "allow": [
+            "src/**",
+            "server/**",
+            "api/**",
+            "prisma/**",
+            "migrations/**",
+            "tests/**",
+            "**/*.test.ts",
+            "**/*.spec.ts"
+          ]
+        },
+        "skill": {
+          "backend-*": "allow",
+          "grill-me": "allow",
+          "decision-log": "allow",
+          "security-audit": "allow",
+          "lgpd-compliance": "allow",
+          "frontend-*": "deny",
+          "qa-e2e": "deny"
+        }
+      }
+    },
+    "documenter": {
+      "tools": {
+        "skill": true
+      },
+      "permission": {
+        "write": {
+          "allow": [
+            "AGENTS.md",
+            "**/AGENTS.md",
+            ".harness/RAG/**",
+            ".harness/.agmd-hashes.json",
+            "templates/**",
+            "docs/**"
+          ]
+        },
+        "skill": {
+          "docs-curator": "allow",
+          "grill-me": "allow",
+          "decision-log": "allow"
+        }
+      }
+    },
+    "tester": {
+      "tools": {
+        "skill": true
+      },
+      "permission": {
+        "write": {
+          "allow": [
+            "tests/**",
+            "qa/**",
+            "e2e/**",
+            "playwright/**",
+            ".harness/tester/**"
+          ]
+        },
+        "skill": {
+          "qa-e2e": "allow",
+          "grill-me": "allow",
+          "decision-log": "allow"
+        }
+      }
+    },
+    "orchestrator": {
+      "tools": {
+        "skill": true,
+        "task": true
+      },
+      "permission": {
+        "skill": {
+          "*": "allow"
+        }
+      }
+    },
+    "qa-gate": {
+      "tools": {
+        "skill": true
+      },
+      "permission": {
+        "read": "allow",
+        "skill": {
+          "qa-e2e": "allow"
+        }
+      }
+    }
   },
   "mcp": {
     "playwright": {
