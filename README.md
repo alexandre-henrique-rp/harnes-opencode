@@ -14,12 +14,15 @@
   <p align="center">
     <a href="#-sobre-o-projeto">Sobre o Projeto</a> ·
     <a href="#-instalação-rápida">Instalação Rápida</a> ·
+    <a href="#-veja-em-ação">Veja em Ação</a> ·
     <a href="#-sprints--workflow">Fases e Workflow</a> ·
     <a href="#-time-de-agentes-roster">Time de Agentes</a> ·
     <a href="#-princípios-não-negociáveis">Princípios</a> ·
-    <a href="#-protocolo-de-falhas">Protocolo de Falhas</a>
+    <a href="#-protocolo-de-falhas">Protocolo de Falhas</a> ·
+    <a href="CONTRIBUTING.md">Como Contribuir</a>
   </p>
 </div>
+
 
 ---
 
@@ -110,6 +113,33 @@ opencode /harness-init --project meu-projeto --profile lean
 ```
 
 ---
+
+## 🎬 Veja em Ação
+
+Quer ver o harness rodando de verdade antes de instalar? O repositório inclui um **exemplo funcional completo** que demonstra as 6 fases em um projeto de web app real.
+
+> ⏱️ **Tempo estimado:** ~5 minutos do clone até o harness executando.
+
+```bash
+# 1. Clone o repositório
+git clone https://github.com/alexandre-henrique-rp/harnes-opencode.git
+cd harnes-opencode
+
+# 2. Instale as dependências
+npm install
+
+# 3. Entre no exemplo e inicie o harness
+cd examples/sample-web-app
+opencode /harness
+```
+
+📂 O exemplo completo está em [`examples/sample-web-app/`](examples/sample-web-app/) e cobre todas as 6 fases: briefing, documentação, requisitos (PRD+SPEC), design, planejamento de sprints e build com testes.
+
+Quer contribuir com o projeto? Leia o [Guia de Contribuição](CONTRIBUTING.md) — leva menos de 10 minutos para configurar o ambiente de desenvolvimento.
+
+---
+
+
 
 ## 🔄 Fases e Workflow
 

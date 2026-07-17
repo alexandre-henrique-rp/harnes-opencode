@@ -81,21 +81,57 @@ export const PathBoundaryPlugin: Plugin = async ({ directory, worktree }) => {
   let cachedAllowlist: any = null;
   let cachedMtime: number = 0;
 
+  /**
+   * Retorna a allowlist do projeto, com cache por mtime.
+   * Em caso de falha (arquivo ausente, JSON inválido), emite warning
+   * via stderr para nunca falhar silenciosamente (PRD-04).
+   *
+   * @returns A allowlist parseada, ou null se não existir (arquivo ausente = sem restrição adicional).
+   * @throws {Error} Em modo fail-closed, rejeita qualquer escrita até que uma allowlist válida exista.
+   */
   function getAllowlist() {
+    // Modo configurável: "fail-open" (padrão) ou "fail-closed"
+    const mode = process.env.HARNESS_PATH_BOUNDARY_MODE || "fail-open";
+
     try {
       if (fs.existsSync(ALLOWLIST_PATH)) {
         const stat = fs.statSync(ALLOWLIST_PATH);
         if (!cachedAllowlist || stat.mtimeMs !== cachedMtime) {
-          cachedAllowlist = JSON.parse(fs.readFileSync(ALLOWLIST_PATH, "utf8"));
-          cachedMtime = stat.mtimeMs;
+          try {
+            cachedAllowlist = JSON.parse(fs.readFileSync(ALLOWLIST_PATH, "utf8"));
+            cachedMtime = stat.mtimeMs;
+          } catch (parseErr) {
+            // JSON inválido — nunca falhar silenciosamente (PRD-04)
+            const msg = `[path-boundary] WARNING: harness-allowlist.json existe mas contém JSON inválido — ${(parseErr as Error).message}. Aplicando apenas ALWAYS_DENY.`;
+            process.stderr.write(msg + "\n");
+            if (mode === "fail-closed") {
+              throw new Error(`[path-boundary] BLOCKED (fail-closed): allowlist corrompida. Corrija harness-allowlist.json antes de continuar.`);
+            }
+            return null;
+          }
         }
         return cachedAllowlist;
+      } else {
+        // Arquivo ausente — logar somente em modo fail-closed para não poluir o output normal
+        if (mode === "fail-closed") {
+          const msg = `[path-boundary] WARNING: harness-allowlist.json não encontrado em ${ALLOWLIST_PATH}. Modo fail-closed ativo — escrita bloqueada.`;
+          process.stderr.write(msg + "\n");
+          throw new Error(`[path-boundary] BLOCKED (fail-closed): nenhuma allowlist válida encontrada. Crie harness-allowlist.json antes de continuar.`);
+        }
+        return null;
       }
     } catch (err) {
-      // ignore
+      // Re-throw erros de boundary (incluindo fail-closed) sem silenciar
+      if ((err as Error).message?.includes("[path-boundary]")) {
+        throw err;
+      }
+      // Outros erros inesperados de I/O — emitir warning e fail-open
+      const msg = `[path-boundary] WARNING: erro inesperado ao ler allowlist — ${(err as Error).message}. Aplicando apenas ALWAYS_DENY.`;
+      process.stderr.write(msg + "\n");
+      return null;
     }
-    return null;
   }
+
 
   return {
     "tool.execute.before": async (input, output) => {

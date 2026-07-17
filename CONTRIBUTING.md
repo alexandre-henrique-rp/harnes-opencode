@@ -12,7 +12,7 @@ O harness é composto por 4 pilares:
 1. **Agentes Declarativos (`agents/`)**: Arquivos Markdown com YAML frontmatter configurando modos de permissão e regras de identidade.
 2. **Contratos Globais (`state-machine.json`, `failure-protocol.json`)**: Configuram o fluxo sequencial de 6 fases, critérios de portão (gates) e tratamento de erros.
 3. **Plugins TS (`plugins/`, `tools/`)**: Plugins de runtime para controle de escrita e log (como `path-boundary.ts` e `audit-logger.ts`).
-4. **Skills locais (`skills/`)**: Instruções especializadas em formato de Markdown estendido acionadas sob demanda para tarefas específicas (como o ecossistema do Stitch).
+4. **Skills locais (`skills/`)**: Instruções especializadas em formato de Markdown estendido acionadas sob demanda para tarefas específicas (como o ecossistema do Stitch). O critério de o que pertence ao `skills/` core está documentado em [`docs/SKILLS_CURATION.md`](docs/SKILLS_CURATION.md).
 
 ---
 
@@ -22,6 +22,13 @@ O harness é composto por 4 pilares:
 * Node.js (v18+) ou **Bun** (altamente recomendado e pré-instalado pelo instalador).
 * OpenCode CLI instalado no sistema.
 
+### Modelo de Instalação Suportado
+
+> [!IMPORTANT]
+> O método de instalação oficial é via `install.sh` (curl ou execução local). O harness **não é publicado como pacote npm público**. O `npm install` serve apenas para instalar as dependências de desenvolvimento do repositório.
+>
+> **Por que `@opencode-ai/plugin` está em `dependencies` (não `devDependencies`):** os 4 plugins de runtime (`path-boundary.ts`, `audit-logger.ts`, `native-sandbox.ts`, `status-injector.ts`) importam esse SDK em produção. Manter em `devDependencies` quebraria os plugins em ambientes que executam `npm install --omit=dev`.
+
 ### Passo a Passo
 1. Faça o fork e clone o repositório do projeto:
    ```bash
@@ -30,7 +37,8 @@ O harness é composto por 4 pilares:
    ```
 2. Instale as dependências locais de desenvolvimento:
    ```bash
-   bun install
+   npm install
+   # ou: bun install
    ```
 3. Teste o script de instalação localmente:
    ```bash
@@ -61,6 +69,14 @@ Seu Pull Request será recusado se violar qualquer um dos seguintes padrões de 
   Evite sobre-engenharia. Não adicione abstrações, classes complexas ou helpers "por garantia" se não forem usados imediatamente. Resolva o problema de forma direta e legível.
 * **Respeito aos Path Boundaries:**
   Se estiver adicionando um novo agente ou modificando suas permissões em `opencode.json` ou `agents/`, certifique-se de que ele possua permissões estritas (`permission.task = deny` para subagentes) e que suas permissões de gravação de arquivos estejam limitadas a sua pasta de trabalho.
+* **Curadoria de Skills (`skills/`):**
+  Antes de adicionar uma nova skill ao diretório `skills/`, ela deve atender a pelo menos um dos critérios documentados em [`docs/SKILLS_CURATION.md`](docs/SKILLS_CURATION.md):
+  - [ ] Referenciada em um `agents/*.md` existente
+  - [ ] Suporta diretamente uma das 6 fases do workflow
+  - [ ] É ferramental de plataforma que os agentes usam
+  - [ ] É de manutenção/extensão do próprio harness
+  
+  Skills pessoais do autor sem relação com o escopo do harness devem ir para um repositório separado.
 
 ---
 
@@ -80,6 +96,15 @@ Antes de fazer o push de suas modificações, certifique-se de rodar localmente 
    Valide se arquivos como `opencode.json`, `state-machine.json` e `failure-protocol.json` estão em formato JSON perfeitamente válido (sem vírgulas inválidas sobrando):
    ```bash
    python3 -m json.tool opencode.json
+   ```
+4. **Rodar testes com cobertura (obrigatório antes de PR):**
+   ```bash
+   npm run test:coverage
+   ```
+   O CI rejeitará PRs que reduzam a cobertura de `tools/` abaixo de **70%**.
+5. **Validar classificação de dependências de runtime:**
+   ```bash
+   node -e "const p=require('./package.json'); if(!p.dependencies?.['@opencode-ai/plugin']) throw new Error('SDK em devDependencies!')"
    ```
 
 ---
