@@ -186,4 +186,24 @@ test("Suíte de Testes do Harness v6 Tools", async (t) => {
       }
     }
   });
+
+  await t.test("6. opencode.json - deve ter comandos de MCP validos usando npx -y sem invocar node em scripts shell", async () => {
+    const opencodePath = path.join(cwd, "opencode.json");
+    assert.ok(fs.existsSync(opencodePath), "opencode.json deve existir na raiz do projeto");
+
+    const content = fs.readFileSync(opencodePath, "utf8");
+    const config = JSON.parse(content);
+
+    assert.ok(config.mcp, "opencode.json deve conter seção mcp");
+
+    for (const [mcpName, mcpConfig] of Object.entries(config.mcp as Record<string, any>)) {
+      if (mcpConfig.type === "local" && Array.isArray(mcpConfig.command)) {
+        const cmd: string[] = mcpConfig.command;
+        // Não deve executar "node ./node_modules/.bin/..." pois a maioria é shell script (#!/bin/sh)
+        if (cmd[0] === "node" && cmd[1] && cmd[1].includes("node_modules/.bin/")) {
+          assert.fail(`MCP "${mcpName}" não deve invocar 'node' diretamente em scripts de '.bin/'. Use 'npx -y <pacote>'.`);
+        }
+      }
+    }
+  });
 });

@@ -427,24 +427,60 @@ try {
   const missingPackages = [];
   
   for (const mcpName in config.mcp) {
-    const cmd = config.mcp[mcpName].command || [];
+    const mcpConfig = config.mcp[mcpName];
+    if (mcpConfig.enabled === false) {
+      console.log(`  \x1b[36mℹ\x1b[0m  MCP "${mcpName}" (desativado)`);
+      continue;
+    }
+
+    const cmd = mcpConfig.command || [];
+    if (!cmd.length) continue;
+
     let pkgName = null;
-    for (const arg of cmd) {
-      if (arg.includes('node_modules/.bin/')) {
-        const parts = arg.split('/');
-        pkgName = parts[parts.length - 1];
-        break;
+    let isNpx = false;
+
+    if (cmd[0] === 'npx') {
+      isNpx = true;
+      const yIdx = cmd.indexOf('-y');
+      if (yIdx !== -1 && cmd[yIdx + 1]) {
+        pkgName = cmd[yIdx + 1];
+      } else if (cmd[1] && !cmd[1].startsWith('-')) {
+        pkgName = cmd[1];
+      }
+    } else {
+      for (const arg of cmd) {
+        if (arg.includes('node_modules/.bin/')) {
+          const parts = arg.split('/');
+          pkgName = parts[parts.length - 1];
+          break;
+        }
       }
     }
     
     if (pkgName) {
-      const pkgPath = path.join(dest, 'node_modules', pkgName);
-      const isInstalled = fs.existsSync(pkgPath);
+      let isInstalled = false;
+
+      if (isNpx) {
+        try {
+          execSync(`npm view ${pkgName} version`, { stdio: 'ignore', timeout: 8000 });
+          isInstalled = true;
+          // Pre-warm npx cache with short timeout
+          try {
+            execSync(`timeout 3s npx -y ${pkgName} --version >/dev/null 2>&1 || timeout 3s npx -y ${pkgName} --help >/dev/null 2>&1 || true`, { stdio: 'ignore', timeout: 4000 });
+          } catch (e) {}
+        } catch (err) {
+          const pkgPath = path.join(dest, 'node_modules', pkgName);
+          isInstalled = fs.existsSync(pkgPath);
+        }
+      } else {
+        const pkgPath = path.join(dest, 'node_modules', pkgName);
+        isInstalled = fs.existsSync(pkgPath);
+      }
       
       if (isInstalled) {
-        console.log(`  \x1b[32m✔\x1b[0m  MCP "${mcpName}" ok`);
+        console.log(`  \x1b[32m✔\x1b[0m  MCP "${mcpName}" (${pkgName}) ok`);
       } else {
-        console.log(`  \x1b[33m⚠\x1b[0m  MCP "${mcpName}" ausente`);
+        console.log(`  \x1b[33m⚠\x1b[0m  MCP "${mcpName}" (${pkgName}) ausente`);
         if (!missingPackages.includes(pkgName)) {
           missingPackages.push(pkgName);
         }
@@ -479,7 +515,7 @@ try {
       }
     }
   } else {
-    console.log(`\x1b[32m  ✔ Todos os MCPs instalados\x1b[0m\n`);
+    console.log(`\x1b[32m  ✔ Todos os MCPs verificados com sucesso\x1b[0m\n`);
   }
 } catch (e) {
   console.error(`\x1b[31m  ✖ Erro ao analisar opencode.json\x1b[0m`);
