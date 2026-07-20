@@ -238,6 +238,19 @@
         "-y",
         "duckduckgo-mcp-server"
       ]
+    },
+    "context7": {
+      "type": "local",
+      "url": "https://mcp.context7.com/mcp",
+      "enabled": true,
+      "headers": {
+        "CONTEXT7_API_KEY": ""
+      },
+      "command": [
+        "npx",
+        "-y",
+        "ctx7"
+      ]
     }
   },
   "contextCompressor": {

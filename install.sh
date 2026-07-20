@@ -771,30 +771,149 @@ merge_json() {
     local update="$2"
     local output="$3"
 
-    if command -v python3 >/dev/null 2>&1; then
-        python3 - <<EOF
-import json, sys
+    if command -v node >/dev/null 2>&1; then
+        node - "$base" "$update" "$output" <<'NODEEOF'
+const fs = require('fs');
 
-def deep_merge(base, update):
+const basePath = process.argv[2];
+const updatePath = process.argv[3];
+const outputPath = process.argv[4];
+
+function readJsonc(filePath) {
+  let content = fs.readFileSync(filePath, 'utf8');
+  content = content.replace(/\/\*[\s\S]*?\*\//g, '');
+  content = content.replace(/(?:^|[^:])\/\/.*$/gm, '');
+  return JSON.parse(content);
+}
+
+function isTokenKey(key) {
+  const k = key.toLowerCase();
+  return (
+    k.includes('token') ||
+    k.includes('key') ||
+    k.includes('secret') ||
+    k.includes('auth') ||
+    k.includes('pass') ||
+    k.includes('credential') ||
+    k.includes('bearer')
+  );
+}
+
+function deepMerge(base, update, parentKey = '') {
+  if (Array.isArray(base) && Array.isArray(update)) {
+    return Array.from(new Set([...base, ...update]));
+  }
+  if (typeof base !== 'object' || base === null || typeof update !== 'object' || update === null) {
+    return update;
+  }
+
+  const result = { ...base };
+
+  for (const key of Object.keys(update)) {
+    const isMcpScope = parentKey === 'mcp' || parentKey.startsWith('mcp.');
+    const isHeaderOrEnvScope = parentKey.includes('.headers') || parentKey.includes('.env');
+
+    if (!(key in base)) {
+      result[key] = update[key];
+    } else {
+      const baseVal = base[key];
+      const updateVal = update[key];
+
+      if (isMcpScope && (isTokenKey(key) || isHeaderOrEnvScope)) {
+        if (baseVal !== undefined && baseVal !== null && baseVal !== '') {
+          if (typeof baseVal === 'object' && typeof updateVal === 'object' && !Array.isArray(baseVal)) {
+            result[key] = deepMerge(baseVal, updateVal, parentKey ? `${parentKey}.${key}` : key);
+          } else {
+            result[key] = baseVal;
+          }
+          continue;
+        }
+      }
+
+      result[key] = deepMerge(baseVal, updateVal, parentKey ? `${parentKey}.${key}` : key);
+    }
+  }
+  return result;
+}
+
+try {
+  const baseData = readJsonc(basePath);
+  const updateData = readJsonc(updatePath);
+  const merged = deepMerge(baseData, updateData);
+  fs.writeFileSync(outputPath, JSON.stringify(merged, null, 2) + '\n');
+} catch (e) {
+  process.exit(1);
+}
+NODEEOF
+        if [[ $? -eq 0 ]]; then
+            return 0
+        fi
+    fi
+
+    if command -v python3 >/dev/null 2>&1; then
+        python3 - "$base" "$update" "$output" <<'PYEOF'
+import json, re, sys
+
+base_path = sys.argv[1]
+update_path = sys.argv[2]
+output_path = sys.argv[3]
+
+def read_jsonc(filepath):
+    with open(filepath, 'r', encoding='utf-8') as f:
+        content = f.read()
+    content = re.sub(r'/\*[\s\S]*?\*/', '', content)
+    content = re.sub(r'(?:^|[^:])//.*$', '', content, flags=re.MULTILINE)
+    return json.loads(content)
+
+def is_token_key(key):
+    k = key.lower()
+    return any(t in k for t in ['token', 'key', 'secret', 'auth', 'pass', 'credential', 'bearer'])
+
+def deep_merge(base, update, parent_key=''):
     if isinstance(base, list) and isinstance(update, list):
-        return list(dict.fromkeys(base + update))
+        res = list(base)
+        for item in update:
+            if item not in res:
+                res.append(item)
+        return res
+
     if not isinstance(base, dict) or not isinstance(update, dict):
         return update
-    for key, value in update.items():
-        if key in base:
-            base[key] = deep_merge(base[key], value)
+
+    result = dict(base)
+
+    for key, update_val in update.items():
+        is_mcp_scope = parent_key == 'mcp' or parent_key.startswith('mcp.')
+        is_header_or_env = '.headers' in parent_key or '.env' in parent_key
+
+        if key not in base:
+            result[key] = update_val
         else:
-            base[key] = value
-    return base
+            base_val = base[key]
+            if is_mcp_scope and (is_token_key(key) or is_header_or_env):
+                if base_val is not None and base_val != '':
+                    if isinstance(base_val, dict) and isinstance(update_val, dict):
+                        new_parent = f"{parent_key}.{key}" if parent_key else key
+                        result[key] = deep_merge(base_val, update_val, new_parent)
+                    else:
+                        result[key] = base_val
+                    continue
+
+            new_parent = f"{parent_key}.{key}" if parent_key else key
+            result[key] = deep_merge(base_val, update_val, new_parent)
+
+    return result
 
 try:
-    with open("$base", "r") as f: base_data = json.load(f)
-    with open("$update", "r") as f: update_data = json.load(f)
+    base_data = read_jsonc(base_path)
+    update_data = read_jsonc(update_path)
     merged = deep_merge(base_data, update_data)
-    with open("$output", "w") as f: json.dump(merged, f, indent=2)
+    with open(output_path, 'w', encoding='utf-8') as f:
+        json.dump(merged, f, indent=2)
+        f.write('\n')
 except Exception as e:
     sys.exit(1)
-EOF
+PYEOF
         return $?
     else
         return 1
