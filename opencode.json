@@ -253,50 +253,5 @@
       ]
     }
   },
-  "contextCompressor": {
-    "enabled": true,
-    "threshold": 1000,
-    "maxOutputTokens": 500,
-    "model": "haiku",
-    "preservePatterns": [
-      "AGENTS\\.md$",
-      "package\\.json$",
-      "\\.test\\.",
-      "tsconfig\\.json$"
-    ]
-  },
-  "promptCachePrefixer": {
-    "enabled": true,
-    "cacheBreakpointAfter": "skills",
-    "emitMetrics": true
-  },
-  "tokenBudget": {
-    "enabled": true,
-    "maxContextTokens": 200000,
-    "compactThreshold": 0.5,
-    "warnThreshold": 0.8,
-    "haltThreshold": 0.95,
-    "haltBehavior": "compact"
-  },
-  "structuredThinking": {
-    "enabled": true,
-    "requireSelfCheck": true,
-    "selfCheckCategories": [
-      "spec-coverage",
-      "edge-cases",
-      "test-coverage",
-      "security",
-      "performance"
-    ],
-    "stripThinkingFromOutput": true
-  },
-  "auditLogger": {
-    "costConfig": {
-      "inputPer1M": 3.0,
-      "outputPer1M": 15.0,
-      "cacheReadPer1M": 0.30,
-      "cacheWritePer1M": 3.75
-    }
-  },
   "default_agent": "orchestrator"
 }
