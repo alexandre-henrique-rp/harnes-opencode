@@ -42,42 +42,34 @@
       },
       "permission": {
         "write": {
-          "allow": [
-            "src/**",
-            "public/**",
-            ".harness/decisions/**",
-            "**/*.stories.tsx",
-            "**/*.stories.ts"
-          ],
-          "deny": [
-            "**/*.test.ts",
-            "**/*.test.tsx",
-            "**/*.spec.ts",
-            "**/*.spec.tsx",
-            "tests/**",
-            "test/**",
-            "qa/**",
-            "e2e/**"
-          ]
+          "src/**": "allow",
+          "public/**": "allow",
+          ".harness/decisions/**": "allow",
+          "**/*.stories.tsx": "allow",
+          "**/*.stories.ts": "allow",
+          "**/*.test.ts": "deny",
+          "**/*.test.tsx": "deny",
+          "**/*.spec.ts": "deny",
+          "**/*.spec.tsx": "deny",
+          "tests/**": "deny",
+          "test/**": "deny",
+          "qa/**": "deny",
+          "e2e/**": "deny"
         },
         "edit": {
-          "allow": [
-            "src/**",
-            "public/**",
-            ".harness/decisions/**",
-            "**/*.stories.tsx",
-            "**/*.stories.ts"
-          ],
-          "deny": [
-            "**/*.test.ts",
-            "**/*.test.tsx",
-            "**/*.spec.ts",
-            "**/*.spec.tsx",
-            "tests/**",
-            "test/**",
-            "qa/**",
-            "e2e/**"
-          ]
+          "src/**": "allow",
+          "public/**": "allow",
+          ".harness/decisions/**": "allow",
+          "**/*.stories.tsx": "allow",
+          "**/*.stories.ts": "allow",
+          "**/*.test.ts": "deny",
+          "**/*.test.tsx": "deny",
+          "**/*.spec.ts": "deny",
+          "**/*.spec.tsx": "deny",
+          "tests/**": "deny",
+          "test/**": "deny",
+          "qa/**": "deny",
+          "e2e/**": "deny"
         },
         "skill": {
           "frontend-*": "allow",
@@ -98,16 +90,14 @@
       },
       "permission": {
         "write": {
-          "allow": [
-            "src/**",
-            "server/**",
-            "api/**",
-            "prisma/**",
-            "migrations/**",
-            "tests/**",
-            "**/*.test.ts",
-            "**/*.spec.ts"
-          ]
+          "src/**": "allow",
+          "server/**": "allow",
+          "api/**": "allow",
+          "prisma/**": "allow",
+          "migrations/**": "allow",
+          "tests/**": "allow",
+          "**/*.test.ts": "allow",
+          "**/*.spec.ts": "allow"
         },
         "skill": {
           "backend-*": "allow",
@@ -126,14 +116,12 @@
       },
       "permission": {
         "write": {
-          "allow": [
-            "AGENTS.md",
-            "**/AGENTS.md",
-            ".harness/RAG/**",
-            ".harness/.agmd-hashes.json",
-            "templates/**",
-            "docs/**"
-          ]
+          "AGENTS.md": "allow",
+          "**/AGENTS.md": "allow",
+          ".harness/RAG/**": "allow",
+          ".harness/.agmd-hashes.json": "allow",
+          "templates/**": "allow",
+          "docs/**": "allow"
         },
         "skill": {
           "docs-curator": "allow",
@@ -148,13 +136,11 @@
       },
       "permission": {
         "write": {
-          "allow": [
-            "tests/**",
-            "qa/**",
-            "e2e/**",
-            "playwright/**",
-            ".harness/tester/**"
-          ]
+          "tests/**": "allow",
+          "qa/**": "allow",
+          "e2e/**": "allow",
+          "playwright/**": "allow",
+          ".harness/tester/**": "allow"
         },
         "skill": {
           "qa-e2e": "allow",
