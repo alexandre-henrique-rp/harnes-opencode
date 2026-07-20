@@ -504,7 +504,7 @@ export const LGPDSanitizerPlugin: Plugin = async ({ project, client }) => {
 
   return {
     "model.complete.before": async (input) => {
-      const inp = input as Record<string, unknown>;
+      const inp = input as { messages?: unknown[]; sessionId?: string; context?: { agent?: string } };
       if (!Array.isArray(inp.messages)) return;
 
       const sessionId = String(inp.sessionId ?? "default");
@@ -524,8 +524,9 @@ export const LGPDSanitizerPlugin: Plugin = async ({ project, client }) => {
 
     "model.complete.after": async (input, output) => {
       // Reversão no response
-      const sessionId = String((input as Record<string, unknown>).sessionId ?? "default");
-      const agent = String(input.context?.agent ?? "unknown");
+      const inp = input as { sessionId?: string; context?: { agent?: string } };
+      const sessionId = String(inp.sessionId ?? "default");
+      const agent = String(inp.context?.agent ?? "unknown");
       const key = `${agent}:${sessionId}`;
       const sanitizer = sessions.get(key);
       if (!sanitizer) return;

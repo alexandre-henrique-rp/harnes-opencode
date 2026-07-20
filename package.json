@@ -7,6 +7,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "validate": "npm run validate:syntax && npm run validate:types && npm test",
     "validate:syntax": "bash -n install.sh",
     "validate:types": "tsc --noEmit",
     "test": "node --experimental-strip-types --test tests/harness-tools.test.ts tests/harness-db.test.ts tests/harness-advance.test.ts tests/path-boundary.test.ts tests/path-boundary-frontend.test.ts tests/lgpd-sanitizer.test.ts",
