@@ -40,43 +40,156 @@ Inspirado nas práticas de *vibe-coding* e Extreme Programming (XP), como progra
 
 ## 🛡️ Sandbox ai-jail
 
-O harness utiliza o **[ai-jail](https://github.com/akitaonrails/ai-jail)**, criado por [Fabio Akita (@akitaonrails)](https://github.com/akitaonrails), para isolar a execução dos agentes em nível de kernel (bubblewrap no Linux, seatbelt no macOS). Saiba mais no artigo: [Dicas e Toolkit de IA do Akita - ai-jail](https://akitaonrails.com/2026/05/24/dicas-e-toolkit-de-ia-do-akita-ai-jail-ai-memory-ai-usagebar/).
+O harness utiliza o **[ai-jail](https://github.com/akitaonrails/ai-jail)**, criado por [Fabio Akita (@akitaonrails)](https://github.com/akitaonrails), para isolar a execução dos agentes em nível de kernel (bubblewrap no Linux, seatbelt no macOS). Saiba mais no artigo original: [Dicas e Toolkit de IA do Akita - ai-jail](https://akitaonrails.com/2026/05/24/dicas-e-toolkit-de-ia-do-akita-ai-jail-ai-memory-ai-usagebar/).
 
-### Como funciona
+### Como Funciona a Proteção
 
-Quando você executa `opencode` em um projeto com o harness instalado, um **wrapper** intercepta a chamada e roda o opencode dentro de um sandbox criado pelo ai-jail. O sandbox:
+Quando você executa `opencode` em um projeto com o harness instalado, um **wrapper de segurança** (`~/.local/bin/opencode`) e o plugin `native-sandbox.ts` interceptam a chamada e executam as tarefas dentro do sandbox isolado pelo `ai-jail`.
 
-- **Protege o sistema host:** Comandos perigosos (`rm -rf /`, fork bombs, etc.) são bloqueados pelo plugin `native-sandbox.ts`.
-- **Mascara arquivos sensíveis:** `.env`, `.env.local`, `credentials.json` e `harness-allowlist.json` ficam inacessíveis dentro do sandbox.
-- **Oculta diretórios privados:** `.netrc` e `.kube` não são expostos ao agente.
-- **Preserva acesso ao config do opencode:** `~/.config/opencode` (agents, commands) e `~/.opencode` (plugins, bin) são mapeados no sandbox.
+- **Bloqueio de Comandos Destrutivos:** Proteção ativa no nível do kernel e regex que intercepta e aborta comandos perigosos como `rm -rf /`, `rm -rf ~`, fork bombs (`:(){ :|:& };:`), formatação de disco (`mkfs.*`, `dd of=/dev/sdX`) e `chmod 777 /`.
+- **Mascaramento de Arquivos Sensíveis:** Arquivos como `.env`, `.env.local`, `credentials.json` e `harness-allowlist.json` são mascarados (parecem vazios ou inexistentes para o agente).
+- **Ocultação de Dados de Infraestrutura:** Pastas sensíveis da home como `.ssh`, `.kube`, `.aws`, `.gcloud` e `.netrc` ficam completamente invisíveis no sandbox.
+- **Preservação do Mapeamento do OpenCode:** Os diretórios `~/.config/opencode` (agentes e comandos) e `~/.opencode` (plugins e binários) permanecem acessíveis em leitura/escrita para que a CLI funcione normalmente.
 
-### Configuração por projeto
+---
 
-Cada projeto pode customizar o comportamento do ai-jail editando o arquivo **`.harness/ai-jail.json`**:
+### Guia Completo de Parâmetros (`.harness/ai-jail.json`)
 
+Cada projeto pode customizar o isolamento editando o arquivo **`.harness/ai-jail.json`**. Abaixo está o detalhamento técnico de cada parâmetro:
+
+| Parâmetro | Tipo | Padrão no Harness | Descrição Detalhada & Impacto de Segurança |
+| :--- | :--- | :--- | :--- |
+| `rw_maps` | `string[]` | `["~/.opencode", "~/.config/opencode"]` | **Mapeamentos Leitura/Escrita (Read-Write).** Diretórios fora do projeto que o agente tem permissão para ler e modificar. Pode usar `~` para a home do usuário. Útil para caches de ferramentas (ex: `~/.cache`, `~/.npm`, `~/.pnpm-store`). |
+| `ro_maps` | `string[]` | `[]` | **Mapeamentos Somente Leitura (Read-Only).** Diretórios visíveis ao agente mas protegidos contra qualquer alteração. Ideal para bibliotecas globais, SDKs do sistema (`/usr/local`, `~/.cargo/registry`, `/usr/share`) sem risco de mutação. |
+| `hide_dotdirs` | `string[]` | `[".netrc", ".kube"]` | **Diretórios Ocultos (Dotdirs).** Pastas iniciadas por ponto na home que ficam **completamente invisíveis** dentro do sandbox. Evita vazamento de chaves SSH (`.ssh`), Kubernetes (`.kube`), AWS (`.aws`), Google Cloud (`.gcloud`) ou logins Git (`.netrc`). |
+| `mask` | `string[]` | `[".env", ".env.local", "credentials.json", "harness-allowlist.json"]` | **Arquivos Mascarados (Masked Files).** Arquivos específicos na raiz ou subpastas do projeto mascarados como vazios ou inexistentes. Impede que o agente leia credenciais de banco de dados, chaves API ou segredos. |
+| `no_docker` | `boolean` | `true` | **Bloqueio do Socket Docker.** Se `true`, bloqueia o acesso a `/var/run/docker.sock`, impedindo que o agente execute containers privilegiados para escapar do sandbox. Defina como `false` apenas em projetos que exigem `docker` ou `docker compose`. |
+| `no_private_home` | `boolean` | `true` | **Preservação do Home Real.** Se `true` (padrão do Harness v6), mantém o `$HOME` real acessível (com os mapeamentos aplicados), necessário para carregar agentes em `~/.config/opencode`. Se `false`, cria uma home privada temporária em `/tmp` isolando 100% o ambiente. |
+
+---
+
+### Exemplos Práticos de Configuração
+
+#### 🔹 1. Padrão / Recomendado (Desenvolvimento Web Geral & Node.js)
+Ideal para a maioria dos projetos web, APIs e aplicações TypeScript/JavaScript.
 ```json
 {
-  "rw_maps": ["~/.opencode", "~/.config/opencode"],
+  "rw_maps": [
+    "~/.opencode",
+    "~/.config/opencode",
+    "~/.npm"
+  ],
   "ro_maps": [],
-  "hide_dotdirs": [".netrc", ".kube"],
-  "mask": [".env", ".env.local", "credentials.json", "harness-allowlist.json"],
+  "hide_dotdirs": [
+    ".netrc",
+    ".kube",
+    ".ssh",
+    ".aws",
+    ".gcloud"
+  ],
+  "mask": [
+    ".env",
+    ".env.local",
+    ".env.production",
+    "credentials.json",
+    "harness-allowlist.json"
+  ],
   "no_docker": true,
   "no_private_home": true
 }
 ```
 
-| Campo | Tipo | Descrição |
-| :--- | :--- | :--- |
-| `rw_maps` | `string[]` | Diretórios mapeados leitura/escrita no sandbox |
-| `ro_maps` | `string[]` | Diretórios mapeados somente leitura no sandbox |
-| `hide_dotdirs` | `string[]` | Diretórios ocultos do agente |
-| `mask` | `string[]` | Arquivos mascarados (inexistentes no sandbox) |
-| `no_docker` | `boolean` | Desabilita acesso ao socket Docker |
-| `no_private_home` | `boolean` | Usa o home real (não isola) — necessário para agents/commands |
+#### 🔹 2. Projeto com Docker & Microserviços (`docker compose`)
+Para projetos que exigem execução de containers localmente ou testes de integração com banco de dados.
+```json
+{
+  "rw_maps": [
+    "~/.opencode",
+    "~/.config/opencode",
+    "~/.docker"
+  ],
+  "ro_maps": [],
+  "hide_dotdirs": [
+    ".netrc",
+    ".kube"
+  ],
+  "mask": [
+    ".env.production",
+    "secrets/*.pem"
+  ],
+  "no_docker": false,
+  "no_private_home": true
+}
+```
+
+#### 🔹 3. Alta Segurança / Isolamento Estrito (Auditorias & CI/CD)
+Isolamento máximo: home privada temporária, Docker bloqueado, todas as chaves de nuvem/SSH ocultas e arquivos `.env` mascarados.
+```json
+{
+  "rw_maps": [],
+  "ro_maps": [
+    "/usr/share"
+  ],
+  "hide_dotdirs": [
+    ".ssh",
+    ".aws",
+    ".gcloud",
+    ".kube",
+    ".netrc",
+    ".gnupg"
+  ],
+  "mask": [
+    ".env",
+    ".env.*",
+    "*.pem",
+    "*.key",
+    "secrets/**"
+  ],
+  "no_docker": true,
+  "no_private_home": false
+}
+```
+
+#### 🔹 4. Monorepos & Linguagens Globais (Python, Go, Rust)
+Mapeia os caches globais das linguagens para garantir alta velocidade de compilação sem comprometer os dados pessoais.
+```json
+{
+  "rw_maps": [
+    "~/.opencode",
+    "~/.config/opencode",
+    "~/.cache",
+    "~/.cargo",
+    "~/.go"
+  ],
+  "ro_maps": [
+    "/usr/local/go"
+  ],
+  "hide_dotdirs": [
+    ".ssh",
+    ".aws",
+    ".kube"
+  ],
+  "mask": [
+    ".env",
+    "credentials.json"
+  ],
+  "no_docker": true,
+  "no_private_home": true
+}
+```
+
+---
+
+### 🔄 Regeneração da Configuração do Sandbox
+
+O arquivo `.ai-jail` na raiz do seu projeto é gerado automaticamente a partir das configurações definidas em `.harness/ai-jail.json`.
 
 > [!TIP]
-> Após editar `.harness/ai-jail.json`, delete o arquivo `.ai-jail` na raiz do projeto. Ele será regenerado automaticamente na próxima inicialização do harness.
+> **Como aplicar alterações:** Sempre que você modificar o arquivo `.harness/ai-jail.json`, remova o arquivo `.ai-jail` na raiz do seu repositório:
+> ```bash
+> rm .ai-jail
+> ```
+> O Harness regenerará o `.ai-jail` atualizado automaticamente na próxima execução do OpenCode ou de qualquer ferramenta do workflow.
 
 ---
 

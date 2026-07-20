@@ -1134,9 +1134,9 @@
           <h3 data-i18n="jail_title">Protecao Nativa do Sistema</h3>
           <p data-i18n="jail_p1">O harness utiliza o <strong>ai-jail</strong> para isolar a execucao dos agentes usando bubblewrap (Linux) ou sandbox-exec (macOS). Comandos perigosos sao bloqueados automaticamente.</p>
           <ul class="jail-features">
-            <li data-i18n="jail_f1">Bloqueio de comandos destrutivos (rm -rf /, fork bombs)</li>
-            <li data-i18n="jail_f2">Mascaramento de arquivos sensiveis (.env, credentials)</li>
-            <li data-i18n="jail_f3">Ocultacao de diretorios privados (.netrc, .kube)</li>
+            <li data-i18n="jail_f1">Bloqueio de comandos destrutivos (rm -rf /, fork bombs, dd, mkfs)</li>
+            <li data-i18n="jail_f2">Mascaramento de arquivos sensiveis (.env, credentials, *.pem)</li>
+            <li data-i18n="jail_f3">Ocultacao de diretorios privados (.netrc, .kube, .ssh, .aws)</li>
             <li data-i18n="jail_f4">Acesso preservado a config do opencode (agents, commands)</li>
             <li data-i18n="jail_f5">Configuracao customizavel por projeto via .harness/ai-jail.json</li>
           </ul>
@@ -1147,24 +1147,76 @@
         </div>
         <div class="jail-config">
           <div class="jail-config-header">
-            <span>.harness/ai-jail.json</span>
+            <span>.harness/ai-jail.json — Exemplo Padrão</span>
           </div>
           <div class="jail-config-body">
 <span class="comment">// Configuracao do sandbox por projeto</span>
 {
   <span class="key">"rw_maps"</span>: [
     <span class="str">"~/.opencode"</span>,
-    <span class="str">"~/.config/opencode"</span>
+    <span class="str">"~/.config/opencode"</span>,
+    <span class="str">"~/.npm"</span>
   ],
+  <span class="key">"ro_maps"</span>: [],
+  <span class="key">"hide_dotdirs"</span>: [<span class="str">".netrc"</span>, <span class="str">".kube"</span>, <span class="str">".ssh"</span>, <span class="str">".aws"</span>],
   <span class="key">"mask"</span>: [
     <span class="str">".env"</span>,
-    <span class="str">"credentials.json"</span>
+    <span class="str">".env.local"</span>,
+    <span class="str">"credentials.json"</span>,
+    <span class="str">"harness-allowlist.json"</span>
   ],
-  <span class="key">"hide_dotdirs"</span>: [<span class="str">".netrc"</span>, <span class="str">".kube"</span>],
   <span class="key">"no_docker"</span>: <span class="bool">true</span>,
   <span class="key">"no_private_home"</span>: <span class="bool">true</span>
 }
           </div>
+        </div>
+      </div>
+
+      <!-- Detalhamento de Parâmetros -->
+      <div style="margin-top: 3rem;">
+        <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.3rem; margin-bottom: 1.25rem; color: var(--text);">Detalhamento de Parâmetros (.harness/ai-jail.json)</h3>
+        <div style="overflow-x: auto; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 1rem;">
+          <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; color: var(--text-secondary);">
+            <thead>
+              <tr style="border-bottom: 1px solid var(--border); color: var(--text);">
+                <th style="padding: 0.75rem 1rem;">Parâmetro</th>
+                <th style="padding: 0.75rem 1rem;">Tipo</th>
+                <th style="padding: 0.75rem 1rem;">Descrição &amp; Impacto de Segurança</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom: 1px solid var(--border);">
+                <td style="padding: 0.75rem 1rem;"><code style="color: var(--primary);">rw_maps</code></td>
+                <td style="padding: 0.75rem 1rem;"><code>string[]</code></td>
+                <td style="padding: 0.75rem 1rem;">Mapeamentos Leitura/Escrita fora do projeto (ex: <code>~/.config/opencode</code>, <code>~/.npm</code>).</td>
+              </tr>
+              <tr style="border-bottom: 1px solid var(--border);">
+                <td style="padding: 0.75rem 1rem;"><code style="color: var(--primary);">ro_maps</code></td>
+                <td style="padding: 0.75rem 1rem;"><code>string[]</code></td>
+                <td style="padding: 0.75rem 1rem;">Mapeamentos Somente Leitura. Protege bibliotecas globais e SDKs (ex: <code>/usr/local</code>, <code>~/.cargo/registry</code>).</td>
+              </tr>
+              <tr style="border-bottom: 1px solid var(--border);">
+                <td style="padding: 0.75rem 1rem;"><code style="color: var(--primary);">hide_dotdirs</code></td>
+                <td style="padding: 0.75rem 1rem;"><code>string[]</code></td>
+                <td style="padding: 0.75rem 1rem;">Oculta diretórios privados da home (ex: <code>.ssh</code>, <code>.kube</code>, <code>.aws</code>, <code>.gcloud</code>, <code>.netrc</code>).</td>
+              </tr>
+              <tr style="border-bottom: 1px solid var(--border);">
+                <td style="padding: 0.75rem 1rem;"><code style="color: var(--primary);">mask</code></td>
+                <td style="padding: 0.75rem 1rem;"><code>string[]</code></td>
+                <td style="padding: 0.75rem 1rem;">Mascara arquivos do projeto como inexistentes/vazios (ex: <code>.env</code>, <code>credentials.json</code>, <code>*.pem</code>).</td>
+              </tr>
+              <tr style="border-bottom: 1px solid var(--border);">
+                <td style="padding: 0.75rem 1rem;"><code style="color: var(--primary);">no_docker</code></td>
+                <td style="padding: 0.75rem 1rem;"><code>boolean</code></td>
+                <td style="padding: 0.75rem 1rem;">Se <code>true</code>, bloqueia acesso ao socket Docker. Defina <code>false</code> para liberar <code>docker compose</code>.</td>
+              </tr>
+              <tr>
+                <td style="padding: 0.75rem 1rem;"><code style="color: var(--primary);">no_private_home</code></td>
+                <td style="padding: 0.75rem 1rem;"><code>boolean</code></td>
+                <td style="padding: 0.75rem 1rem;">Se <code>true</code> (padrão), preserva home real com mapeamentos. Se <code>false</code>, isola em home temporária efêmera.</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
