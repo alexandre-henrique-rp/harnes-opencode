@@ -17,7 +17,9 @@ import * as path from "path";
 const STATE_FILE = ".harness/state.json";
 const STATE_MACHINE_FILE = ".harness/state-machine.json";
 
-export const StatusInjectorPlugin: Plugin = async ({ directory, worktree }) => {
+export default async function StatusInjectorPlugin(ctx: any) {
+  const directory = ctx?.directory;
+  const worktree = ctx?.worktree;
   return {
     "session.created": async () => {
       const statusBlock = buildStatusBlock(worktree || directory || process.cwd());

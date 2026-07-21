@@ -56,15 +56,18 @@ let state: BudgetState = {
   lastUpdate: new Date().toISOString(),
 };
 
-export const TokenBudgetPlugin: Plugin = async ({ client }) => {
+export default async function TokenBudgetPlugin(ctx: any) {
+  const client = ctx?.client;
   let config: BudgetConfig = DEFAULT_CONFIG;
   let compactSuggested = false;
 
-  client.event.on("config.updated", (newConfig) => {
-    if (newConfig.tokenBudget) {
-      config = { ...DEFAULT_CONFIG, ...newConfig.tokenBudget };
-    }
-  });
+  if (client?.event && typeof client.event.on === "function") {
+    client.event.on("config.updated", (newConfig: any) => {
+      if (newConfig?.tokenBudget) {
+        config = { ...DEFAULT_CONFIG, ...newConfig.tokenBudget };
+      }
+    });
+  }
 
   function totalUsed(): number {
     return state.inputTokens + state.outputTokens;

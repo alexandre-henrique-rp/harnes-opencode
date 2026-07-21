@@ -28,7 +28,9 @@ function writeAudit(entry: object): void {
   } catch { /* best effort */ }
 }
 
-export const NativeSandboxPlugin: Plugin = async ({ directory, worktree }) => {
+export default async function NativeSandboxPlugin(ctx: any) {
+  const directory = ctx?.directory;
+  const worktree = ctx?.worktree;
   const isValidPath = (p: unknown): p is string =>
     typeof p === "string" && p.length >= 3 && p !== "/" && p.startsWith("/");
 

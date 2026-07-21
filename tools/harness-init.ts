@@ -14,6 +14,11 @@
 import { tool } from "@opencode-ai/plugin";
 import * as fs from "fs";
 import * as path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 
 export default tool({
   name: "harness-init",
@@ -92,8 +97,8 @@ export default tool({
         if (typeof phase !== "object" || phase === null) {
           throw new Error(`Fase no índice ${i} deve ser um objeto JSON`);
         }
-        if (typeof phase.id !== "number") {
-          throw new Error(`Fase no índice ${i} deve possuir 'id' numérico`);
+        if (typeof phase.id !== "number" && typeof phase.id !== "string") {
+          throw new Error(`Fase no índice ${i} deve possuir 'id' (string ou número)`);
         }
         if (typeof phase.name !== "string" || !phase.name.trim()) {
           throw new Error(`Fase no índice ${i} deve possuir 'name' não-vazio`);

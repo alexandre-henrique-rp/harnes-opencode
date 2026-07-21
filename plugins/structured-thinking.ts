@@ -67,14 +67,17 @@ REMOVE your <thinking> block from the final visible output. The user
 sees only <answer>.
 </system-reminder>`;
 
-export const StructuredThinkingPlugin: Plugin = async ({ client }) => {
+export default async function StructuredThinkingPlugin(ctx: any) {
+  const client = ctx?.client;
   let config: ThinkingConfig = DEFAULT_CONFIG;
 
-  client.event.on("config.updated", (newConfig) => {
-    if (newConfig.structuredThinking) {
-      config = { ...DEFAULT_CONFIG, ...newConfig.structuredThinking };
-    }
-  });
+  if (client?.event && typeof client.event.on === "function") {
+    client.event.on("config.updated", (newConfig: any) => {
+      if (newConfig?.structuredThinking) {
+        config = { ...DEFAULT_CONFIG, ...newConfig.structuredThinking };
+      }
+    });
+  }
 
   function injectReminder(input: unknown): void {
     if (!config.enabled) return;

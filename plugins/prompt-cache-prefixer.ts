@@ -56,14 +56,17 @@ interface PrefixLayout {
 let cacheHits = 0;
 let cacheMisses = 0;
 
-export const PromptCachePrefixerPlugin: Plugin = async ({ client }) => {
+export default async function PromptCachePrefixerPlugin(ctx: any) {
+  const client = ctx?.client;
   let config: PrefixConfig = DEFAULT_CONFIG;
 
-  client.event.on("config.updated", (newConfig) => {
-    if (newConfig.promptCachePrefixer) {
-      config = { ...DEFAULT_CONFIG, ...newConfig.promptCachePrefixer };
-    }
-  });
+  if (client?.event && typeof client.event.on === "function") {
+    client.event.on("config.updated", (newConfig: any) => {
+      if (newConfig?.promptCachePrefixer) {
+        config = { ...DEFAULT_CONFIG, ...newConfig.promptCachePrefixer };
+      }
+    });
+  }
 
   function reorderPrompt(layout: PrefixLayout): {
     prompt: string;

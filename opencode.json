@@ -226,17 +226,12 @@
       ]
     },
     "context7": {
-      "type": "local",
+      "type": "remote",
       "url": "https://mcp.context7.com/mcp",
       "enabled": true,
       "headers": {
-        "CONTEXT7_API_KEY": ""
-      },
-      "command": [
-        "npx",
-        "-y",
-        "ctx7"
-      ]
+        "CONTEXT7_API_KEY": "ctx7sk-55f0c677-1371-4a7a-99bf-040726afbb46"
+      }
     }
   },
   "default_agent": "orchestrator"

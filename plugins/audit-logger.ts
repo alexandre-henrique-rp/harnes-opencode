@@ -71,7 +71,7 @@ let currentSession = "";
 let currentSkill = "";
 let currentSprint = "";
 
-export const AuditLoggerPlugin: Plugin = async (ctx) => {
+export default async function AuditLoggerPlugin(ctx: any) {
   const { client } = ctx;
   const project = (ctx as any).project || ctx;
   const directory = project.directory;
@@ -101,11 +101,13 @@ export const AuditLoggerPlugin: Plugin = async (ctx) => {
     await mkdir(path.dirname(logFile), { recursive: true });
   } catch {}
 
-  client.event.on("config.updated", (newConfig) => {
-    if (newConfig.auditLogger?.costConfig) {
-      costConfig = { ...DEFAULT_COST, ...newConfig.auditLogger.costConfig };
-    }
-  });
+  if (client?.event && typeof client.event.on === "function") {
+    client.event.on("config.updated", (newConfig: any) => {
+      if (newConfig?.auditLogger?.costConfig) {
+        costConfig = { ...DEFAULT_COST, ...newConfig.auditLogger.costConfig };
+      }
+    });
+  }
 
   // Detecta sprint atual
   async function detectSprint(): Promise<string | undefined> {

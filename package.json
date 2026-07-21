@@ -10,14 +10,18 @@
     "validate": "npm run validate:syntax && npm run validate:types && npm test",
     "validate:syntax": "bash -n install.sh",
     "validate:types": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test tests/harness-tools.test.ts tests/harness-db.test.ts tests/harness-advance.test.ts tests/path-boundary.test.ts tests/path-boundary-frontend.test.ts tests/lgpd-sanitizer.test.ts",
-    "test:coverage": "node --experimental-strip-types --experimental-test-coverage --test tests/harness-tools.test.ts tests/harness-db.test.ts tests/harness-advance.test.ts tests/path-boundary.test.ts tests/path-boundary-frontend.test.ts tests/lgpd-sanitizer.test.ts",
+    "test": "node --experimental-strip-types --test tests/harness-tools.test.ts tests/harness-db.test.ts tests/harness-advance.test.ts tests/path-boundary.test.ts tests/path-boundary-frontend.test.ts tests/lgpd-sanitizer.test.ts tests/harness-lifecycle.test.ts tests/analysis-tools.test.ts tests/cli-tools.test.ts tests/management-tools.test.ts",
+    "test:coverage": "node --experimental-strip-types --experimental-test-coverage --test tests/harness-tools.test.ts tests/harness-db.test.ts tests/harness-advance.test.ts tests/path-boundary.test.ts tests/path-boundary-frontend.test.ts tests/lgpd-sanitizer.test.ts tests/harness-lifecycle.test.ts tests/analysis-tools.test.ts tests/cli-tools.test.ts tests/management-tools.test.ts",
     "skills:migrate": "node scripts/migrate-skills.mjs",
     "skills:sync": "rsync -a --delete skills/ ~/.config/opencode/skills/",
     "skills:status": "echo '=== Setores ===' && ls skills/ && echo '' && echo '=== Por setor ===' && for d in frontend backend design harness geral seguranca pessoal; do count=$(ls skills/$d/ 2>/dev/null | wc -l); echo \"  skills/$d/: $count skills\"; done"
   },
   "dependencies": {
-    "@opencode-ai/plugin": "^1.18.3"
+    "@aws-sdk/client-s3": "^3.1091.0",
+    "@aws-sdk/lib-storage": "^3.1091.0",
+    "@aws-sdk/s3-request-presigner": "^3.1091.0",
+    "@opencode-ai/plugin": "^1.18.3",
+    "clamdjs": "^1.0.2"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",

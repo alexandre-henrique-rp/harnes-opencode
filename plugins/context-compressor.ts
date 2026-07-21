@@ -40,14 +40,17 @@ const DEFAULT_CONFIG: CompressorConfig = {
   preservePatterns: ["AGENTS\\.md$", "package\\.json$", "tsconfig\\.json$"],
 };
 
-export const ContextCompressorPlugin: Plugin = async ({ client }) => {
+export default async function ContextCompressorPlugin(ctx: any) {
+  const client = ctx?.client;
   let config: CompressorConfig = DEFAULT_CONFIG;
 
-  client.event.on("config.updated", (newConfig) => {
-    if (newConfig.contextCompressor) {
-      config = { ...DEFAULT_CONFIG, ...newConfig.contextCompressor };
-    }
-  });
+  if (client?.event && typeof client.event.on === "function") {
+    client.event.on("config.updated", (newConfig: any) => {
+      if (newConfig?.contextCompressor) {
+        config = { ...DEFAULT_CONFIG, ...newConfig.contextCompressor };
+      }
+    });
+  }
 
   function shouldCompress(filePath: string, content: string): boolean {
     if (!config.enabled) return false;

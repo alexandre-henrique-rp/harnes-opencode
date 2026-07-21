@@ -19,7 +19,7 @@ export default tool({
       .default(["secrets", "sql_injection", "xss", "insecure_http", "cors", "prompt_injection"])
       .describe("Tipos de verificações a realizar"),
   },
-  async execute({ targetDir, checks }, context) {
+  async execute({ targetDir, checks = ["secrets", "sql_injection", "xss", "insecure_http", "cors", "prompt_injection"] }, context) {
     const cwd = context?.directory || process.cwd();
     const fullTargetDir = path.resolve(cwd, targetDir);
     const findings: any[] = [];

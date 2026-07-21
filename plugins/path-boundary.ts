@@ -330,8 +330,8 @@ export const PathBoundaryPlugin: Plugin = async (ctx) => {
   };
 
   // Escuta atualizações de configuração dinâmicas da CLI do OpenCode se houver
-  const client = (ctx as any).client;
-  if (client && client.event) {
+  const client = (ctx as any)?.client;
+  if (client?.event && typeof client.event.on === "function") {
     client.event.on("config.updated", (newConfig: any) => {
       if (newConfig && newConfig.agents) {
         config.agents = newConfig.agents;

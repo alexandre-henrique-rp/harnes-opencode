@@ -36,20 +36,20 @@ export default tool({
       // Stage files from artifacts
       for (const art of artifacts) {
         if (fs.existsSync(path.join(cwd, art.path))) {
-          execSync(`git add "${art.path}"`);
+          execSync(`git add "${art.path}"`, { cwd });
         }
       }
       
       // Also add the log and prompt files
-      execSync(`git add "${logPath}"`);
+      execSync(`git add "${path.relative(cwd, logPath)}"`, { cwd });
       const promptPath = path.join(cwd, ".harness", "sprints", sprintId, "tasks", `${taskId}_PROMPT.md`);
       if (fs.existsSync(promptPath)) {
-        execSync(`git add "${promptPath}"`);
+        execSync(`git add "${path.relative(cwd, promptPath)}"`, { cwd });
       }
 
       // Create commit
-      execSync(`git commit -m "${commitMsg.replace(/"/g, '\\"')}"`);
-      const sha = execSync("git rev-parse HEAD").toString().trim();
+      execSync(`git commit -m "${commitMsg.replace(/"/g, '\\"')}"`, { cwd });
+      const sha = execSync("git rev-parse HEAD", { cwd }).toString().trim();
 
       return {
         success: true,
