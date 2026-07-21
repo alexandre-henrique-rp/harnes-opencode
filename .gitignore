@@ -46,3 +46,4 @@ secrets/
 .mimocode/
 .ai-jail
 node_modules/
+tmp/

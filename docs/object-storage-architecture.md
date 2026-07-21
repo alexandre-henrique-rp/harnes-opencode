@@ -96,6 +96,30 @@
 
 ---
 
+## 1.1 Arquitetura Alternativa: File System Storage (Disco Local — Secundário / Sob Demanda)
+
+> ⚠️ **Prioridade Arquitetural**: O **Object Storage (S3 / R2 / MinIO)** é a arquitetura principal e padrão do harness. O uso de **File System (Disco Local)** é uma capacidade secundária/sob demanda, recomendada apenas quando solicitada pelo usuário ou em ambientes isolados/on-premise sem S3.
+
+### Diferenças de Arquitetura e Roteamento
+
+```
+[ Object Storage (S3) ]
+Cliente ──────────────────────── Presigned URL ────────────────────────► S3 / CDN Direct
+
+[ File System (Disco Local) ]
+Cliente ──────► GET /api/v1/storage/files/:bucket/* ──────► [ Backend API ] ──────► Disco Local (${basePath})
+```
+
+1. **Paridade de Diretórios**:
+   - Os arquivos são salvos sob `${basePath}` mantendo exatamente a mesma taxonomia dos buckets S3 (`staging/`, `images/{lg,md,sm}/`, `videos/{lg,md,sm,thumb}/`, `audios/{lg,md,sm}/`, `documents/`, `quarantine/`).
+2. **Alternância de Antivírus**:
+   - A verificação de vírus via ClamAV é configurável (`virusScan.enabled: boolean`). Caso desativada (ex: `VIRUS_SCAN_ENABLED=false`), o worker pula o scan mantendo o pipeline assíncrono.
+3. **Roteamento Obrigatório pelo Backend**:
+   - Para File System, **todas as requisições de leitura/download passam obrigatoriamente pela API do Backend** (`createFileSystemServeHandler`).
+   - O Backend executa validação de autenticação/autorização, previne **Path Traversal** (`path.resolve`), e faz o stream direto do arquivo com os cabeçalhos apropriados.
+
+---
+
 ## 2. Decisões de arquitetura — quando usar cada padrão
 
 ### 2.1 Streaming vs buffer em memória

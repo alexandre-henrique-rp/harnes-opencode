@@ -90,7 +90,51 @@ ou primeiros N bytes do arquivo.
 - **Vídeos**: 3 variantes (lg/md/sm) + thumbnail estático (`.jpg` do frame 0)
 - **Áudios**: 3 bitrates (lg/md/sm), mantidos como mesmo formato ou transcoded pra `mp3`/`opus`
 - **Documentos**: 1 versão (original). **Sem variants** — não faz sentido ter "PDF pequeno".
-- **Auto-criação**: **só em dev** (LocalStack/MinIO). **Produção = IaC** (Terraform/Pulumi).
+- **Auto-criação**: **só em dev** (LocalStack/MinIO/FileSystem). **Produção = IaC** (Terraform/Pulumi).
+
+---
+
+## 2.1 Suporte a File System (Disco Local — Secundário / Sob Demanda)
+
+> ⚠️ **REGRA DE PRIORIDADE**: O uso de **Object Storage (S3 / R2 / MinIO)** é a escolha padrão recomendada. O salvamento em **File System (Disco Local)** é um mecanismo secundário/de fallback, e **NÃO deve ser priorizado a menos que o usuário solicite explicitamente** ou em ambientes onde o S3 não esteja disponível.
+
+Quando o modo File System for ativado (`driver: "filesystem"` ou `provider: "filesystem"`), as seguintes regras devem ser rigorosamente aplicadas:
+
+### 1. Estrutura de Diretórios Paritária com os Buckets
+O armazenamento em disco local **DEVE espelhar rigorosamente** a taxonomia dos 4 buckets dentro de um diretório raiz configurado (`basePath`):
+
+```
+${basePath}/
+├── staging/            # Uploads brutos temporários
+├── images/
+│   ├── lg/             # Variante grande (WebP/JPEG)
+│   ├── md/             # Variante média
+│   └── sm/             # Variante pequena
+├── videos/
+│   ├── lg/
+│   ├── md/
+│   ├── sm/
+│   └── thumb/          # Frame 0 em JPG
+├── audios/
+│   ├── lg/
+│   ├── md/
+│   └── sm/
+├── documents/          # Documentos originais (PDF, DOCX, CSV)
+└── quarantine/         # Arquivos rejeitados por vírus/mismatch
+```
+
+### 2. Alternância da Verificação de Vírus (Opcional)
+- A varredura de vírus pode ser **habilitada ou desabilitada** via configuração (`virusScan.enabled: boolean` ou env `VIRUS_SCAN_ENABLED=true|false`).
+- Se `virusScan.enabled: false`, o worker ignora a varredura via ClamAV registrando log `scanner: "disabled"` e segue para o transcoding sem interromper o fluxo.
+
+### 3. Servimento OBRIGATÓRIO de Rotas via Backend
+Diferente do Object Storage onde são geradas Presigned URLs apontando diretamente para o provedor S3/CDN:
+- **No File System, o acesso aos arquivos DEVE PASSAR OBRIGATORIAMENTE PELO BACKEND** (ex: `GET /api/v1/storage/files/:bucket/*`).
+- O handler do Backend deve obrigatoriamente:
+  - Validar a autenticação/permissão do usuário.
+  - Bloquear ataques de **Path Traversal** (ex: `path.resolve(target).startsWith(path.resolve(basePath))`).
+  - Fazer o streaming do arquivo do disco usando `fs.createReadStream()`.
+  - Definir headers corretos (`Content-Type`, `Content-Length`, `Cache-Control`, `Content-Disposition: inline` para preview ou `attachment` para download).
 
 ---
 

@@ -43,6 +43,8 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createHash } from "node:crypto";
 import { Readable } from "node:stream";
 import { randomUUID } from "node:crypto";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import clamdjs from "clamdjs";
 
 // ============================================================
@@ -52,6 +54,9 @@ import clamdjs from "clamdjs";
 export type MediaKind = "image" | "video" | "audio" | "document";
 export type Quality = "lg" | "md" | "sm" | "thumb";
 export type UploadStatus = "PROCESSING" | "SCANNING" | "TRANSCODING" | "READY" | "REJECTED" | "FAILED";
+export type StorageDriver = "s3" | "filesystem";
+export type StorageProvider = "aws" | "r2" | "minio" | "rustfs" | "garage" | "seaweedfs" | "filesystem";
+
 export type RejectionReason =
   | "virus_detected"
   | "mime_mismatch"
@@ -61,12 +66,21 @@ export type RejectionReason =
   | "transcoding_failed"
   | "scan_error";
 
+export interface FileSystemStorageConfig {
+  /** Diretório raiz do sistema de arquivos onde a taxonomia será armazenada */
+  basePath: string;
+  /** Prefixo da rota da API no backend para servimento de arquivos (ex: "/api/v1/storage/files") */
+  publicApiRoutePrefix: string;
+}
+
 export interface StorageConfig {
-  provider: "aws" | "r2" | "minio" | "rustfs" | "garage" | "seaweedfs";
+  driver?: StorageDriver;
+  provider: StorageProvider;
   endpoint?: string;
   region: string;
   accessKeyId: string;
   secretAccessKey: string;
+  fileSystem?: FileSystemStorageConfig;
   buckets: {
     staging: string;
     images: string;
@@ -242,6 +256,76 @@ export async function uploadObject(
   return { etag: result.ETag ?? "", versionId: result.VersionId };
 }
 
+/**
+ * Operação unificada de Upload suportando S3 e File System local.
+ */
+export async function uploadStorageObject(
+  client: S3Client,
+  config: StorageConfig,
+  opts: UploadOptions,
+): Promise<{ etag: string; versionId?: string }> {
+  if (config.driver === "filesystem" || config.provider === "filesystem") {
+    const basePath = config.fileSystem?.basePath ?? "./uploads";
+    const filePath = path.join(basePath, opts.bucket, opts.key);
+    const dir = path.dirname(filePath);
+
+    // Prevenção estrita contra Path Traversal
+    const resolvedPath = path.resolve(filePath);
+    const resolvedBase = path.resolve(basePath);
+    if (!resolvedPath.startsWith(resolvedBase)) {
+      throw new Error("Path traversal detected in storage key");
+    }
+
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    if (Buffer.isBuffer(opts.body)) {
+      fs.writeFileSync(filePath, opts.body);
+    } else {
+      const chunks: Buffer[] = [];
+      for await (const chunk of opts.body) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      }
+      fs.writeFileSync(filePath, Buffer.concat(chunks));
+    }
+
+    const hash = createHash("md5").update(opts.key).digest("hex");
+    return { etag: `"${hash}"` };
+  }
+
+  return uploadObject(client, opts);
+}
+
+/**
+ * Leitura unificada de objetos suportando S3 e File System local.
+ */
+export async function getStorageObjectBuffer(
+  client: S3Client,
+  config: StorageConfig,
+  bucket: string,
+  key: string,
+): Promise<{ buffer: Buffer; contentType?: string }> {
+  if (config.driver === "filesystem" || config.provider === "filesystem") {
+    const basePath = config.fileSystem?.basePath ?? "./uploads";
+    const filePath = path.join(basePath, bucket, key);
+
+    const resolvedPath = path.resolve(filePath);
+    const resolvedBase = path.resolve(basePath);
+    if (!resolvedPath.startsWith(resolvedBase)) {
+      throw new Error("Path traversal detected in storage key");
+    }
+
+    const buffer = fs.readFileSync(filePath);
+    return { buffer, contentType: undefined };
+  }
+
+  const obj = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+  const body = obj.Body as Readable;
+  const { buffer } = await sha256Stream(body);
+  return { buffer, contentType: obj.ContentType };
+}
+
 // ============================================================
 // SIGNED URLS
 // ============================================================
@@ -320,13 +404,25 @@ export async function scanForVirus(
 }
 
 // ============================================================
-// BUCKETS BOOTSTRAP (só dev!)
+// BUCKETS / FOLDERS BOOTSTRAP (só dev!)
 // ============================================================
 
 export async function ensureBucketsExist(
   client: S3Client,
   config: StorageConfig,
 ): Promise<void> {
+  if (config.driver === "filesystem" || config.provider === "filesystem") {
+    const basePath = config.fileSystem?.basePath ?? "./uploads";
+    for (const bucketName of Object.values(config.buckets)) {
+      const folderPath = path.join(basePath, bucketName);
+      if (!fs.existsSync(folderPath)) {
+        fs.mkdirSync(folderPath, { recursive: true });
+        console.log(`[storage:fs] Created folder: ${folderPath}`);
+      }
+    }
+    return;
+  }
+
   if (process.env.NODE_ENV === "production") {
     throw new Error("ensureBucketsExist() must NOT run in production. Use IaC.");
   }
@@ -427,8 +523,7 @@ export function createUploadHandler(deps: CreateUploadHandlerDeps) {
         return res.status(403).json({ error: "quota_exceeded" });
       }
 
-      // 2. Parse multipart (use a library like busboy, multer, or formidable)
-      //    For brevity, we assume req.file and req.body are already parsed.
+      // 2. Parse multipart
       const file = req.file;
       const { kind, contextId, contextType, isPublic, metadata } = req.body;
 
@@ -447,7 +542,7 @@ export function createUploadHandler(deps: CreateUploadHandlerDeps) {
       const jobId = randomUUID();
       const stagingKey = `uploads/${user.id}/${jobId}/${sanitizeFilename(file.originalname ?? "file")}`;
 
-      await uploadObject(client, {
+      await uploadStorageObject(client, deps.config, {
         bucket: deps.config.buckets.staging,
         key: stagingKey,
         body: file.stream ?? file.buffer,
@@ -471,7 +566,7 @@ export function createUploadHandler(deps: CreateUploadHandlerDeps) {
         stagingKey,
         bucket: bucketForKind(deps.config, kind as MediaKind),
         storageKeyPrefix: `${user.id}/${jobId}`,
-        isPii: kind === "document" || isPublic === false, // documents PII, public false = PII
+        isPii: kind === "document" || isPublic === false,
         deletedAt: undefined,
         retentionUntil: computeRetention(kind as MediaKind),
       });
@@ -515,7 +610,6 @@ export interface CreateWorkerDeps {
   db: UploadDatabase;
   queue: UploadQueue;
   logger?: (event: string, data: Record<string, unknown>) => void;
-  /** Função de transcoding (substitua com sharp, ffmpeg, etc no app real) */
   transcodeImage?: (
     buffer: Buffer,
     config: ImageVariantConfig,
@@ -544,11 +638,13 @@ export function createWorker(deps: CreateWorkerDeps) {
 
     try {
       // 1. Download do staging
-      const obj = await client.send(
-        new GetObjectCommand({ Bucket: deps.config.buckets.staging, Key: stagingKey }),
+      const { buffer, contentType } = await getStorageObjectBuffer(
+        client,
+        deps.config,
+        deps.config.buckets.staging,
+        stagingKey,
       );
-      const body = obj.Body as Readable;
-      const { buffer, hash } = await sha256Stream(body);
+      const { hash } = await sha256Stream(buffer);
 
       // 2. Magic bytes
       const detectedMime = detectMimeFromBuffer(buffer);
@@ -556,7 +652,7 @@ export function createWorker(deps: CreateWorkerDeps) {
         await deps.db.update(jobId, {
           status: "REJECTED",
           rejectionReason: "mime_mismatch",
-          rejectionDetails: { declared: obj.ContentType, detected: detectedMime },
+          rejectionDetails: { declared: contentType, detected: detectedMime },
           detectedMime,
           sha256: hash,
         });
@@ -603,13 +699,10 @@ export function createWorker(deps: CreateWorkerDeps) {
           variantKeys.push(q);
         }
       } else if (kind === "document") {
-        // Sem variants — original apenas
-        // (mas ainda assim fazemos upload do "lg" como sendo o original,
-        //  pra unificar a API de URL)
         const record = await deps.db.findById(jobId);
         if (!record) throw new Error("Record not found");
         const finalKey = `${record.storageKeyPrefix}/lg`;
-        await uploadObject(client, {
+        await uploadStorageObject(client, deps.config, {
           bucket: deps.config.buckets.documents,
           key: finalKey,
           body: buffer,
@@ -627,7 +720,7 @@ export function createWorker(deps: CreateWorkerDeps) {
           processedAt: new Date(),
         });
         // Cleanup staging
-        await safeDelete(client, deps.config.buckets.staging, stagingKey);
+        await safeDeleteStorageObject(client, deps.config, deps.config.buckets.staging, stagingKey);
         log("worker.job.ready", { jobId, kind, variants: ["lg"] });
         return;
       } else {
@@ -641,7 +734,7 @@ export function createWorker(deps: CreateWorkerDeps) {
 
       await Promise.all(
         variantKeys.map((q) =>
-          uploadObject(client, {
+          uploadStorageObject(client, deps.config, {
             bucket: targetBucket,
             key: `${record.storageKeyPrefix}/${q}`,
             body: variants[q].buffer,
@@ -664,7 +757,7 @@ export function createWorker(deps: CreateWorkerDeps) {
       });
 
       // 7. Cleanup staging
-      await safeDelete(client, deps.config.buckets.staging, stagingKey);
+      await safeDeleteStorageObject(client, deps.config, deps.config.buckets.staging, stagingKey);
 
       log("worker.job.ready", { jobId, kind, variants: variantKeys });
     } catch (err: any) {
@@ -679,7 +772,68 @@ export function createWorker(deps: CreateWorkerDeps) {
 
   return {
     start: () => deps.queue.subscribe<ProcessJob>("media.process", processJob),
-    processJob, // exposto pra testes
+    processJob,
+  };
+}
+
+// ============================================================
+// FILE SYSTEM SERVE HANDLER (Backend HTTP Router)
+// ============================================================
+
+export interface CreateFileSystemServeHandlerDeps {
+  config: StorageConfig;
+  db: UploadDatabase;
+  /** Autorização opcional para validação de acesso pelo backend */
+  canView?: (user: { id: string }, upload: UploadRecord) => boolean;
+}
+
+/**
+ * Handler HTTP para ser registrado nas rotas do Backend ao usar driver File System.
+ * Garante servimento seguro com validação de Path Traversal e headers de download/stream.
+ */
+export function createFileSystemServeHandler(deps: CreateFileSystemServeHandlerDeps) {
+  return async function handleFileSystemServe(req: any, res: any) {
+    try {
+      const basePath = deps.config.fileSystem?.basePath ?? "./uploads";
+      const bucket = req.params.bucket;
+      const key = req.params[0] ?? req.params.key;
+
+      if (!bucket || !key) {
+        return res.status(400).json({ error: "invalid_params" });
+      }
+
+      const filePath = path.join(basePath, bucket, key);
+
+      // Prevenção estrita contra Path Traversal
+      const resolvedPath = path.resolve(filePath);
+      const resolvedBase = path.resolve(basePath);
+      if (!resolvedPath.startsWith(resolvedBase)) {
+        return res.status(403).json({ error: "access_denied" });
+      }
+
+      if (!fs.existsSync(resolvedPath)) {
+        return res.status(404).json({ error: "file_not_found" });
+      }
+
+      const stat = fs.statSync(resolvedPath);
+      const isDownload = req.query.download === "true";
+      const filename = req.query.filename ? String(req.query.filename) : path.basename(resolvedPath);
+
+      res.setHeader("Content-Length", stat.size);
+      res.setHeader("Cache-Control", "private, max-age=3600");
+
+      if (isDownload) {
+        res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(filename)}"`);
+        res.setHeader("Content-Type", "application/octet-stream");
+      } else {
+        res.setHeader("Content-Disposition", "inline");
+      }
+
+      const readStream = fs.createReadStream(resolvedPath);
+      readStream.pipe(res);
+    } catch (err: any) {
+      return res.status(500).json({ error: "internal_error" });
+    }
   };
 }
 
@@ -701,7 +855,6 @@ function bucketForKind(config: StorageConfig, kind: MediaKind): string {
 }
 
 function sanitizeFilename(name: string): string {
-  // Remove path traversal + chars perigosos
   return name
     .replace(/[\/\\]/g, "_")
     .replace(/\.\./g, "_")
@@ -719,7 +872,7 @@ function computeRetention(kind: MediaKind): Date {
     case "audio":
       return new Date(now.setMonth(now.getMonth() + 6));
     case "document":
-      return new Date(now.setFullYear(now.getFullYear() + 5)); // 5 anos p/ compliance
+      return new Date(now.setFullYear(now.getFullYear() + 5));
   }
 }
 
@@ -731,6 +884,20 @@ async function moveToQuarantine(
 ): Promise<void> {
   const destKey = `${reason}/${Date.now()}-${sourceKey.split("/").pop()}`;
   try {
+    if (config.driver === "filesystem" || config.provider === "filesystem") {
+      const basePath = config.fileSystem?.basePath ?? "./uploads";
+      const srcPath = path.join(basePath, config.buckets.staging, sourceKey);
+      const destPath = path.join(basePath, config.buckets.quarantine, destKey);
+      const destDir = path.dirname(destPath);
+
+      if (fs.existsSync(srcPath)) {
+        if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
+        fs.copyFileSync(srcPath, destPath);
+        fs.unlinkSync(srcPath);
+      }
+      return;
+    }
+
     await client.send(
       new CopyObjectCommand({
         Bucket: config.buckets.quarantine,
@@ -743,98 +910,33 @@ async function moveToQuarantine(
         MetadataDirective: "REPLACE",
       }),
     );
-    await safeDelete(client, config.buckets.staging, sourceKey);
+    await safeDeleteStorageObject(client, config, config.buckets.staging, sourceKey);
   } catch {
     // fail open — não bloqueia o fluxo principal
   }
 }
 
-async function safeDelete(client: S3Client, bucket: string, key: string): Promise<void> {
+async function safeDeleteStorageObject(
+  client: S3Client,
+  config: StorageConfig,
+  bucket: string,
+  key: string,
+): Promise<void> {
   try {
+    if (config.driver === "filesystem" || config.provider === "filesystem") {
+      const basePath = config.fileSystem?.basePath ?? "./uploads";
+      const filePath = path.join(basePath, bucket, key);
+      const resolvedPath = path.resolve(filePath);
+      const resolvedBase = path.resolve(basePath);
+      if (resolvedPath.startsWith(resolvedBase) && fs.existsSync(resolvedPath)) {
+        fs.unlinkSync(resolvedPath);
+      }
+      return;
+    }
     await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
   } catch {
     // best-effort
   }
-}
-
-// ============================================================
-// STATUS / RETRIEVAL ENDPOINT
-// ============================================================
-
-export interface GetUploadResponseDeps {
-  config: StorageConfig;
-  db: UploadDatabase;
-  /** Autorização — verifica se user pode ver o upload */
-  canView: (user: { id: string }, upload: UploadRecord) => boolean;
-}
-
-export function buildGetUploadResponse(
-  record: UploadRecord,
-  client: S3Client,
-  config: StorageConfig,
-  signedUrlExpiry: number,
-): {
-  status: UploadStatus;
-  kind: MediaKind;
-  metadata: {
-    originalFilename: string;
-    size: number;
-    mime: string;
-    hash?: string;
-    createdAt: Date;
-  };
-  urls?: {
-    preview: Partial<Record<Quality, string>>;
-    download: string;
-  };
-} {
-  const baseResponse = {
-    status: record.status,
-    kind: record.kind,
-    metadata: {
-      originalFilename: record.originalFilename,
-      size: record.sizeBytes,
-      mime: record.detectedMime ?? record.declaredMime,
-      hash: record.sha256,
-      createdAt: record.createdAt,
-    },
-  };
-
-  if (record.status !== "READY" || !record.variants) {
-    return baseResponse;
-  }
-
-  // Construir URLs
-  const urls: { preview: Partial<Record<Quality, string>>; download: string } = {
-    preview: {},
-    download: "",
-  };
-
-  // Document: visualização = download (mesmo arquivo, mesmo bucket)
-  if (record.kind === "document") {
-    const key = `${record.storageKeyPrefix}/lg`;
-    return {
-      ...baseResponse,
-      urls: {
-        preview: {
-          lg: "(gerado em runtime — async)",  // placeholder
-        },
-        download: "(gerado em runtime — async)",
-      },
-    };
-  }
-
-  // Image/Video/Audio: preview por variant
-  for (const q of record.variants) {
-    if (q === "thumb") continue;  // thumb só para vídeo, vai no lg visualmente
-  }
-  return {
-    ...baseResponse,
-    urls: {
-      preview: {},  // preenchido em runtime
-      download: "",  // preenchido em runtime
-    },
-  };
 }
 
 // Helper async para gerar URLs em runtime
@@ -849,6 +951,17 @@ export async function buildUrlsForRecord(
 
   if (!record.variants) {
     throw new Error("Record has no variants");
+  }
+
+  const isFileSystem = config.driver === "filesystem" || config.provider === "filesystem";
+
+  if (isFileSystem) {
+    const routePrefix = config.fileSystem?.publicApiRoutePrefix ?? "/api/v1/storage/files";
+    for (const q of record.variants) {
+      preview[q] = `${routePrefix}/${bucket}/${record.storageKeyPrefix}/${q}`;
+    }
+    const download = `${routePrefix}/${bucket}/${record.storageKeyPrefix}/lg?download=true&filename=${encodeURIComponent(record.originalFilename)}`;
+    return { preview, download };
   }
 
   for (const q of record.variants) {
