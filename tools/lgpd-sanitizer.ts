@@ -472,6 +472,7 @@ export function createReversibleSession(options: SanitizeOptions = {
 // ---- Plugin integration ----
 
 import type { Plugin } from "@opencode-ai/plugin";
+import { safeLog } from "../plugins/lib/safe-logger.ts";
 
 export const LGPDSanitizerPlugin: Plugin = async ({ project, client }) => {
   const sessions = new Map<string, LGPDSanitizer>();
@@ -484,17 +485,15 @@ export const LGPDSanitizerPlugin: Plugin = async ({ project, client }) => {
         detection: "balanced",
         replacement: "placeholder",
         onDetect: (matches) => {
-          client.session
-            .log({
-              level: "warn",
-              message: `lgpd-sanitizer: detected ${matches.length} PII in prompt`,
-              metadata: {
-                types: matches.map((m) => m.type),
-                agent: agentId,
-                session: sessionId,
-              },
-            })
-            .catch(() => {});
+          safeLog(client, {
+            level: "warn",
+            message: `lgpd-sanitizer: detected ${matches.length} PII in prompt`,
+            metadata: {
+              types: matches.map((m) => m.type),
+              agent: agentId,
+              session: sessionId,
+            },
+          });
         },
       });
       sessions.set(key, s);
@@ -562,12 +561,10 @@ export const LGPDSanitizerPlugin: Plugin = async ({ project, client }) => {
       }
       sessions.clear();
 
-      client.session
-        .log({
-          level: "info",
-          message: "lgpd-sanitizer: cleared all session maps at session end",
-        })
-        .catch(() => {});
+      safeLog(client, {
+        level: "info",
+        message: "lgpd-sanitizer: cleared all session maps at session end",
+      });
     },
   };
 };

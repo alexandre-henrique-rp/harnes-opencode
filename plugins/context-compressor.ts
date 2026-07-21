@@ -22,7 +22,8 @@
  */
 
 import type { Plugin } from "@opencode-ai/plugin";
-import { estimateTokens } from "./lib/token-estimate.js";
+import { estimateTokens } from "./lib/token-estimate.ts";
+import { safeLog } from "./lib/safe-logger.ts";
 
 interface CompressorConfig {
   enabled: boolean;
@@ -85,6 +86,10 @@ ${content.slice(0, 50_000)}  // hard cap before sending
 """`;
 
     try {
+      if (!client?.model || typeof client.model.complete !== "function") {
+        return content;
+      }
+
       const response = await client.model.complete({
         model: config.model,
         messages: [{ role: "user", content: prompt }],
@@ -96,12 +101,10 @@ ${content.slice(0, 50_000)}  // hard cap before sending
       return `<!-- compressed from ${estimateTokens(content)} to ${estimateTokens(compressed)} tokens by context-compressor -->\n${compressed}`;
     } catch (err) {
       // Falha ao comprimir → retorna original (fail-open)
-      client.session
-        .log({
-          level: "warn",
-          message: `context-compressor failed for ${filePath}: ${err}`,
-        })
-        .catch(() => {});
+      safeLog(client, {
+        level: "warn",
+        message: `context-compressor failed for ${filePath}: ${err}`,
+      });
       return content;
     }
   }
@@ -126,18 +129,16 @@ ${content.slice(0, 50_000)}  // hard cap before sending
         output.result = replaceContent(output.result, compressed);
 
         // Loga métrica
-        client.session
-          .log({
-            level: "info",
-            message: `context-compressor: ${filePath} ${originalTokens}→${compressedTokens} tokens (-${Math.round((1 - compressedTokens / originalTokens) * 100)}%)`,
-            metadata: {
-              file: filePath,
-              originalTokens,
-              compressedTokens,
-              savedTokens: originalTokens - compressedTokens,
-            },
-          })
-          .catch(() => {});
+        safeLog(client, {
+          level: "info",
+          message: `context-compressor: ${filePath} ${originalTokens}→${compressedTokens} tokens (-${Math.round((1 - compressedTokens / originalTokens) * 100)}%)`,
+          metadata: {
+            file: filePath,
+            originalTokens,
+            compressedTokens,
+            savedTokens: originalTokens - compressedTokens,
+          },
+        });
       }
     },
   };

@@ -21,6 +21,7 @@
  */
 
 import type { Plugin } from "@opencode-ai/plugin";
+import { safeLog } from "./lib/safe-logger.ts";
 
 interface BudgetConfig {
   enabled: boolean;
@@ -110,13 +111,11 @@ export default async function TokenBudgetPlugin(ctx: any) {
       const cur = status();
 
       if (cur === "halt") {
-        client.session
-          .log({
-            level: "error",
-            message: `token-budget: HALT at ${Math.round(ratio * 100)}% (${totalUsed()}/${config.maxContextTokens})`,
-            metadata: { ...state, ratio },
-          })
-          .catch(() => {});
+        safeLog(client, {
+          level: "error",
+          message: `token-budget: HALT at ${Math.round(ratio * 100)}% (${totalUsed()}/${config.maxContextTokens})`,
+          metadata: { ...state, ratio },
+        });
 
         if (config.haltBehavior === "compact") {
           output.result = injectCompactReminder(
@@ -131,22 +130,18 @@ export default async function TokenBudgetPlugin(ctx: any) {
           );
         }
       } else if (cur === "warn") {
-        client.session
-          .log({
-            level: "warn",
-            message: `token-budget: at ${Math.round(ratio * 100)}% (${totalUsed()}/${config.maxContextTokens}) — consider /compact`,
-            metadata: { ...state, ratio },
-          })
-          .catch(() => {});
+        safeLog(client, {
+          level: "warn",
+          message: `token-budget: at ${Math.round(ratio * 100)}% (${totalUsed()}/${config.maxContextTokens}) — consider /compact`,
+          metadata: { ...state, ratio },
+        });
         compactSuggested = true;
       } else if (cur === "compact-suggested" && !compactSuggested) {
-        client.session
-          .log({
-            level: "info",
-            message: `token-budget: at ${Math.round(ratio * 100)}% — /compact recommended before next big task`,
-            metadata: { ...state, ratio },
-          })
-          .catch(() => {});
+        safeLog(client, {
+          level: "info",
+          message: `token-budget: at ${Math.round(ratio * 100)}% — /compact recommended before next big task`,
+          metadata: { ...state, ratio },
+        });
         compactSuggested = true;
       }
     },

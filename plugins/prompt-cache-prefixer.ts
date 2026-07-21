@@ -23,7 +23,8 @@
  */
 
 import type { Plugin } from "@opencode-ai/plugin";
-import { estimateTokens } from "./lib/token-estimate.js";
+import { estimateTokens } from "./lib/token-estimate.ts";
+import { safeLog } from "./lib/safe-logger.ts";
 
 interface PrefixConfig {
   enabled: boolean;
@@ -217,19 +218,17 @@ export default async function PromptCachePrefixerPlugin(ctx: any) {
           cacheMisses++;
         }
 
-        client.session
-          .log({
-            level: "info",
-            message: `prompt-cache: hit=${usage.cache_read_input_tokens}/${usage.input_tokens} (${Math.round(cacheRatio * 100)}%)`,
-            metadata: {
-              inputTokens: usage.input_tokens,
-              outputTokens: usage.output_tokens,
-              cacheRead: usage.cache_read_input_tokens,
-              cacheWrite: usage.cache_creation_input_tokens,
-              ratio: cacheRatio,
-            },
-          })
-          .catch(() => {});
+        safeLog(client, {
+          level: "info",
+          message: `prompt-cache: hit=${usage.cache_read_input_tokens}/${usage.input_tokens} (${Math.round(cacheRatio * 100)}%)`,
+          metadata: {
+            inputTokens: usage.input_tokens,
+            outputTokens: usage.output_tokens,
+            cacheRead: usage.cache_read_input_tokens,
+            cacheWrite: usage.cache_creation_input_tokens,
+            ratio: cacheRatio,
+          },
+        });
       }
     },
   };

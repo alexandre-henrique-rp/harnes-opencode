@@ -21,6 +21,7 @@
  */
 
 import type { Plugin } from "@opencode-ai/plugin";
+import { safeLog } from "./lib/safe-logger.ts";
 
 interface ThinkingConfig {
   enabled: boolean;
@@ -133,12 +134,10 @@ export default async function StructuredThinkingPlugin(ctx: any) {
     const cleaned = text.replace(/<thinking>[\s\S]*?<\/thinking>/g, "").trim();
 
     if (!cleaned) {
-      client.session
-        .log({
-          level: "warn",
-          message: "structured-thinking: stripped all output (only thinking block remained)",
-        })
-        .catch(() => {});
+      safeLog(client, {
+        level: "warn",
+        message: "structured-thinking: stripped all output (only thinking block remained)",
+      });
       return output; // fail-open: devolve o original
     }
 
@@ -159,12 +158,10 @@ export default async function StructuredThinkingPlugin(ctx: any) {
       const statefulTools = ["write", "edit", "bash"];
       if (!statefulTools.includes(input.tool)) return;
 
-      client.session
-        .log({
-          level: "debug",
-          message: `structured-thinking: stateful tool ${input.tool} — verify self-check was done`,
-        })
-        .catch(() => {});
+      safeLog(client, {
+        level: "debug",
+        message: `structured-thinking: stateful tool ${input.tool} — verify self-check was done`,
+      });
     },
   };
 };
