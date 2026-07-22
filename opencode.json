@@ -176,31 +176,28 @@
     "playwright": {
       "type": "local",
       "command": [
-        "npx",
-        "-y",
-        "@playwright/mcp"
+        "node",
+        "${HOME}/.config/opencode/node_modules/@playwright/mcp/cli.js"
       ]
     },
     "drawio": {
       "type": "local",
       "command": [
-        "npx",
-        "-y",
-        "@drawio/mcp"
+        "node",
+        "${HOME}/.config/opencode/node_modules/@drawio/mcp/src/index.js"
       ]
     },
     "chrome-devtools": {
       "type": "local",
       "command": [
-        "npx",
-        "-y",
-        "chrome-devtools-mcp",
+        "node",
+        "${HOME}/.config/opencode/node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js",
         "--autoConnect"
       ]
     },
     "pencil": {
       "command": [
-        "/home/kingdev/.pencil/mcp/devin/out/mcp-server-linux-x64",
+        "${HOME}/.pencil/mcp/devin/out/mcp-server-linux-x64",
         "--app",
         "devin",
         "--agent",
@@ -220,9 +217,8 @@
     "duckduckgo-search": {
       "type": "local",
       "command": [
-        "npx",
-        "-y",
-        "duckduckgo-mcp-server"
+        "node",
+        "${HOME}/.config/opencode/node_modules/duckduckgo-mcp-server/build/index.js"
       ]
     },
     "context7": {

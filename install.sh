@@ -1276,6 +1276,11 @@ EOF
             esac
         else
             copy_item "$src/opencode.json" "$dest/opencode.json"
+            config_file="$dest/opencode.json"
+        fi
+        if [[ -f "$config_file" ]]; then
+            sed -i "s|\${userHome}|$HOME|g" "$config_file"
+            sed -i "s|\${HOME}|$HOME|g" "$config_file"
         fi
     fi
 

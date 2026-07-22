@@ -24,7 +24,11 @@
     "clamdjs": "^1.0.2"
   },
   "devDependencies": {
+    "@drawio/mcp": "^1.5.0",
+    "@playwright/mcp": "^0.0.78",
     "@types/node": "^26.1.1",
+    "chrome-devtools-mcp": "^1.6.0",
+    "duckduckgo-mcp-server": "^0.1.2",
     "typescript": "^5.6.3"
   }
 }
