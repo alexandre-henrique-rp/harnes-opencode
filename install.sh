@@ -161,30 +161,36 @@ check_hardcoded_paths() {
   echo -e "${BOLD}2) Verificando portabilidade dos configs${RESET}\n"
 
   local has_hardcoded=0
-  for cfg in opencode.json opencode.jsonc; do
-    local path="$PROJECT_ROOT/$cfg"
-    [[ -f "$path" ]] || continue
+  local checked_files=0
+  for base in "$PROJECT_ROOT" "$HOME_DIR/.config/opencode"; do
+    for cfg in opencode.json opencode.jsonc; do
+      local path="$base/$cfg"
+      [[ -f "$path" ]] || continue
+      checked_files=$((checked_files + 1))
 
-    # Procura paths absolutos /home/<user>/ em strings JSON
-    local matches
-    matches="$(grep -nE '"/home/[^/]+/[^"]+"' "$path" 2>/dev/null || true)"
-    if [[ -n "$matches" ]]; then
-      warn "$cfg contem paths hardcoded /home/<user>/... :"
-      while IFS= read -r line; do
-        echo "    $line"
-      done <<< "$matches"
-      echo ""
-      info "  -> Estes paths NAO foram modificados (config do usuario eh sagrado)."
-      info "  -> Para tornar o projeto portatil, edite manualmente e troque"
-      info "     /home/<user>/... por ~/... ou por paths relativos ao projeto."
-      has_hardcoded=1
-    else
-      ok "$cfg: paths portateis (sem hardcode de /home/<user>/)"
-    fi
+      # Procura paths absolutos /home/<user>/ em strings JSON
+      local matches
+      matches="$(grep -nE '"/home/[^/]+/[^"]+"' "$path" 2>/dev/null || true)"
+      if [[ -n "$matches" ]]; then
+        warn "$path contem paths hardcoded /home/<user>/... :"
+        while IFS= read -r line; do
+          echo "    $line"
+        done <<< "$matches"
+        echo ""
+        info "  -> Estes paths NAO foram modificados (config do usuario eh sagrado)."
+        info "  -> Para tornar o projeto portatil, edite manualmente e troque"
+        info "     /home/<user>/... por ~/... ou por paths relativos ao projeto."
+        has_hardcoded=1
+      else
+        ok "$path: paths portateis (sem hardcode de /home/<user>/)"
+      fi
+    done
   done
 
-  if (( has_hardcoded == 0 )); then
-    info "Nenhum path hardcoded encontrado em opencode.json(c)."
+  if (( checked_files == 0 )); then
+    info "Nenhum opencode.json(c) encontrado em $PROJECT_ROOT ou $HOME_DIR/.config/opencode."
+  elif (( has_hardcoded == 0 )); then
+    info "Nenhum path hardcoded encontrado nos arquivos opencode.json(c) verificados."
   fi
   echo ""
 }
@@ -195,9 +201,19 @@ check_hardcoded_paths() {
 validate_mcp_paths() {
   echo -e "${BOLD}3) Validando MCPs${RESET}\n"
 
-  local cfg="$PROJECT_ROOT/opencode.jsonc"
-  [[ -f "$cfg" ]] || cfg="$PROJECT_ROOT/opencode.json"
-  [[ -f "$cfg" ]] || { warn "opencode.json(c) nao encontrado"; return; }
+  local cfg=""
+  for base in "$PROJECT_ROOT" "$HOME_DIR/.config/opencode"; do
+    if [[ -f "$base/opencode.jsonc" ]]; then
+      cfg="$base/opencode.jsonc"
+      break
+    elif [[ -f "$base/opencode.json" ]]; then
+      cfg="$base/opencode.json"
+      break
+    fi
+  done
+
+  [[ -n "$cfg" ]] || { warn "opencode.json(c) nao encontrado"; return; }
+  info "Validando MCPs em: $cfg"
 
   local report
   report="$(node -e '
