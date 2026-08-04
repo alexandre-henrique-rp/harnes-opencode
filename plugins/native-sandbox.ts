@@ -139,12 +139,13 @@ export default async function NativeSandboxPlugin(ctx: any) {
         }
       }
 
-      // Se sandbox não está disponível, executa direto sem wrapping
-      if (sandboxStatus !== "available") {
+      // Se sandbox não está disponível ou o processo já está rodando dentro do ai-jail (encapsulamento global), executa direto sem wrapping.
+      // Tentar rodar ai-jail dentro de ai-jail falharia no bwrap (Operation not permitted).
+      if (sandboxStatus !== "available" || process.env.AI_JAIL_ACTIVE === "1") {
         writeAudit({
           event: "bash.exec",
           command: original,
-          sandboxed: false,
+          sandboxed: process.env.AI_JAIL_ACTIVE === "1",
           sandboxStatus,
         });
         return;
