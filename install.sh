@@ -365,17 +365,13 @@ EOF
 
   if [[ -f "$env_file" ]]; then
     ok ".env ja existe"
-  elif (( AUTO == 1 )) || [[ ! -t 0 && ! -e /dev/tty ]]; then
+  elif (( AUTO == 1 )) || ! [[ -t 0 || -t 1 ]]; then
     cp "$example" "$env_file"
-    ok ".env criado a partir de .env.example (modo automatico)"
+    ok ".env criado a partir de .env.example"
     warn "Edite .env para adicionar suas chaves (STITCH_API_KEY, etc)"
   else
     local ans="N"
-    if [[ -e /dev/tty ]]; then
-      read -p "Criar .env agora? [s/N] " ans </dev/tty || ans="N"
-    else
-      read -p "Criar .env agora? [s/N] " ans || ans="N"
-    fi
+    read -p "Criar .env agora? [s/N] " ans || ans="N"
     if [[ "${ans:-N}" =~ ^[sSyY]$ ]]; then
       cp "$example" "$env_file"
       ok ".env criado"
