@@ -45,7 +45,12 @@ else
   RED=''; GREEN=''; YELLOW=''; BLUE=''; BOLD=''; RESET=''
 fi
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_SRC="${BASH_SOURCE[0]:-}"
+if [[ -n "$SCRIPT_SRC" && "$SCRIPT_SRC" != "stdin" && -f "$SCRIPT_SRC" ]]; then
+  PROJECT_ROOT="$(cd "$(dirname "$SCRIPT_SRC")" && pwd)"
+else
+  PROJECT_ROOT="$(pwd)"
+fi
 HOME_DIR="${HOME:-$(eval echo "~$(id -un 2>/dev/null || echo root)")}"
 AUTO=0
 VALIDATE_ONLY=0
