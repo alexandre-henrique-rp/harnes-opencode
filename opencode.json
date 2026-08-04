@@ -1,6 +1,7 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "lsp": true,
+  "lsp":true,
+  "formatter": true,
   "instructions": [
     "~/.config/opencode/GERAIS.md",
     "./system/objectivity.md"
@@ -15,10 +16,6 @@
     "./plugins/token-budget.ts",
     "./plugins/structured-thinking.ts"
   ],
-  "experimental": {
-    "frontendContextFirst": true,
-    "_comment": "v6.5.0 — habilita novo fluxo frontend (context-first + grill-me). Set false para reverter para o legacy behavior."
-  },
   "permission": {
     "bash": "allow",
     "edit": "allow",
@@ -27,149 +24,15 @@
     "grep": "allow",
     "list": "allow",
     "lsp": "allow",
-    "skill": "allow",
+    "formatter": "allow",
     "todowrite": "allow",
     "todoread": "allow",
     "webfetch": "allow",
     "websearch": "allow",
     "question": "allow",
-    "task": "deny"
-  },
-  "agent": {
-    "frontend": {
-      "tools": {
-        "skill": true
-      },
-      "permission": {
-        "write": {
-          "src/**": "allow",
-          "public/**": "allow",
-          ".harness/decisions/**": "allow",
-          "**/*.stories.tsx": "allow",
-          "**/*.stories.ts": "allow",
-          "**/*.test.ts": "deny",
-          "**/*.test.tsx": "deny",
-          "**/*.spec.ts": "deny",
-          "**/*.spec.tsx": "deny",
-          "tests/**": "deny",
-          "test/**": "deny",
-          "qa/**": "deny",
-          "e2e/**": "deny"
-        },
-        "edit": {
-          "src/**": "allow",
-          "public/**": "allow",
-          ".harness/decisions/**": "allow",
-          "**/*.stories.tsx": "allow",
-          "**/*.stories.ts": "allow",
-          "**/*.test.ts": "deny",
-          "**/*.test.tsx": "deny",
-          "**/*.spec.ts": "deny",
-          "**/*.spec.tsx": "deny",
-          "tests/**": "deny",
-          "test/**": "deny",
-          "qa/**": "deny",
-          "e2e/**": "deny"
-        },
-        "skill": {
-          "frontend-*": "allow",
-          "grill-me": "allow",
-          "docs-curator": "allow",
-          "decision-log": "allow",
-          "design-system": "allow",
-          "backend-*": "deny",
-          "qa-e2e": "deny",
-          "security-audit": "deny",
-          "lgpd-compliance": "deny"
-        }
-      }
-    },
-    "backend": {
-      "tools": {
-        "skill": true
-      },
-      "permission": {
-        "write": {
-          "src/**": "allow",
-          "server/**": "allow",
-          "api/**": "allow",
-          "prisma/**": "allow",
-          "migrations/**": "allow",
-          "tests/**": "allow",
-          "**/*.test.ts": "allow",
-          "**/*.spec.ts": "allow"
-        },
-        "skill": {
-          "backend-*": "allow",
-          "grill-me": "allow",
-          "decision-log": "allow",
-          "security-audit": "allow",
-          "lgpd-compliance": "allow",
-          "frontend-*": "deny",
-          "qa-e2e": "deny"
-        }
-      }
-    },
-    "documenter": {
-      "tools": {
-        "skill": true
-      },
-      "permission": {
-        "write": {
-          "AGENTS.md": "allow",
-          "**/AGENTS.md": "allow",
-          ".harness/RAG/**": "allow",
-          ".harness/.agmd-hashes.json": "allow",
-          "templates/**": "allow",
-          "docs/**": "allow"
-        },
-        "skill": {
-          "docs-curator": "allow",
-          "grill-me": "allow",
-          "decision-log": "allow"
-        }
-      }
-    },
-    "tester": {
-      "tools": {
-        "skill": true
-      },
-      "permission": {
-        "write": {
-          "tests/**": "allow",
-          "qa/**": "allow",
-          "e2e/**": "allow",
-          "playwright/**": "allow",
-          ".harness/tester/**": "allow"
-        },
-        "skill": {
-          "qa-e2e": "allow",
-          "grill-me": "allow",
-          "decision-log": "allow"
-        }
-      }
-    },
-    "orchestrator": {
-      "tools": {
-        "skill": true,
-        "task": true
-      },
-      "permission": {
-        "skill": {
-          "*": "allow"
-        }
-      }
-    },
-    "qa-gate": {
-      "tools": {
-        "skill": true
-      },
-      "permission": {
-        "read": "allow",
-        "skill": {
-          "qa-e2e": "allow"
-        }
-      }
+    "task": "allow",
+    "skill": {
+      "*": "allow"
     }
   },
   "mcp": {
@@ -177,27 +40,27 @@
       "type": "local",
       "command": [
         "node",
-        "${HOME}/.config/opencode/node_modules/@playwright/mcp/cli.js"
+        "~/.config/opencode/node_modules/@playwright/mcp/cli.js"
       ]
     },
     "drawio": {
       "type": "local",
       "command": [
         "node",
-        "${HOME}/.config/opencode/node_modules/@drawio/mcp/src/index.js"
+        "~/.config/opencode/node_modules/@drawio/mcp/src/index.js"
       ]
     },
     "chrome-devtools": {
       "type": "local",
       "command": [
         "node",
-        "${HOME}/.config/opencode/node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js",
+        "~/.config/opencode/node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js",
         "--autoConnect"
       ]
     },
     "pencil": {
       "command": [
-        "${HOME}/.pencil/mcp/devin/out/mcp-server-linux-x64",
+        "~/.pencil/mcp/devin/out/mcp-server-linux-x64",
         "--app",
         "devin",
         "--agent",
@@ -218,7 +81,7 @@
       "type": "local",
       "command": [
         "node",
-        "${HOME}/.config/opencode/node_modules/duckduckgo-mcp-server/build/index.js"
+        "~/.config/opencode/node_modules/duckduckgo-mcp-server/build/index.js"
       ]
     },
     "context7": {
@@ -230,5 +93,22 @@
       }
     }
   },
-  "default_agent": "orchestrator"
+  "default_agent": "orchestrator",
+  "experimental": {
+    "frontendContextFirst": true,
+    "_comment": "v6.5.0 — habilita novo fluxo frontend (context-first + grill-me). Set false para reverter para o legacy behavior."
+  },
+  "agent": {
+    "orchestrator": {
+      "tools": {
+        "skill": true,
+        "task": true
+      },
+      "permission": {
+        "skill": {
+          "*": "allow"
+        }
+      }
+    }
+  }
 }

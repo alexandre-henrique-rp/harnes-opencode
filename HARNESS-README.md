@@ -14,6 +14,7 @@
   <p align="center">
     <a href="#-sobre-o-projeto">Sobre o Projeto</a> ·
     <a href="#-instalação-rápida">Instalação Rápida</a> ·
+    <a href="#-empacotamento-para-download">Empacotamento</a> ·
     <a href="#-sprints--workflow">Fases e Workflow</a> ·
     <a href="#-time-de-agentes-roster">Time de Agentes</a> ·
     <a href="#-princípios-não-negociáveis">Princípios</a> ·
@@ -28,6 +29,80 @@
 O **OpenCode Agents v6** é um harness declarativo, auditável e auto-modificável de desenvolvimento multi-agente de alta fidelidade integrado ao ecossistema OpenCode. 
 
 Inspirado nas práticas de *vibe-coding* e Extreme Programming (XP), como programação em par, TDD, entregas contínuas e padrões de código estritos, este harness organiza o ciclo de desenvolvimento em **6 fases controladas** e gerencia **20 agentes especializados** com limites rígidos de escrita (path boundaries) e controle total de auditoria.
+
+## 🚀 Instalação / Validação
+
+Após clonar o projeto, rode o validador para checar o ambiente.
+
+O instalador também cria `.harness/harness-allowlist.json` (allowlist a nível de projeto, mergeada com a global em `~/.config/opencode/harness-allowlist.json`). Edite esse arquivo para customizar paths deste projeto sem alterar o allowlist global.
+
+### 🔓 Liberando paths bloqueados pelo path-boundary
+
+Quando o agente tenta escrever em um path bloqueado, a mensagem de erro inclui **como liberar**:
+
+```bash
+# Mensagem típica do path-boundary:
+[path-boundary] BLOCKED: default cannot write docs/index.html.
+  Reason: Path "docs/index.html" nao esta em nenhuma allowlist.
+  -> Para liberar este path, adicione "docs/**" em .harness/harness-allowlist.json (allow):
+       "./install.sh --add-allow docs/**"
+  -> Ou edite manualmente: .harness/harness-allowlist.json
+```
+
+Formas de liberar:
+
+```bash
+# Via install.sh (mais rápido)
+./install.sh --add-allow 'docs/**'
+./install.sh --add-deny 'src/legacy/**'
+
+# Via MCP tool (chamavel pelo agente)
+harness-allowlist action=list
+harness-allowlist action=add pattern='docs/**' type=allow target=project
+
+# Manual
+vim .harness/harness-allowlist.json
+```
+
+Para inspecionar o merged allowlist efetivo (project + global):
+
+```bash
+./install.sh --show-allowlist
+# ou:
+npm run setup:show-allowlist
+```
+
+⚠️ **Reinicie o opencode** após mudar o allowlist — o plugin carrega o JSON uma vez na inicialização da sessão.
+
+```bash
+./install.sh                # interativo (valida + cria .env + atualiza .gitignore)
+npm run setup               # equivalente via npm
+npm run setup:auto          # não-interativo
+npm run setup:validate      # só valida, não modifica nada
+```
+
+O validador:
+1. Detecta plataforma (linux/macos/windows)
+2. Testa `ai-jail` + `bwrap` e sugere fallback se kernel sem user namespaces
+3. **Detecta paths hardcoded** `/home/<user>/...` em `opencode.json(c)` e **alerta** (mas não modifica — config do usuário é sagrada)
+4. Valida cada path de MCP (mostra `ok` ou `MISSING`)
+5. Cria `.env.example` (e `.env` se não existir)
+6. Atualiza `.gitignore` com paths de sujeira (backup/, tmp/, .harness/audit/, etc.)
+
+## 📦 Empacotamento para Download
+
+Para gerar um tarball limpo para distribuir o projeto:
+
+```bash
+./install.sh --list-essentials              # mostra o que entra no pacote
+./install.sh --package dist/harness.tar.gz  # cria o tarball
+npm run setup:list-essentials               # equivalente npm
+npm run setup:package                       # equivalente npm
+```
+
+A lista fica em `tools/DIST-MANIFEST.json` (source of truth).
+
+> ⚠️ **Importante:** este instalador **NÃO modifica** `opencode.json(c)` — esses arquivos são configuração pessoal do usuário. Para tornar o projeto portável para outros usuários, o **dono do projeto** deve editar manualmente `opencode.json(c)` e substituir paths hardcoded `/home/<user>/...` por `~/...` ou caminhos relativos antes de commitar.
 
 ### 🌟 Diferenciais Competitivos (vs v5)
 * **Eficiência Extrema:** Core otimizado contendo apenas ~90 arquivos principais de configuração, ferramentas e plugins para um harness muito mais leve e coeso.
@@ -50,6 +125,37 @@ Quando você executa `opencode` em um projeto com o harness instalado, um **wrap
 - **Mascaramento de Arquivos Sensíveis:** Arquivos como `.env`, `.env.local`, `credentials.json` e `harness-allowlist.json` são mascarados (parecem vazios ou inexistentes para o agente).
 - **Ocultação de Dados de Infraestrutura:** Pastas sensíveis da home como `.ssh`, `.kube`, `.aws`, `.gcloud` e `.netrc` ficam completamente invisíveis no sandbox.
 - **Preservação do Mapeamento do OpenCode:** Os diretórios `~/.config/opencode` (agentes e comandos) e `~/.opencode` (plugins e binários) permanecem acessíveis em leitura/escrita para que a CLI funcione normalmente.
+
+### Executando com Sandbox Nativo (`/harness-jail`)
+
+Para evitar falhas de permissão com `bwrap` (bubblewrap) em comandos individuais, execute a própria sessão do **OpenCode** encapsulada no `ai-jail`:
+
+```bash
+AI_JAIL_ACTIVE=1 ai-jail opencode
+```
+
+Você também pode consultar este comando dentro do OpenCode a qualquer momento digitando:
+```
+/harness-jail
+```
+
+### Auto-fallback (Resiliência)
+
+O plugin `native-sandbox.ts` detecta automaticamente se `bwrap` está funcional no ambiente atual. Em kernels sem user namespaces (WSL2, Docker sem `--privileged`, distros hardened), o plugin:
+
+1. Faz probe real com `ai-jail --exec echo` (timeout 5s) na inicialização
+2. Cacheia resultado em `~/.local/share/opencode/sandbox-status.json` (24h)
+3. Se probe falha → pula o wrapping, comandos bash rodam **sem** sandbox por-comando
+4. Loga warning em stderr com recomendação: `AI_JAIL_ACTIVE=1 ai-jail opencode`
+
+Resultado: **o harness nunca trava por causa do sandbox**. Funcionalidade de segurança permanece intacta quando bwrap está disponível, e degrada graciosamente quando não está.
+
+Para desabilitar explicitamente o probe:
+```bash
+HARNESS_NO_SANDBOX=1 opencode
+```
+
+Para diagnóstico detalhado, leia `.harness/sandbox-diagnostic.json` após rodar `harness-workspace`.
 
 ---
 

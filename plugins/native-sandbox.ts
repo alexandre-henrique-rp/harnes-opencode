@@ -1,5 +1,5 @@
 import type { Plugin } from "@opencode-ai/plugin";
-import { execSync } from "child_process";
+import { execSync, execFileSync } from "child_process";
 import { randomBytes, createHash } from "crypto";
 import * as path from "path";
 import * as fs from "fs";
@@ -17,6 +17,33 @@ const FORBIDDEN: { rx: RegExp; reason: string }[] = [
 
 const AUDIT_DIR = path.join(os.homedir(), ".local", "share", "opencode", "audit");
 
+/**
+ * Status persistido do sandbox: 'unknown' | 'available' | 'unavailable' | 'disabled'
+ * Cacheado em disco para evitar re-detectar a cada comando.
+ */
+type SandboxStatus = "unknown" | "available" | "unavailable" | "disabled";
+const STATUS_FILE = path.join(os.homedir(), ".local", "share", "opencode", "sandbox-status.json");
+
+function loadSandboxStatus(): SandboxStatus {
+  try {
+    const raw = JSON.parse(fs.readFileSync(STATUS_FILE, "utf8"));
+    // Cache válido por 24h
+    if (Date.now() - (raw.checkedAt || 0) > 24 * 60 * 60 * 1000) return "unknown";
+    return raw.status || "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
+function saveSandboxStatus(status: SandboxStatus, detail: string): void {
+  try {
+    fs.mkdirSync(path.dirname(STATUS_FILE), { recursive: true });
+    fs.writeFileSync(STATUS_FILE, JSON.stringify({
+      status, detail, checkedAt: Date.now(),
+    }, null, 2));
+  } catch { /* best effort */ }
+}
+
 function writeAudit(entry: object): void {
   try {
     fs.mkdirSync(AUDIT_DIR, { recursive: true });
@@ -26,6 +53,37 @@ function writeAudit(entry: object): void {
       JSON.stringify({ ...entry, ts: new Date().toISOString() }) + "\n"
     );
   } catch { /* best effort */ }
+}
+
+/**
+ * Teste real do ai-jail/bwrap — não apenas "está instalado" mas "funciona de verdade".
+ * Roda uma vez e cacheia o resultado por 24h.
+ */
+function probeSandbox(): SandboxStatus {
+  // Se o usuário explicitamente desabilitou, respeita
+  if (process.env.HARNESS_NO_SANDBOX === "1") return "disabled";
+
+  // Se a sessão pai já está sandboxed, não precisa envolver
+  if (process.env.AI_JAIL_ACTIVE === "1") return "available";
+
+  // Se ai-jail nem está instalado, não há o que envolver
+  try {
+    execSync("command -v ai-jail", { stdio: "ignore" });
+  } catch {
+    return "unavailable";
+  }
+
+  // Probe real: tenta rodar ai-jail --exec echo com timeout curto.
+  // Se bwrap falhar com "Operation not permitted", sai com código != 0 rapidamente.
+  try {
+    execFileSync("ai-jail", ["--exec", "echo", "__harness_probe_ok__"], {
+      stdio: "ignore",
+      timeout: 5000,
+    });
+    return "available";
+  } catch {
+    return "unavailable";
+  }
 }
 
 export default async function NativeSandboxPlugin(ctx: any) {
@@ -39,11 +97,29 @@ export default async function NativeSandboxPlugin(ctx: any) {
     (isValidPath(directory) ? directory : null) ??
     process.cwd();
 
-  const alreadySandboxed = process.env.AI_JAIL_ACTIVE === "1";
+  // Detecta uma única vez por sessão e cacheia em disco
+  let sandboxStatus = loadSandboxStatus();
+  if (sandboxStatus === "unknown") {
+    sandboxStatus = probeSandbox();
+    const detail =
+      sandboxStatus === "available" ? "ai-jail+bwrap funcionando" :
+      sandboxStatus === "unavailable" ? "bwrap falhou neste ambiente (kernel sem user namespaces?)" :
+      "desabilitado por HARNESS_NO_SANDBOX=1";
+    saveSandboxStatus(sandboxStatus, detail);
+  }
 
-  let hasAiJail = false;
-  if (!alreadySandboxed) {
-    try { execSync("command -v ai-jail", { stdio: "ignore" }); hasAiJail = true; } catch {}
+  // Loga o status uma vez para diagnóstico
+  if (sandboxStatus === "unavailable") {
+    process.stderr.write(
+      "[native-sandbox] ai-jail/bwrap indisponível neste ambiente. Comandos bash rodarão SEM sandbox por-comando. " +
+      "Para diagnóstico: rode 'cat /proc/sys/kernel/unprivileged_userns_clone'. " +
+      "Para forçar habilitação: 'AI_JAIL_ACTIVE=1 ai-jail opencode' (sandbox externo).\n"
+    );
+    writeAudit({
+      event: "sandbox.status",
+      status: "unavailable",
+      recommendation: "AI_JAIL_ACTIVE=1 ai-jail opencode",
+    });
   }
 
   const dirCreated = new Set<string>();
@@ -63,8 +139,14 @@ export default async function NativeSandboxPlugin(ctx: any) {
         }
       }
 
-      if (alreadySandboxed || !hasAiJail) {
-        writeAudit({ event: "bash.exec", command: original, sandboxed: alreadySandboxed });
+      // Se sandbox não está disponível, executa direto sem wrapping
+      if (sandboxStatus !== "available") {
+        writeAudit({
+          event: "bash.exec",
+          command: original,
+          sandboxed: false,
+          sandboxStatus,
+        });
         return;
       }
 
@@ -82,10 +164,10 @@ export default async function NativeSandboxPlugin(ctx: any) {
       args.command = `ai-jail --exec bash "${scriptPath}"; rm -f "${scriptPath}"`;
 
       writeAudit({
-        event: "sandbox.exec.start.fallback",
+        event: "sandbox.exec.start",
         command: original,
         scriptHash,
-        note: "processo pai nao estava sandboxed; enjaulando comando individual",
+        note: "enjaulamento por-comando via ai-jail/bwrap",
       });
     },
 

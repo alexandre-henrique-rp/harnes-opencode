@@ -211,6 +211,31 @@ export default tool({
       `## Proximos Passos\n- Executar o briefing para gerar o \`.harness/brief.md\`.`;
     fs.writeFileSync(path.join(harnessDir, "PROGRESS.md"), initialProgress);
 
+    // 7. Cria harness-allowlist.json (project-level allowlist, mergeada com global)
+    //    Permite customizacoes de paths SEM editar o allowlist global.
+    const projectAllowlist = {
+      _about: "Allowlist a nivel de projeto. Mergeada com a global (~/.config/opencode/harness-allowlist.json). Deny rules de ambos sao aplicadas; Allow rules de ambos sao OR'ed.",
+      _docs: "https://github.com/alexandre-henrique-rp/harnes-opencode/blob/main/HARNESS-README.md#allowlist-a-nivel-de-projeto",
+      allow: [
+        // Adicione aqui paths extras que o agente deve poder escrever
+        // neste projeto. Exemplos comuns:
+        //   "docs/**",
+        //   "public/**",
+        //   "scripts/**"
+      ],
+      deny: [
+        // Adicione aqui paths que devem ser EXPLICITAMENTE bloqueados
+        // neste projeto, mesmo que a global permita.
+        // Exemplos:
+        //   "src/legacy/**",
+        //   "experiments/**"
+      ],
+    };
+    const projectAllowlistPath = path.join(harnessDir, "harness-allowlist.json");
+    if (!fs.existsSync(projectAllowlistPath)) {
+      fs.writeFileSync(projectAllowlistPath, JSON.stringify(projectAllowlist, null, 2));
+    }
+
     return {
       success: true,
       project,
@@ -221,6 +246,7 @@ export default tool({
         ".harness/state.json",
         ".harness/events.jsonl",
         ".harness/agent-boundaries.json",
+        ".harness/harness-allowlist.json",
         ".harness/PROGRESS.md",
         ".harness/audit/",
       ],

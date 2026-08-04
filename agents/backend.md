@@ -1,6 +1,7 @@
 ---
 name: backend
 description: API & services implementation — TDD mandatory, no compromise
+mode: subagent
 tools:
   read: true
   write: true

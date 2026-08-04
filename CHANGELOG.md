@@ -5,6 +5,73 @@ All notable changes to OpenCode Agents v6 are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.4.2] - 2026-08-04
+
+### Patch — Resiliência do Sandbox ai-jail/bwrap
+
+Esta é uma versão de correção focada em tornar o sandbox ai-jail robusto contra ambientes onde o kernel não tem user namespaces (WSL2, Docker sem `--privileged`, distros hardened). A v6.4.1 quebrava todos os comandos bash nesses ambientes porque assumia que `ai-jail` instalado = `bwrap` funcional. A v6.4.2 corrige isso com probe real + fallback gracioso.
+
+### Fixed — Sandbox ai-jail (Auto-fallback)
+- **`plugins/native-sandbox.ts`**: Substituído `command -v ai-jail` (que retornava sucesso mesmo com `bwrap` quebrado) por um **probe real** (`ai-jail --exec echo` com timeout 5s). Quando o probe falha, o plugin agora pula o wrapping completamente em vez de quebrar todos os comandos bash. Honra `AI_JAIL_ACTIVE=1` (sessão pai já sandboxed) e `HARNESS_NO_SANDBOX=1` (opt-out explícito). Status cacheado em disco por 24h para evitar re-detectar.
+- **`tools/harness-workspace.ts`**: Adicionada função `diagnoseSandbox()` que detecta ai-jail/bwrap, lê `/proc/sys/kernel/unprivileged_userns_clone`, e gera recomendação contextual. Resultado persistido em `.harness/sandbox-diagnostic.json`. `ensureAiJailConfig()` agora é silencioso em falha (não bloqueia o harness).
+- **`tools/harness-status.ts`**: Tool agora defensivo total — try/catch envolvendo toda a execução. Cada `JSON.parse` tem fallback próprio. Nunca propaga throw "Cannot read properties of undefined (reading 'split')". Retorna `success: false` + `recommendation` em vez de quebrar.
+
+### Added — Allowlist a Nível de Projeto
+- **`plugins/path-boundary.ts`**: Agora lê `.harness/harness-allowlist.json` (project-level) **E** `~/.config/opencode/harness-allowlist.json` (global), mesclando as duas. **Deny rules** de ambas são aplicadas (defense in depth). **Allow rules** de ambas são OR'ed (qualquer match permite). Permite customizar paths por projeto sem editar o allowlist global. Variável de ambiente `HARNESS_PATH_BOUNDARY_MODE=fail-closed` continua funcionando.
+- **`tools/harness-init.ts`**: Cria `.harness/harness-allowlist.json` automaticamente no `harness_init`, com template inicial (arrays vazios para `allow` e `deny` + comentários explicativos).
+- **`install.sh ensure_project_allowlist()`**: Nova função que cria `.harness/harness-allowlist.json` com defaults (`docs/**`, `scripts/**`) se o arquivo não existir. Chamada automaticamente no fluxo do `install.sh`.
+- **`install.sh --add-allow <pattern>`** / **`--add-deny <pattern>`**: Adiciona pattern ao allowlist do projeto via CLI. Idempotente (não duplica).
+- **`install.sh --show-allowlist`**: Mostra o merged allowlist efetivo (project + global) com origem de cada regra.
+- **`tools/harness-allowlist.ts`**: Novo MCP tool com ações `list`, `add`, `remove`. Permite ao agente liberar paths bloqueados sob confirmação do usuário. Aceita `target=project|global` para customizar onde aplicar.
+- **Mensagens de erro do path-boundary**: Agora incluem dica acionável quando o path é bloqueado por estar fora da allowlist — sugere o pattern que o usuário pode adicionar via `./install.sh --add-allow`.
+
+### Added — Hot-reload + Auto-allow (Reduz Fricção)
+- **`plugins/path-boundary.ts` — Hot-reload via mtime**: Allowlist agora é recarregado automaticamente quando o arquivo `.harness/harness-allowlist.json` muda (mtime check). **Não precisa reiniciar o opencode** após editar o allowlist — basta retentar.
+- **`HARNESS_AUTO_ALLOW_ON_BLOCK=1`** (env var): Modo "confie no desenvolvedor". Quando setado, o plugin adiciona **automaticamente** o pattern sugerido ao `.harness/harness-allowlist.json` e permite a escrita. Reduz de 4 round-trips (erro → user edit → restart → retry) para **1 round-trip** (auto-grant na primeira tentativa).
+- **Mensagens de erro otimizadas para LLM**: Agora começam com `>>> ACAO OBRIGATORIA PARA O AGENTE <<<` e mandam explicitamente PARAR e perguntar ao usuário via `question` tool. Incluem comando exato (`./install.sh --add-allow <pattern>`) e aviso de que hot-reload dispensa restart.
+- **`tools/env.example`**: Documenta `HARNESS_AUTO_ALLOW_ON_BLOCK=0` com aviso de segurança (não usar em CI/produção).
+- **`tests/path-boundary-hot-reload.test.ts`**: 16 testes (12 originais + 4 novos) cobrindo hot-reload, cache hit/miss, auto-allow, ALWAYS_DENY precedence, deny precedence, audit log, kill switch (.no-auto-allow + HARNESS_NO_AUTO_ALLOW), cooldown.
+
+### Added — Kill Switches + Audit Log + Cooldown
+- **Audit log de auto-add**: Cada adição automática grava em `.harness/audit/auto-allow.jsonl` com `ts`, `pattern`, `type`, `blockedPath`, `source` ("auto"/"manual"). Permite rastrear o que foi liberado automaticamente.
+- **`.harness/.no-auto-allow`** (marker file): Kill switch **por projeto**. Quando este arquivo existe, o plugin NÃO auto-adiciona patterns mesmo com `HARNESS_AUTO_ALLOW_ON_BLOCK=1`. Criado por `./install.sh --no-auto-allow`, removido por `./install.sh --enable-auto-allow`.
+- **`HARNESS_NO_AUTO_ALLOW=1`** (env var): Kill switch **global**. Sobrescreve `HARNESS_AUTO_ALLOW_ON_BLOCK`. Útil em demos, gravação de tela, ambientes compartilhados.
+- **`HARNESS_AUTO_ALLOW_COOLDOWN_MS`** (env var, default 60000ms): Cooldown para evitar spam quando o mesmo pattern é bloqueado repetidamente em loop. Defina 0 para desabilitar.
+- **`install.sh --no-auto-allow`** / **`--enable-auto-allow`**: Toggle do marker file do projeto.
+- **`package.json`**: Novos scripts `setup:no-auto-allow`, `setup:enable-auto-allow`, `setup:audit-auto-allow` (`tail -f` do audit log).
+
+### Added — `harness-doctor` Tool + Rate Limit + `--show-audit`
+- **`tools/harness-doctor.ts`**: Novo MCP tool consolidado. Retorna relatório estruturado com `summary` (status, score 0-100, issues), `environment` (node/bun/opencode/ai-jail/bwrap), `harness` (init state, phase, progresso), `allowlist` (merged, auto-allow status, cooldown, rate limit), `sandbox` (status + recomendação), `audit` (entries, lastAutoAdd), e `recommendations` priorizadas. Suporta `report=summary` ou `report=full`.
+- **`HARNESS_AUTO_ALLOW_MAX_PER_MIN`** (env var, default 10): Rate limit sliding window para auto-adds. Após N auto-adds em 60s, bloqueia com mensagem clara no stderr. Evita loops infinitos do agente poluindo o allowlist. Defina 0 para desabilitar.
+- **`install.sh --show-audit [--show-audit=auto|manual|all] [--audit-limit=N]`**: Mostra o audit log de auto-allow. Suporta filtro por `source` (auto/manual/all) e `--audit-limit=N` (default 20). Formato legível com timestamps, source, type e pattern.
+- **`tests/harness-doctor.test.ts`**: 9 testes cobrindo summary/full, score, harness state, allowlist info, sandbox, auto-allow flag, .no-auto-allow detection, audit counting.
+- **`tests/path-boundary-hot-reload.test.ts`**: +1 teste (17) cobrindo rate limit com `MAX_PER_MIN=2` (verifica que 3º auto-add é bloqueado).
+- **`package.json`**: Novo script `setup:show-audit`.
+
+### Changed — `path-boundary.ts`
+- Removido uso de `actualAllowlistPath` hardcoded para global. Agora usa `loadMergedAllowlist(config.cwd)` que combina project + global.
+- Mensagens de erro ajustadas para refletir merged allowlist ("Denylist match" em vez de "Global denylist match").
+
+### Added — Testes de Resiliência
+- **`tests/ai-jail-sandbox.test.ts`**: 10 testes cobrindo `diagnoseSandbox` (5 cenários), `persistDiagnostic`, `harness-workspace` tool, e `harness-status` defensivo (3 cenários: `.harness/` ausente, `state.json` corrompido, `state.json` válido com progresso).
+
+### Added — Empacotamento Limpo para Download
+- **`tools/DIST-MANIFEST.json`**: Manifest declarativo listando pastas (`agents/`, `commands/`, `plugins/`, `skills/`, `templates/`, `tools/`, `training/`, `config/`, `docs/`, `examples/`, `schemas/`, `system/`) e arquivos essenciais (`AGENTS.md`, `install.sh`, `opencode.json`, `state-machine.json`, etc.) para distribuição. Inclui `excludePatterns` para filtrar "sujeira" (backup/, tmp/, .harness/audit/, .env*, etc.).
+- **`install.sh --list-essentials`**: Lê `tools/DIST-MANIFEST.json` e mostra o que entra/sai de um pacote.
+- **`install.sh --package <caminho.tar.gz>`**: Cria tarball limpo com apenas os arquivos essenciais, filtrando backup/, tmp/, .harness/audit/, etc. Equivalente npm: `npm run setup:package`.
+- **`install.sh ensure_gitignore()`**: Agora adiciona ~15 entradas de "sujeira" (backup/, tmp/, .harness/tmp/, .harness/audit/, .env*, *.log, dist/, build/, coverage/, .DS_Store, .idea/, .vscode/, *.tar.gz, *.zip).
+- **`package.json`**: Novos scripts `setup:list-essentials` e `setup:package`.
+
+### Changed — `install.sh`
+- `install.sh` agora é **validador**, não modificador. Detecta paths hardcoded em `opencode.json(c)` e alerta com linhas exatas, mas **não modifica** esses arquivos (config do usuário é sagrada).
+- Adicionados `--list-essentials` e `--package <path.tar.gz>` para distribuição limpa.
+- `ensure_gitignore()` expandido com ~15 entradas de "sujeira" (backup/, tmp/, .harness/audit/, .env*, *.log, etc.).
+
+### Documentation
+- **`HARNESS-README.md`**: Seção "Auto-fallback (Resiliência)" adicionada.
+- **`HARNESS-README.md`**: Seção "Empacotamento para Download" adicionada.
+- **`tools/UPDATE-6.4.2.md`**: Release notes detalhadas com antes/depois, mudanças técnicas e migração.
+
 ## [6.4.1] - 2026-07-15
 
 ### Fixed — ai-jail Sandbox Integration

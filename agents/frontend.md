@@ -1,6 +1,7 @@
 ---
 name: frontend
 description: UI/UX implementation specialist — context-first, no proactive tests
+mode: subagent
 tools:
   read: true
   write: true

@@ -168,7 +168,7 @@ test("path-boundary — suite P0 (PRD-04)", async (t) => {
     try {
       await assert.rejects(
         () => callWriteTool(plugin, path.join(projectDir, "src", "app.ts")),
-        /path-boundary.*BLOCKED.*fail-closed/,
+        /path-boundary.*BLOCKED[\s\S]*fail-closed/,
         "Em fail-closed com JSON corrompido, escrita deve ser bloqueada"
       );
     } finally {
@@ -200,7 +200,7 @@ test("path-boundary — suite P0 (PRD-04)", async (t) => {
     try {
       await assert.rejects(
         () => callWriteTool(plugin, path.join(projectDir, "src", "app.ts")),
-        /path-boundary.*BLOCKED.*fail-closed/,
+        /path-boundary.*BLOCKED[\s\S]*fail-closed/,
         "Com allowlist ausente em fail-closed, escrita deve ser bloqueada"
       );
 
