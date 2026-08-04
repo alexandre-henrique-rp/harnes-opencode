@@ -248,7 +248,66 @@ validate_mcp_paths() {
 }
 
 # ----------------------------------------------------------------------------
-# 4. .env example + secrets
+# 4. Global opencode config ~/.config/opencode/
+# ----------------------------------------------------------------------------
+install_global_opencode_config() {
+  echo -e "${BOLD}4) Instalando configuracoes globais do OpenCode em ~/.config/opencode${RESET}\n"
+
+  local opencode_config_dir="$HOME_DIR/.config/opencode"
+  mkdir -p "$opencode_config_dir"
+
+  # 1. Allowlist global (~/.config/opencode/harness-allowlist.json)
+  local global_allowlist="$opencode_config_dir/harness-allowlist.json"
+  if [[ ! -f "$global_allowlist" ]]; then
+    if [[ -f "$PROJECT_ROOT/harness-allowlist.json" ]]; then
+      cp "$PROJECT_ROOT/harness-allowlist.json" "$global_allowlist"
+    else
+      cat > "$global_allowlist" <<'EOF'
+{
+  "_about": "Allowlist global do OpenCode Harness",
+  "allow": [
+    "src/**",
+    "public/**",
+    "docs/**",
+    "scripts/**",
+    "tests/**",
+    ".harness/**"
+  ],
+  "deny": []
+}
+EOF
+    fi
+    ok "Allowlist global instalada em $global_allowlist"
+  else
+    ok "Allowlist global ja existe em $global_allowlist"
+  fi
+
+  # 2. Sincroniza Skills (~/.config/opencode/skills/)
+  if [[ -d "$PROJECT_ROOT/skills" ]]; then
+    mkdir -p "$opencode_config_dir/skills"
+    cp -r "$PROJECT_ROOT/skills/." "$opencode_config_dir/skills/" 2>/dev/null || true
+    ok "Skills sincronizadas em $opencode_config_dir/skills/"
+  fi
+
+  # 3. Sincroniza Agentes (~/.config/opencode/agents/)
+  if [[ -d "$PROJECT_ROOT/agents" ]]; then
+    mkdir -p "$opencode_config_dir/agents"
+    cp -r "$PROJECT_ROOT/agents/." "$opencode_config_dir/agents/" 2>/dev/null || true
+    ok "Agentes sincronizados em $opencode_config_dir/agents/"
+  fi
+
+  # 4. Sincroniza Plugins (~/.config/opencode/plugins/)
+  if [[ -d "$PROJECT_ROOT/plugins" ]]; then
+    mkdir -p "$opencode_config_dir/plugins"
+    cp -r "$PROJECT_ROOT/plugins/." "$opencode_config_dir/plugins/" 2>/dev/null || true
+    ok "Plugins sincronizados em $opencode_config_dir/plugins/"
+  fi
+
+  echo ""
+}
+
+# ----------------------------------------------------------------------------
+# 4.5. .env example + secrets
 # ----------------------------------------------------------------------------
 ensure_project_allowlist() {
   echo -e "${BOLD}4.5) Allowlist a nivel de projeto${RESET}\n"
@@ -492,6 +551,7 @@ main() {
   validate_environment
   check_hardcoded_paths
   validate_mcp_paths
+  install_global_opencode_config
   setup_env
   ensure_project_allowlist
   ensure_gitignore
