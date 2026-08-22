@@ -8,37 +8,98 @@
  *
  * Lê `.harness/state.json` do worktree e injeta um bloco <harness-status>
  * no system prompt. Stateless (re-lê a cada chamada, não cacheia).
+ *
+ * v6.7.0+:
+ *   - Usa `resolveProjectCwdWithSource` para detectar modo fallback e avisar
+ *     o usuário uma única vez por sessão (com dica de criar project.json).
+ *   - Dedupe anúncios de `session.created` por projectRoot — evita spam
+ *     quando 3+ plugins inicializam juntos.
  */
 
 import type { Plugin } from "@opencode-ai/plugin";
 import * as fs from "fs";
 import * as path from "path";
+import {
+  resolveProjectCwd,
+  resolveProjectCwdWithSource,
+  type ResolvedCwd,
+} from "./lib/resolve-project-cwd.js";
+import { quietWarn } from "./lib/quiet-warn.js";
+
+// Local helper: warnings de sessão vão para arquivo (não stderr/UI).
+const warn = (msg: string) => quietWarn("status-injector", msg);
 
 const STATE_FILE = ".harness/state.json";
 const STATE_MACHINE_FILE = ".harness/state-machine.json";
 
+// v6.7.0+: dedupe de anúncios `session.created` por projectRoot nesta sessão.
+// (Map preserva ordem de inserção, o que serve como LRU-ish bound.)
+const announcedSessionStarts = new Map<string, number>();
+const ANNOUNCED_MAX = 32;
+
 export default async function StatusInjectorPlugin(ctx: any) {
-  const directory = ctx?.directory;
-  const worktree = ctx?.worktree;
+  // Resolve projectRoot com helper centralizado.
+  // Cache interno (v6.7.0+) garante que o warning saia 1× por sessão, não 3×.
+  const projectRoot: string = resolveProjectCwd(ctx, { log: (m: string) => quietWarn("status-injector", m) });
+  const resolved: ResolvedCwd = resolveProjectCwdWithSource(ctx, { verbose: false });
+
   return {
-    "session.created": async () => {
-      const statusBlock = buildStatusBlock(worktree || directory || process.cwd());
+    // Migrado de session.created (inexistente na API 1.18.3).
+    // Usa event hook filtrando session.created para detectar início de sessão.
+    event: async ({ event }) => {
+      if (event.type !== "session.created") return;
+
+      // Dedupe: se já anunciamos para este projectRoot nesta sessão, skipa.
+      // Protege contra race quando plugins inicializam em paralelo.
+      if (announcedSessionStarts.has(projectRoot)) {
+        return;
+      }
+      if (announcedSessionStarts.size >= ANNOUNCED_MAX) {
+        // FIFO eviction
+        const firstKey = announcedSessionStarts.keys().next().value;
+        if (firstKey !== undefined) announcedSessionStarts.delete(firstKey);
+      }
+      announcedSessionStarts.set(projectRoot, Date.now());
+
+      const statusBlock = buildStatusBlock(projectRoot);
       if (statusBlock) {
-        process.stderr.write(
-          `[status-injector] session started, harness status:\n${statusBlock}\n`
-        );
+        warn(`session started, harness status:\n${statusBlock}`);
+      }
+
+      // v6.7.0+: se caiu no fallback, dá dica útil ao usuário uma vez.
+      if (resolved.source === "fallback") {
+        const tip = buildFallbackTip(resolved);
+        if (tip) warn(tip);
       }
     },
 
     "experimental.session.compacting": async (input, output) => {
       // Quando o contexto for compactado, injeta status fresco
-      const statusBlock = buildStatusBlock(worktree || directory || process.cwd());
+      const statusBlock = buildStatusBlock(projectRoot);
       if (statusBlock) {
         output.context.push(`## Harness v6 Status (injected)\n${statusBlock}\n`);
       }
     },
   };
 };
+
+/**
+ * v6.7.0+: monta uma dica útil quando projectRoot caiu no fallback.
+ * Inclui lista de irmãos detectados (se houver) e comando shell pronto.
+ */
+function buildFallbackTip(resolved: ResolvedCwd): string | null {
+  const siblings = resolved.siblings ?? [];
+  if (siblings.length > 0) {
+    return (
+      `⚠️  projectRoot em modo fallback. Detectei projetos irmãos: ${siblings.join(", ")}. ` +
+      `Se este é um workspace multi-projeto, crie .harness/project.json para silenciar este aviso.`
+    );
+  }
+  return (
+    `⚠️  projectRoot em modo fallback (nenhum marcador detectado). ` +
+    `Crie .harness/project.json com projectRoot explícito para silenciar este aviso.`
+  );
+}
 
 function buildStatusBlock(cwd: string): string | null {
   try {

@@ -19,6 +19,7 @@
 import { tool } from "@opencode-ai/plugin";
 import * as fs from "fs";
 import * as path from "path";
+import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
 import * as os from "os";
 import { execSync } from "child_process";
 
@@ -77,6 +78,13 @@ interface DoctorReport {
   };
   sandbox: {
     status: "available" | "unavailable" | "disabled";
+    recommendation: string;
+  };
+  resources: {
+    freeRamGB: number;
+    totalRamGB: number;
+    cpus: number;
+    recommendedParallel: number;
     recommendation: string;
   };
   audit: {
@@ -152,7 +160,7 @@ function readAudit(cwd: string): DoctorReport["audit"] {
   }
   try {
     const content = fs.readFileSync(filePath, "utf8");
-    const lines = content.trim().split("\n").filter(Boolean);
+    const lines = String(content || "").split("\n").map(l => l.trim()).filter(Boolean);
     const entries = lines
       .map((l) => {
         try {
@@ -191,19 +199,72 @@ function tryExec(cmd: string): { ok: boolean; output: string } {
   }
 }
 
+/**
+ * v6.6.2 — Detecta recursos do sistema e recomenda paralelismo ótimo.
+ * Evita OOM em máquinas com pouca RAM.
+ */
+function checkResources(): {
+  freeRamGB: number;
+  totalRamGB: number;
+  cpus: number;
+  recommendedParallel: number;
+  recommendation: string;
+  warnings: Array<{ severity: string; message: string; fix: string }>;
+} {
+  const freeMemGB = os.freemem() / 1024 / 1024 / 1024;
+  const totalMemGB = os.totalmem() / 1024 / 1024 / 1024;
+  const cpus = os.cpus().length;
+  const warnings: Array<{ severity: string; message: string; fix: string }> = [];
+
+  let recommendedParallel: number;
+  let recommendation: string;
+
+  if (freeMemGB < 2) {
+    recommendedParallel = 1;
+    recommendation = `RAM crítica (${freeMemGB.toFixed(1)}GB livre). Use single-worker mode.`;
+    warnings.push({
+      severity: "critical",
+      message: `RAM livre muito baixa: ${freeMemGB.toFixed(1)}GB. Risco alto de OOM durante testes paralelos.`,
+      fix: "export HARNESS_MAX_PARALLEL_WORKERS=1 && export HARNESS_PLAYWRIGHT_WORKERS=1 && export HARNESS_VITEST_WORKERS=1",
+    });
+  } else if (freeMemGB < 4) {
+    recommendedParallel = 2;
+    recommendation = `RAM baixa (${freeMemGB.toFixed(1)}GB livre). Limite paralelismo a 2 workers.`;
+    warnings.push({
+      severity: "high",
+      message: `RAM livre baixa: ${freeMemGB.toFixed(1)}GB. Risco médio de OOM com 3+ workers.`,
+      fix: "export HARNESS_MAX_PARALLEL_WORKERS=2",
+    });
+  } else if (freeMemGB < 8) {
+    recommendedParallel = 3;
+    recommendation = `RAM moderada (${freeMemGB.toFixed(1)}GB livre). 3 workers paralelos é seguro.`;
+  } else {
+    recommendedParallel = Math.min(3, cpus);
+    recommendation = `RAM OK (${freeMemGB.toFixed(1)}GB livre). Pode usar 3 workers paralelos.`;
+  }
+
+  return {
+    freeRamGB: parseFloat(freeMemGB.toFixed(1)),
+    totalRamGB: parseFloat(totalMemGB.toFixed(1)),
+    cpus,
+    recommendedParallel,
+    recommendation,
+    warnings,
+  };
+}
+
 export default tool({
-  name: "harness-doctor",
   description:
     "Diagnostico consolidado do ambiente, sandbox, allowlist e estado do harness. Retorna relatorio com score 0-100 e recomendacoes acionaveis.",
   args: {
     report: tool.schema
       .enum(["summary", "full"])
-      .optional()
-      .default("full")
+      
+      
       .describe("Nivel de detalhe: 'summary' (so resumo) ou 'full' (tudo)"),
   },
   async execute({ report = "full" }, context) {
-    const cwd = context?.directory || process.cwd();
+    const cwd = resolveProjectCwd(context, { log: console.error });
 
     // 1. Environment
     const nodeVer = process.version;
@@ -244,6 +305,9 @@ export default tool({
 
     // 5. Audit
     const audit = readAudit(cwd);
+
+    // 5.5. Recursos do sistema (v6.6.2)
+    const resources = checkResources();
 
     // 6. Issues & recommendations
     const issues: DoctorReport["summary"]["issues"] = [];
@@ -298,6 +362,25 @@ export default tool({
       });
     }
 
+    // Recursos (v6.6.2): adicionar warnings de RAM
+    for (const rw of resources.warnings) {
+      const priority: "high" | "medium" | "low" = rw.severity === "critical" ? "high" : (rw.severity as "high" | "medium" | "low");
+      issues.push({
+        priority,
+        message: rw.message,
+      });
+      recommendations.push({
+        priority,
+        text: rw.fix,
+      });
+    }
+    if (resources.freeRamGB < 4) {
+      recommendations.push({
+        priority: "low",
+        text: `Paralelismo recomendado: ${resources.recommendedParallel} workers. Recursos: ${resources.freeRamGB}GB livre / ${resources.totalRamGB}GB total, ${resources.cpus} CPUs.`,
+      });
+    }
+
     // 7. Score
     let score = 100;
     for (const issue of issues) {
@@ -347,6 +430,13 @@ export default tool({
           ? "disabled"
           : "unavailable",
         recommendation: sandboxDiag.recommendation,
+      },
+      resources: {
+        freeRamGB: resources.freeRamGB,
+        totalRamGB: resources.totalRamGB,
+        cpus: resources.cpus,
+        recommendedParallel: resources.recommendedParallel,
+        recommendation: resources.recommendation,
       },
       audit,
       recommendations,

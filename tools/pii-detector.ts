@@ -8,15 +8,15 @@
 import { tool } from "@opencode-ai/plugin";
 import * as fs from "fs";
 import * as path from "path";
+import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
 
 export default tool({
-  name: "pii-detector",
   description: "Varre o código em busca de campos que contenham dados pessoais (CPF, e-mail, etc) e verifica riscos de conformidade.",
   args: {
-    targetDir: tool.schema.string().default("src").describe("Diretório alvo para o scan"),
+    targetDir: tool.schema.string().describe("Diretório alvo para o scan"),
   },
   async execute({ targetDir }, context) {
-    const cwd = context?.directory || process.cwd();
+    const cwd = resolveProjectCwd(context, { log: console.error });
     const fullTargetDir = path.resolve(cwd, targetDir);
     const piiFields: any[] = [];
 
@@ -65,7 +65,7 @@ export default tool({
 
           try {
             const content = fs.readFileSync(fullPath, "utf8");
-            const lines = content.split("\n");
+            const lines = String(content || "").split("\n");
 
             for (const item of piiPatterns) {
               countsByType[item.name] = countsByType[item.name] || 0;

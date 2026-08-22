@@ -10,18 +10,23 @@
 import { tool } from "@opencode-ai/plugin";
 import * as fs from "fs";
 import * as path from "path";
+import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
 
 export default tool({
-  name: "context-query",
   description: "Busca contexto granular sobre componentes, APIs ou decisões tomadas em tasks anteriores.",
   args: {
-    query: tool.schema.string().optional().describe("Termo de busca (ex: nome de um componente ou endpoint)"),
-    taskId: tool.schema.string().optional().describe("ID de uma task específica para ver o log granular"),
-    sprintId: tool.schema.string().optional().describe("ID da sprint (necessário se taskId for fornecido)"),
+    query: tool.schema.string().describe("Termo de busca (ex: nome de um componente ou endpoint)"),
+    taskId: tool.schema.string().describe("ID de uma task específica para ver o log granular"),
+    sprintId: tool.schema.string().describe("ID da sprint (necessário se taskId for fornecido)"),
   },
   async execute({ query, taskId, sprintId }, context) {
-    const cwd = context?.directory || process.cwd();
-    const harnessDir = path.join(cwd, ".harness");
+    let cwd = resolveProjectCwd(context, { log: console.error });
+    let searchCwd = cwd;
+    let harnessDir = path.join(searchCwd, ".harness");
+    while (!fs.existsSync(harnessDir) && searchCwd !== path.parse(searchCwd).root) {
+      searchCwd = path.dirname(searchCwd);
+      harnessDir = path.join(searchCwd, ".harness");
+    }
     const registryPath = path.join(harnessDir, "registry.json");
 
     let results: any = { registryMatches: [], taskLog: null };

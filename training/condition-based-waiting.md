@@ -1,3 +1,13 @@
+---
+id: "condition-based-waiting"
+title: "Espera Baseada em Condições (Sem Sleeps)"
+category: "pattern"
+priority: "high"
+status: "approved"
+scope: "global"
+summary: "Padrão para evitar sleeps fixos em testes e código assíncrono, usando polling condicional."
+updatedAt: "2026-08-10T00:00:00Z"
+---
 # Espera Baseada em Condição (Condition-Based Waiting)
 
 Este guia estabelece os padrões obrigatórios para testes assíncronos realizados pelo agente de testes (`tester`) e de desenvolvimento do Harness v6, a fim de evitar testes intermitentes (flaky tests).

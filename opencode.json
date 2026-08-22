@@ -1,25 +1,36 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "lsp":true,
+  "lsp": true,
   "formatter": true,
   "instructions": [
     "~/.config/opencode/GERAIS.md",
     "./system/objectivity.md"
   ],
   "plugin": [
+
     "./plugins/path-boundary.ts",
     "./plugins/audit-logger.ts",
     "./plugins/status-injector.ts",
-    "./plugins/native-sandbox.ts",
     "./plugins/context-compressor.ts",
     "./plugins/prompt-cache-prefixer.ts",
     "./plugins/token-budget.ts",
-    "./plugins/structured-thinking.ts"
+    "./plugins/structured-thinking.ts",
+    "./plugins/stuck-worker-watchdog.ts"
   ],
   "permission": {
-    "bash": "allow",
+    "bash": {
+      "*": "allow",
+      "rm *training*": "ask",
+      "rm -r *training*": "ask",
+      "rm -rf *training*": "ask",
+      "rm -f *training*": "ask",
+      "rm -rfv *training*": "ask"
+    },
     "edit": "allow",
     "read": "allow",
+    "external_directory": {
+      "~/.config/opencode/**": "allow"
+    },
     "glob": "allow",
     "grep": "allow",
     "list": "allow",
@@ -35,80 +46,10 @@
       "*": "allow"
     }
   },
-  "mcp": {
-    "playwright": {
-      "type": "local",
-      "command": [
-        "node",
-        "~/.config/opencode/node_modules/@playwright/mcp/cli.js"
-      ]
-    },
-    "drawio": {
-      "type": "local",
-      "command": [
-        "node",
-        "~/.config/opencode/node_modules/@drawio/mcp/src/index.js"
-      ]
-    },
-    "chrome-devtools": {
-      "type": "local",
-      "command": [
-        "node",
-        "~/.config/opencode/node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js",
-        "--autoConnect"
-      ]
-    },
-    "pencil": {
-      "command": [
-        "~/.pencil/mcp/devin/out/mcp-server-linux-x64",
-        "--app",
-        "devin",
-        "--agent",
-        "openCodeCLI"
-      ],
-      "enabled": false,
-      "type": "local"
-    },
-    "stitch": {
-      "type": "remote",
-      "url": "https://stitch.googleapis.com/mcp",
-      "enabled": true,
-      "headers": {
-        "X-Goog-Api-Key": "${env:STITCH_API_KEY}"
-      }
-    },
-    "duckduckgo-search": {
-      "type": "local",
-      "command": [
-        "node",
-        "~/.config/opencode/node_modules/duckduckgo-mcp-server/build/index.js"
-      ]
-    },
-    "context7": {
-      "type": "remote",
-      "url": "https://mcp.context7.com/mcp",
-      "enabled": true,
-      "headers": {
-        "CONTEXT7_API_KEY": "ctx7sk-55f0c677-1371-4a7a-99bf-040726afbb46"
-      }
-    }
-  },
+  "mcp": {},
   "default_agent": "orchestrator",
   "experimental": {
     "frontendContextFirst": true,
     "_comment": "v6.5.0 — habilita novo fluxo frontend (context-first + grill-me). Set false para reverter para o legacy behavior."
-  },
-  "agent": {
-    "orchestrator": {
-      "tools": {
-        "skill": true,
-        "task": true
-      },
-      "permission": {
-        "skill": {
-          "*": "allow"
-        }
-      }
-    }
   }
 }

@@ -15,13 +15,13 @@ import { tool } from "@opencode-ai/plugin";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 
 export default tool({
-  name: "harness-init",
   description:
     "Inicializa um projeto Harness v6. Cria .harness/ com state-machine.json, state.json, events.jsonl, agent-boundaries.json. Idempotente (use --force para resetar).",
   args: {
@@ -30,16 +30,16 @@ export default tool({
       .describe("Nome/ID do projeto (kebab-case, ex: 'meu-app-web')"),
     force: tool.schema
       .boolean()
-      .optional()
+      
       .describe("Se true, sobrescreve .harness/ existente (CUIDADO: apaga state.json)"),
     profile: tool.schema
       .enum(["strict", "lean"])
-      .optional()
-      .default("strict")
+      
+      
       .describe("Perfil do workflow: 'strict' (todas as 6 fases e revisores) ou 'lean' (3 fases simplificadas)"),
   },
   async execute({ project, force = false, profile = "strict" }, context) {
-    const cwd = context?.directory || process.cwd();
+    let cwd = resolveProjectCwd(context, { log: console.error });
     const harnessDir = path.join(cwd, ".harness");
     const auditDir = path.join(harnessDir, "audit");
 

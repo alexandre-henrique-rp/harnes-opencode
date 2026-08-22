@@ -7,18 +7,18 @@
 import { tool } from "@opencode-ai/plugin";
 import { exec } from "child_process";
 import * as util from "util";
+import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
 
 const execAsync = util.promisify(exec);
 
 export default tool({
-  name: "linter-automator",
   description: "Executa scripts de lint ou formatação (ex: npm run lint) e retorna os resultados para o agente.",
   args: {
-    command: tool.schema.string().optional().default("npm run lint").describe("O comando para rodar o linter, padrão: 'npm run lint'"),
-    autoFix: tool.schema.boolean().optional().default(false).describe("Se true, tenta adicionar flags de fix automático dependendo da tecnologia"),
+    command: tool.schema.string().describe("O comando para rodar o linter, padrão: 'npm run lint'"),
+    autoFix: tool.schema.boolean().describe("Se true, tenta adicionar flags de fix automático dependendo da tecnologia"),
   },
   async execute({ command = "npm run lint", autoFix = false }, context) {
-    const cwd = context?.directory || process.cwd();
+    const cwd = resolveProjectCwd(context, { log: console.error });
 
     let finalCommand = command;
     if (autoFix) {

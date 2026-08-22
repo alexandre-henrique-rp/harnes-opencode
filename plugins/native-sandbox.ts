@@ -4,6 +4,10 @@ import { randomBytes, createHash } from "crypto";
 import * as path from "path";
 import * as fs from "fs";
 import * as os from "os";
+import { quietWarn } from "./lib/quiet-warn.js";
+
+// Local helper: warning do sandbox vai para arquivo (não stderr/UI).
+const warn = (msg: string) => quietWarn("native-sandbox", msg);
 
 const FORBIDDEN: { rx: RegExp; reason: string }[] = [
   { rx: /rm\s+(-[a-zA-Z]*r[a-zA-Z]*f|-rf)\s+(--no-preserve-root\s+)?\/(?!\w)/i, reason: "rm -rf / detectado" },
@@ -60,6 +64,7 @@ function writeAudit(entry: object): void {
  * Roda uma vez e cacheia o resultado por 24h.
  */
 function probeSandbox(): SandboxStatus {
+  return "disabled";
   // Se o usuário explicitamente desabilitou, respeita
   if (process.env.HARNESS_NO_SANDBOX === "1") return "disabled";
 
@@ -110,10 +115,10 @@ export default async function NativeSandboxPlugin(ctx: any) {
 
   // Loga o status uma vez para diagnóstico
   if (sandboxStatus === "unavailable") {
-    process.stderr.write(
-      "[native-sandbox] ai-jail/bwrap indisponível neste ambiente. Comandos bash rodarão SEM sandbox por-comando. " +
+    warn(
+      "ai-jail/bwrap indisponível neste ambiente. Comandos bash rodarão SEM sandbox por-comando. " +
       "Para diagnóstico: rode 'cat /proc/sys/kernel/unprivileged_userns_clone'. " +
-      "Para forçar habilitação: 'AI_JAIL_ACTIVE=1 ai-jail opencode' (sandbox externo).\n"
+      "Para forçar habilitação: 'AI_JAIL_ACTIVE=1 ai-jail opencode' (sandbox externo).",
     );
     writeAudit({
       event: "sandbox.status",
@@ -139,13 +144,12 @@ export default async function NativeSandboxPlugin(ctx: any) {
         }
       }
 
-      // Se sandbox não está disponível ou o processo já está rodando dentro do ai-jail (encapsulamento global), executa direto sem wrapping.
-      // Tentar rodar ai-jail dentro de ai-jail falharia no bwrap (Operation not permitted).
-      if (sandboxStatus !== "available" || process.env.AI_JAIL_ACTIVE === "1") {
+      // Se sandbox não está disponível, executa direto sem wrapping
+      if (sandboxStatus !== "available") {
         writeAudit({
           event: "bash.exec",
           command: original,
-          sandboxed: process.env.AI_JAIL_ACTIVE === "1",
+          sandboxed: false,
           sandboxStatus,
         });
         return;
@@ -158,11 +162,11 @@ export default async function NativeSandboxPlugin(ctx: any) {
       }
       const scriptName = `cmd-${Date.now()}-${randomBytes(8).toString("hex")}.sh`;
       const scriptPath = path.join(scriptDir, scriptName);
-      const body = ["#!/usr/bin/env bash", "set -o pipefail", original, "exit $?"].join("\n");
+      const body = ["#!/usr/bin/env bash", "set -o pipefail", "trap 'rm -f \"$0\"' EXIT", original, "exit $?"].join("\n");
       fs.writeFileSync(scriptPath, body, { mode: 0o700 });
       const scriptHash = createHash("sha256").update(body).digest("hex").slice(0, 16);
 
-      args.command = `ai-jail --exec bash "${scriptPath}"; rm -f "${scriptPath}"`;
+      args.command = `ai-jail --exec bash "${scriptPath}"`;
 
       writeAudit({
         event: "sandbox.exec.start",

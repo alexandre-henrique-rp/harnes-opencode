@@ -319,6 +319,67 @@ EOF
     ok "Plugins sincronizados em $opencode_config_dir/plugins/"
   fi
 
+  # 5. Sincroniza Ferramentas (~/.config/opencode/tools/)
+  if [[ -d "$PROJECT_ROOT/tools" ]]; then
+    mkdir -p "$opencode_config_dir/tools"
+    cp -r "$PROJECT_ROOT/tools/." "$opencode_config_dir/tools/" 2>/dev/null || true
+    ok "Ferramentas (tools) sincronizadas em $opencode_config_dir/tools/"
+  fi
+
+  # 6. Sincroniza Templates (~/.config/opencode/templates/)
+  if [[ -d "$PROJECT_ROOT/templates" ]]; then
+    mkdir -p "$opencode_config_dir/templates"
+    cp -r "$PROJECT_ROOT/templates/." "$opencode_config_dir/templates/" 2>/dev/null || true
+    ok "Templates sincronizados em $opencode_config_dir/templates/"
+  fi
+
+  # 7. Sincroniza Treinamentos e RAG (~/.config/opencode/training/)
+  if [[ -d "$PROJECT_ROOT/training" ]]; then
+    mkdir -p "$opencode_config_dir/training"
+    cp -r "$PROJECT_ROOT/training/." "$opencode_config_dir/training/" 2>/dev/null || true
+    ok "Treinamentos e RAG sincronizados em $opencode_config_dir/training/"
+  fi
+
+  # 7.5. Sincroniza Commands (~/.config/opencode/commands/) — slash commands como /harness
+  if [[ -d "$PROJECT_ROOT/commands" ]]; then
+    mkdir -p "$opencode_config_dir/commands"
+    cp -r "$PROJECT_ROOT/commands/." "$opencode_config_dir/commands/" 2>/dev/null || true
+    ok "Commands sincronizados em $opencode_config_dir/commands/"
+  fi
+
+  # 7.6. Sincroniza Schemas (~/.config/opencode/schemas/) — state-machine.schema.json
+  if [[ -d "$PROJECT_ROOT/schemas" ]]; then
+    mkdir -p "$opencode_config_dir/schemas"
+    cp -r "$PROJECT_ROOT/schemas/." "$opencode_config_dir/schemas/" 2>/dev/null || true
+    ok "Schemas sincronizados em $opencode_config_dir/schemas/"
+  fi
+
+  # 7.7. Sincroniza System (~/.config/opencode/system/) — system prompts adicionais
+  if [[ -d "$PROJECT_ROOT/system" ]]; then
+    mkdir -p "$opencode_config_dir/system"
+    cp -r "$PROJECT_ROOT/system/." "$opencode_config_dir/system/" 2>/dev/null || true
+    ok "System sincronizados em $opencode_config_dir/system/"
+  fi
+
+  # 7.8. GERAIS.md na raiz do config (declarado em opencode.json: instructions)
+  if [[ -f "$PROJECT_ROOT/GERAIS.md" ]]; then
+    cp "$PROJECT_ROOT/GERAIS.md" "$opencode_config_dir/GERAIS.md"
+    ok "GERAIS.md copiado para $opencode_config_dir/GERAIS.md"
+  fi
+
+  # 7.9. system/objectivity.md no subpath system/ (declarado em opencode.json)
+  if [[ -f "$PROJECT_ROOT/system/objectivity.md" ]]; then
+    mkdir -p "$opencode_config_dir/system"
+    cp "$PROJECT_ROOT/system/objectivity.md" "$opencode_config_dir/system/objectivity.md"
+    ok "system/objectivity.md copiado para $opencode_config_dir/system/"
+  fi
+
+  # 8. Sincroniza tui.json e opencode.json (se existirem)
+  if [[ -f "$PROJECT_ROOT/tui.json" ]]; then
+    cp "$PROJECT_ROOT/tui.json" "$opencode_config_dir/tui.json"
+    ok "tui.json sincronizado em $opencode_config_dir/tui.json"
+  fi
+
   echo ""
 }
 

@@ -1,3 +1,13 @@
+---
+id: "lgpd-engineering-advanced"
+title: "LGPD Engineering Avançado"
+category: "law"
+priority: "critical"
+status: "approved"
+scope: "global"
+summary: "Padrões avançados de engenharia para conformidade LGPD: criptografia, auditoria, DPO, RIPD."
+updatedAt: "2026-08-10T00:00:00Z"
+---
 # LGPD para Engenheiros de Software — Training Avançado
 
 > Baseado no **Guia Avançado de LGPD para Engenharia de Software** (ANPD/Lei 13.709/2018).

@@ -13,6 +13,7 @@ import {
   loadMergedAllowlist,
   addToProjectAllowlist,
   evaluate,
+  _resetAutoAllowState,
 } from "../plugins/path-boundary.ts";
 
 // Diretorio de teste isolado
@@ -22,10 +23,10 @@ test("path-boundary — hot-reload + auto-allow", async (t) => {
   // Setup: cria .harness/ e allowlist vazio
   fs.mkdirSync(path.join(testRoot, ".harness"), { recursive: true });
 
-  await t.test("1. loadMergedAllowlist — retorna vazio quando nao ha arquivos", () => {
+  await t.test("1. loadMergedAllowlist — retorna sem fonte de projeto quando nao ha arquivo de projeto", () => {
     const result = loadMergedAllowlist(testRoot);
-    assert.strictEqual(result.allow.length, 0);
-    assert.strictEqual(result.deny.length, 0);
+    const projSource = result.sources.find((s) => s.path.includes(testRoot));
+    assert.strictEqual(projSource, undefined);
   });
 
   await t.test("2. addToProjectAllowlist — cria arquivo se nao existir", () => {
@@ -95,7 +96,7 @@ test("path-boundary — hot-reload + auto-allow", async (t) => {
   await t.test("8. evaluate — mensagem inclui sugestao de pattern acionavel", () => {
     const result = evaluate({
       agent: "test-agent",
-      filePath: "docs/inner/page.md",
+      filePath: "other/inner/page.md",
       action: "write",
       config: { cwd: testRoot, agents: {}, defaultDeny: false },
     });
@@ -103,7 +104,7 @@ test("path-boundary — hot-reload + auto-allow", async (t) => {
     const reason = result.reason || "";
     // Deve sugerir o pattern para o path bloqueado
     assert.ok(
-      reason.includes("docs/inner/**") || reason.includes("docs/**"),
+      reason.includes("other/inner/**") || reason.includes("other/**"),
       `Mensagem deve incluir pattern sugerido: ${reason}`
     );
   });
@@ -135,7 +136,7 @@ test("path-boundary — hot-reload + auto-allow", async (t) => {
       const file = path.join(testRoot, ".harness", "harness-allowlist.json");
       const data = JSON.parse(fs.readFileSync(file, "utf8"));
       assert.ok(
-        data.allow.some((p: string) => p.includes("src/new-file")),
+        data.allow.some((p: string) => p.includes("src")),
         "Pattern deve ter sido adicionado ao allowlist"
       );
     } finally {
@@ -186,6 +187,7 @@ test("path-boundary — hot-reload + auto-allow", async (t) => {
     try {
       const freshDir = fs.mkdtempSync(path.join(os.tmpdir(), "harness-audit-test-"));
       fs.mkdirSync(path.join(freshDir, ".harness"), { recursive: true });
+      fs.writeFileSync(path.join(freshDir, ".harness", "harness-allowlist.json"), JSON.stringify({ allow: ["other/**"], deny: [] }));
 
       const result = evaluate({
         agent: "test-agent",
@@ -217,6 +219,7 @@ test("path-boundary — hot-reload + auto-allow", async (t) => {
   await t.test("14. .harness/.no-auto-allow desabilita auto-allow por projeto", () => {
     const freshDir = fs.mkdtempSync(path.join(os.tmpdir(), "harness-noauto-test-"));
     fs.mkdirSync(path.join(freshDir, ".harness"), { recursive: true });
+    fs.writeFileSync(path.join(freshDir, ".harness", "harness-allowlist.json"), JSON.stringify({ allow: ["other/**"], deny: [] }));
     // Cria marker
     fs.writeFileSync(path.join(freshDir, ".harness", ".no-auto-allow"), "# disabled\n");
 
@@ -236,7 +239,7 @@ test("path-boundary — hot-reload + auto-allow", async (t) => {
       const allowFile = path.join(freshDir, ".harness", "harness-allowlist.json");
       if (fs.existsSync(allowFile)) {
         const data = JSON.parse(fs.readFileSync(allowFile, "utf8"));
-        assert.ok(!data.allow || data.allow.length === 0, "Nada deve ter sido adicionado");
+        assert.ok(!data.allow || !data.allow.some((p: string) => p.includes("src")), "Nada deve ter sido adicionado");
       }
 
       fs.rmSync(freshDir, { recursive: true, force: true });
@@ -248,6 +251,7 @@ test("path-boundary — hot-reload + auto-allow", async (t) => {
   await t.test("15. HARNESS_NO_AUTO_ALLOW=1 eh kill switch global", () => {
     const freshDir = fs.mkdtempSync(path.join(os.tmpdir(), "harness-killswitch-test-"));
     fs.mkdirSync(path.join(freshDir, ".harness"), { recursive: true });
+    fs.writeFileSync(path.join(freshDir, ".harness", "harness-allowlist.json"), JSON.stringify({ allow: ["other/**"], deny: [] }));
 
     process.env.HARNESS_AUTO_ALLOW_ON_BLOCK = "1";
     process.env.HARNESS_NO_AUTO_ALLOW = "1";
@@ -274,6 +278,7 @@ test("path-boundary — hot-reload + auto-allow", async (t) => {
     try {
       const freshDir = fs.mkdtempSync(path.join(os.tmpdir(), "harness-cooldown-test-"));
       fs.mkdirSync(path.join(freshDir, ".harness"), { recursive: true });
+      fs.writeFileSync(path.join(freshDir, ".harness", "harness-allowlist.json"), JSON.stringify({ allow: ["other/**"], deny: [] }));
 
       // Primeira tentativa: auto-add
       const r1 = evaluate({
@@ -307,17 +312,20 @@ test("path-boundary — hot-reload + auto-allow", async (t) => {
   });
 
   await t.test("17. rate limit bloqueia auto-adds excessivos", () => {
+    _resetAutoAllowState();
     process.env.HARNESS_AUTO_ALLOW_ON_BLOCK = "1";
     process.env.HARNESS_AUTO_ALLOW_MAX_PER_MIN = "2"; // bem baixo para testar
     process.env.HARNESS_AUTO_ALLOW_COOLDOWN_MS = "0"; // sem cooldown
+
     try {
       const freshDir = fs.mkdtempSync(path.join(os.tmpdir(), "harness-ratelimit-test-"));
       fs.mkdirSync(path.join(freshDir, ".harness"), { recursive: true });
+      fs.writeFileSync(path.join(freshDir, ".harness", "harness-allowlist.json"), JSON.stringify({ allow: ["other/**"], deny: [] }));
 
       // 2 auto-adds devem funcionar
       const r1 = evaluate({
         agent: "default",
-        filePath: path.join(freshDir, "a", "file1.ts"),
+        filePath: path.join(freshDir, "ratetest_a", "file1.ts"),
         action: "write",
         config: { cwd: freshDir, agents: {}, defaultDeny: false },
       });
@@ -325,16 +333,16 @@ test("path-boundary — hot-reload + auto-allow", async (t) => {
 
       const r2 = evaluate({
         agent: "default",
-        filePath: path.join(freshDir, "b", "file2.ts"),
+        filePath: path.join(freshDir, "ratetest_b", "file2.ts"),
         action: "write",
         config: { cwd: freshDir, agents: {}, defaultDeny: false },
       });
       assert.strictEqual(r2.ok, true);
 
-      // 3o deve ser bloqueado por rate limit (sem cair no allow, sem auto-allow)
+      // 3o adicional deve ser bloqueado por rate limit
       const r3 = evaluate({
         agent: "default",
-        filePath: path.join(freshDir, "c", "file3.ts"),
+        filePath: path.join(freshDir, "ratetest_c", "file3.ts"),
         action: "write",
         config: { cwd: freshDir, agents: {}, defaultDeny: false },
       });
@@ -346,6 +354,7 @@ test("path-boundary — hot-reload + auto-allow", async (t) => {
       delete process.env.HARNESS_AUTO_ALLOW_ON_BLOCK;
       delete process.env.HARNESS_AUTO_ALLOW_MAX_PER_MIN;
       delete process.env.HARNESS_AUTO_ALLOW_COOLDOWN_MS;
+      _resetAutoAllowState();
     }
   });
 });

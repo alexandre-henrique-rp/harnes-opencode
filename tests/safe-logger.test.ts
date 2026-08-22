@@ -89,13 +89,19 @@ test('Suíte de Testes do SafeLogger e Resiliência de Plugins', async (t) => {
     const ctx = { client: { session: null } };
     const plugin = await TokenBudgetPlugin(ctx);
 
-    const output = {
-      usage: { input_tokens: 195_000, output_tokens: 1_000 },
-      result: 'Output text'
+    // P1 fix: token-budget foi migrado de model.complete.after para event hook
+    // filtrando message.updated. Teste passa o evento que conteria usage.
+    const event = {
+      type: 'message.updated',
+      properties: {
+        info: {
+          tokens: { input: 195_000, output: 1_000 },
+        },
+      },
     };
 
     await assert.doesNotReject(async () => {
-      await plugin['model.complete.after']({} as any, output as any);
+      await plugin.event({ event: event as any });
     });
   });
 
@@ -103,12 +109,19 @@ test('Suíte de Testes do SafeLogger e Resiliência de Plugins', async (t) => {
     const ctx = { client: {} };
     const plugin = await PromptCachePrefixerPlugin(ctx);
 
-    const output = {
-      usage: { input_tokens: 1000, cache_read_input_tokens: 800 }
+    // P1 fix: prompt-cache-prefixer migrou model.complete.after para event hook
+    // filtrando message.updated.
+    const event = {
+      type: 'message.updated',
+      properties: {
+        info: {
+          tokens: { input: 1000, cache: { read: 800 } },
+        },
+      },
     };
 
     await assert.doesNotReject(async () => {
-      await plugin['model.complete.after']({} as any, output as any);
+      await plugin.event({ event: event as any });
     });
   });
 });

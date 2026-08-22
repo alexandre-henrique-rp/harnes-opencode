@@ -8,16 +8,16 @@
 import { tool } from "@opencode-ai/plugin";
 import * as fs from "fs";
 import * as path from "path";
+import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
 
 export default tool({
-  name: "coverage-analyzer",
   description: "Analisa o relatório de cobertura do Vitest/Jest e retorna um resumo de conformidade.",
   args: {
-    reportPath: tool.schema.string().default("coverage/coverage-summary.json").describe("Caminho para o JSON de cobertura"),
-    minThreshold: tool.schema.number().default(85).describe("Threshold mínimo de cobertura (%)"),
+    reportPath: tool.schema.string().describe("Caminho para o JSON de cobertura"),
+    minThreshold: tool.schema.number().describe("Threshold mínimo de cobertura (%)"),
   },
   async execute({ reportPath, minThreshold }, context) {
-    const cwd = context?.directory || process.cwd();
+    const cwd = resolveProjectCwd(context, { log: console.error });
     const fullPath = path.resolve(cwd, reportPath);
 
     if (!fs.existsSync(fullPath)) {

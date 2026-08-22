@@ -1,0 +1,156 @@
+/**
+ * security-scanner.ts — Harness v6 tool
+ *
+ * Automatiza scans de segurança (OWASP, Secrets, Insecure Patterns).
+ * Reduz o consumo de tokens do agente Security ao processar buscas complexas via código.
+ */
+
+import { tool } from "@opencode-ai/plugin";
+import { execSync } from "child_process";
+import * as fs from "fs";
+import * as path from "path";
+
+export default tool({
+  description: "Executa scans de segurança automatizados (Regex e auditoria de dependências) no código-fonte.",
+  args: {
+    targetDir: tool.schema.string().optional().default("").describe("Diretório alvo para o scan"),
+    checks: tool.schema.array(tool.schema.enum(["secrets", "sql_injection", "xss", "insecure_http", "cors", "dependencies", "prompt_injection"])).optional().default([])
+      
+      .describe("Tipos de verificações a realizar"),
+  },
+  async execute({ targetDir, checks = ["secrets", "sql_injection", "xss", "insecure_http", "cors", "prompt_injection"] }, context) {
+    const cwd = context?.worktree || context?.directory || process.cwd();
+    const fullTargetDir = path.resolve(cwd, targetDir);
+    const findings: any[] = [];
+
+    if (!fs.existsSync(fullTargetDir)) {
+      return { success: false, error: `Diretorio ${targetDir} nao encontrado.` };
+    }
+
+    const scanPatterns = {
+      secrets: {
+        pattern: /(sk_live|sk_test|Bearer\s+[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|api[_-]?key.*=.*[a-zA-Z0-9]{20,})/i,
+        category: "A02: Cryptographic Failures",
+        title: "Hardcoded Secret/Key Detectada",
+        severity: "critical"
+      },
+      sql_injection: {
+        pattern: /(execute|query).*['"].*\+.*['"]/i,
+        category: "A03: Injection",
+        title: "Possível SQL Injection (Concatenação)",
+        severity: "critical"
+      },
+      xss: {
+        pattern: /dangerouslySetInnerHTML|innerHTML\s*=/i,
+        category: "A03: Injection",
+        title: "Possível XSS (Manipulação Direta de DOM)",
+        severity: "high"
+      },
+      insecure_http: {
+        pattern: /http:\/\//i,
+        category: "A02: Cryptographic Failures",
+        title: "Uso de Protocolo Inseguro (HTTP)",
+        severity: "medium"
+      },
+      cors: {
+        pattern: /Access-Control-Allow-Origin.*\*/i,
+        category: "A05: Security Misconfiguration",
+        title: "CORS Permitindo Qualquer Origem (*)",
+        severity: "high"
+      },
+      prompt_injection: {
+        pattern: /(prompt|instruction|template|system_message|user_message).*\+.*\b(input|user|text|msg|param|body|req)\b/i,
+        category: "A03: Injection (LLM01: Prompt Injection)",
+        title: "Possível Vulnerabilidade de Prompt Injection",
+        severity: "high"
+      }
+    };
+
+    // 1. Executar Scans de Regex nativamente em Node.js
+    const scanDirRecursive = (dir: string) => {
+      let entries: fs.Dirent[] = [];
+      try {
+        entries = fs.readdirSync(dir, { withFileTypes: true });
+      } catch (err) {
+        return; // Diretório inacessível
+      }
+
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        
+        if (entry.isDirectory()) {
+          // Ignora pastas de controle conhecidas
+          if (entry.name === "node_modules" || entry.name === ".git" || entry.name === ".harness") {
+            continue;
+          }
+          scanDirRecursive(fullPath);
+        } else if (entry.isFile()) {
+          // Ignora extensões de arquivos binários ou estáticos grandes
+          const ext = path.extname(entry.name).toLowerCase();
+          if ([".png", ".jpg", ".jpeg", ".gif", ".ico", ".pdf", ".zip", ".db", ".sqlite", ".woff", ".woff2", ".ttf"].includes(ext)) {
+            continue;
+          }
+
+          try {
+            const content = fs.readFileSync(fullPath, "utf8");
+            const lines = String(content || "").split("\n");
+
+            for (const check of checks) {
+              if (check === "dependencies") continue;
+              const config = (scanPatterns as any)[check];
+
+              lines.forEach((lineText, idx) => {
+                if (config.pattern.test(lineText)) {
+                  findings.push({
+                    category: config.category,
+                    title: config.title,
+                    severity: config.severity,
+                    file: path.relative(cwd, fullPath),
+                    line: idx + 1,
+                    evidence: lineText.trim()
+                  });
+                }
+              });
+            }
+          } catch (err) {
+            // Ignora arquivos ilegíveis
+          }
+        }
+      }
+    };
+
+    if (checks.some(c => c !== "dependencies")) {
+      scanDirRecursive(fullTargetDir);
+    }
+
+    // 2. Auditoria de Dependências (Opcional)
+    if (checks.includes("dependencies")) {
+      try {
+        if (fs.existsSync(path.join(cwd, "package.json"))) {
+          const auditOutput = execSync("npm audit --json || true").toString();
+          const audit = JSON.parse(auditOutput);
+          if (audit.metadata && audit.metadata.vulnerabilities) {
+            const vulns = audit.metadata.vulnerabilities;
+            if (vulns.critical > 0 || vulns.high > 0) {
+              findings.push({
+                category: "A06: Vulnerable and Outdated Components",
+                title: "Vulnerabilidades em Dependências NPM",
+                severity: vulns.critical > 0 ? "critical" : "high",
+                evidence: `Critical: ${vulns.critical}, High: ${vulns.high}, Total: ${audit.metadata.totalDependencies}`
+              });
+            }
+          }
+        }
+      } catch (e) {
+        // ignore audit errors
+      }
+    }
+
+    return {
+      success: true,
+      findingsCount: findings.length,
+      findings,
+      summary: `Scan concluído em ${targetDir}. Foram encontrados ${findings.length} problemas de segurança.`
+    };
+  },
+});

@@ -1,6 +1,27 @@
 {
   "_type": "harness-state-machine-v6",
   "version": 1,
+  "description": "State machine lean (3 fases colapsadas) para tarefas simples",
+  "autoEligibility": {
+    "criteria": [
+      "SPEC com ≤3 ACs (acceptance criteria)",
+      "0 regras de negócio críticas novas em .harness/business-rules.json",
+      "Sem PII detectado (ou já auditado em sprint anterior)",
+      "Sem migration de schema pendente"
+    ],
+    "howToApply": "Use este state-machine AUTOMATICAMENTE quando todos os critérios forem verdade. Documentado em GERAIS.md §6.4.5. Equivale a `harness-init --profile lean` no projeto.",
+    "skippedPhases": [
+      "phase.1.docs (Documentação)",
+      "phase.2.requisitos (PRD + SPEC detalhado)",
+      "phase.3.design (design-reviewer)"
+    ],
+    "skippedAgents": [
+      "design-reviewer",
+      "planning-reviewer",
+      "lgpd-officer (a menos que PII posterior)",
+      "business-rules gate (a menos que regras críticas sejam adicionadas)"
+    ]
+  },
   "phases": [
     {
       "id": "phase.0.briefing",
@@ -87,7 +108,7 @@
         ],
         "onFail": { "action": "block", "message": "Aguardando aprovacao de UX para fechar Marco." }
       },
-      "next": ["phase.5.complete"],
+      "next": ["phase.6.ux-gate"],
       "onFailure": { "class": "user-action", "maxAutoRetries": 0, "backoff": "none", "delays": [] }
     }
   ],

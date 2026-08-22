@@ -40,7 +40,7 @@ Antes de qualquer tool call, siga esta ordem:
    - **Regra de Loop de Auto-Correção Local:** Se a execução de testes, validações de linter ou typecheck falharem, o subagente deve analisar a saída do erro, efetuar o ajuste no código e executar os testes novamente (em até 3 tentativas locais) antes de devolver a tarefa como concluída ou falhada. Não entregue código com erros que podem ser corrigidos localmente.
 5. **Consultar RAG e MCP Docs** — se houver dúvida sobre padrão/lei/segurança ou sobre o uso de um MCP específico, leia `.harness/RAG/<doc>.md` antes de improvisar.
 6. **Tool calls nativas do opencode** — use `todowrite` para tasks > 3 passos, `question` para ambiguidade bloqueante, `websearch`/`webfetch` para info externa
-7. **Respeitar path boundary** — você só escreve nos paths declarados no seu agent config (`agents/<seu-agent>.md`)
+7. **Respeitar path boundary (Dry-Run)** — você só escreve nos paths declarados no seu config. ANTES de tentar criar ou editar arquivos (especialmente ao planejar a tarefa), verifique se o caminho alvo está liberado consultando a tool `harness-allowlist` (action: list). Se a pasta (ex: `backend/**`) não estiver em "allow", pare e pergunte ao usuário (tool: ask_question ou diretamente): "Posso adicionar 'pasta/**' ao allowlist?". Se o usuário autorizar, rode `harness-allowlist` action="add" e só depois edite/crie o arquivo.
 8. **Não pular portão** — se o orchestrator declarou um gate, espere o sinal de aprovação antes de avançar
 9. **Logar em audit** — toda tool call sua é gravada automaticamente por `audit-logger.ts`
 10. **Manutenção Gradual do AGENTS.md local:** Se a sua tarefa criar, modificar ou remover arquivos em qualquer subdiretório, você **DEVE** criar (se não existir) ou atualizar o arquivo `AGENTS.md` dessa pasta. Mantenha-o extremamente curto e focado: Propósito, Dependências e Mapa de Arquivos com links absolutos (`file:///`). O arquivo **NÃO DEVE** ultrapassar 40 linhas (limite estrito para economizar tokens).
@@ -111,13 +111,13 @@ Fases e seus owners (v6.2.0+):
 | 2 Requisitos | `requirements` | seu agent é `requirements`, `prd-reviewer` ou `spec-reviewer` |
 | 3 Design | `designer` | seu agent é `designer` ou `design-reviewer` |
 | 4 Planejamento | `sprint-tasker` | seu agent é `sprint-tasker` ou `planning-reviewer` |
-| 5 Build + Quality | orchestrator coordena | seu agent é `backend`, `frontend`, `tester`, `security`, `lgpd-officer` ou `qa-gate` |
+| 5 Build + Quality | orchestrator coordena | seu agent é `backend`, `frontend`, `tester`, `security`, `lgpd-officer`, `code-reviewer` ou `qa-gate` |
 
-**Phase 5 (Build + Quality) é fan-out:** o orchestrator dispara **5 workers em paralelo** (`backend` + `frontend` + `tester` + `security` + **`lgpd-officer` *(novo em v6.2.0)***), espera todos retornarem, então valida o gate agregado:
+**Phase 5 (Build + Quality) é fan-out:** o orchestrator dispara **6 workers em paralelo** (`backend` + `frontend` + `tester` + `security` + `lgpd-officer` + `code-reviewer`), espera todos retornarem, então valida o gate agregado:
 - coverage ≥ 85% (tester)
 - 0 vuln critical/high (security)
-- review ≥ 70 (planning-reviewer)
-- **LGPD compliant** *(novo em v6.2.0 — lgpd-officer)*
+- review ≥ 70 (code-reviewer)
+- **LGPD compliant** (lgpd-officer)
 
 Workers não se chamam entre si — toda comunicação volta pro orchestrator.
 
@@ -213,6 +213,60 @@ Workers não se chamam entre si — toda comunicação volta pro orchestrator.
    - Comentários no código: só se "porquê" (não "o quê").
 
 **Teste de simplicidade:** se um dev júnior consegue entender a função em 30 segundos lendo o código + docstring, é simples. Se precisa de 5 minutos, é complexa demais.
+
+### 6.4 Anti-over-engineering (regra de minimalismo)
+
+Complementa 6.3 com **limites numéricos**, **stop rules** e **critérios de elegibilidade** que combatem o viés natural do LLM para abstração.
+
+#### 6.4.1 Limites por tipo de task
+
+| Tipo | LOC máx | Arquivos máx | Tempo máx |
+|---|---|---|---|
+| Bug fix | 50 | 2 | 5min |
+| Feature pequena (1 AC) | 150 | 3 | 10min |
+| Feature média (3-5 ACs) | 400 | 5 | 30min |
+| Feature grande (10+ ACs) | 800 | 8 | 1h (requer sprint) |
+
+Ao se aproximar do limite: **PARE** e use `question` para confirmar escopo com o usuário. Não infle para "caber".
+
+#### 6.4.2 Stop rule (quando parar)
+
+Você PARA quando QUALQUER uma for verdadeira:
+- **(a)** ACs do escopo estão passing nos testes
+- **(b)** Limite numérico de 6.4.1 foi atingido
+- **(c)** Próxima mudança requer decisão de design ambígua → **ESCALAR via `question`**
+
+LLMs over-engineeram porque não sabem quando parar. Esta regra substitui a heurística interna do modelo.
+
+#### 6.4.3 Anti-patterns cirúrgicos (sempre violados)
+
+- ❌ Tocar código adjacente fora do escopo do AC
+- ❌ Adicionar logging/auditoria não solicitado pelo usuário
+- ❌ Criar utils/helpers/interfaces sem uso imediato (regra de 3: abstraia só na 3ª repetição real)
+- ❌ Criar type guards, validators, error wrappers para "caso futuro"
+- � Comentar o óbvio (código autoexplicativo > comentário redundante)
+- � Atualizar testes de código que não mudou
+- ❌ "Drive-by fix" de bugs vistos no caminho — anote, volte depois
+
+#### 6.4.4 YAGNI checkpoint (antes de criar abstração)
+
+Antes de criar class/factory/strategy/interface, pergunte:
+
+> "Esta abstração tem 2+ callers REAIS hoje?"
+> - **SIM** → crie
+> - **NÃO** → use if/else inline, repita até a 3ª vez
+
+1ª e 2ª vez de duplicação: escreva direto. 3ª vez: agora abstraia. Esta é a regra de 3 explícita.
+
+#### 6.4.5 Auto-eligibilidade para lean profile
+
+Use `state-machine-lean.json` AUTOMATICAMENTE quando TODAS forem verdade:
+- ≤3 ACs na SPEC
+- 0 regras de negócio críticas novas em `.harness/business-rules.json`
+- Sem PII detectado (ou já auditado em sprint anterior)
+- Sem migration de schema
+
+Lean pula: design-reviewer, planning-reviewer, LGPD officer, business-rules gate (se vazio). Para o resto, vale `harness-init --profile lean` no projeto.
 
 ---
 

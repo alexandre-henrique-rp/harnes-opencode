@@ -9,18 +9,18 @@ import { tool } from "@opencode-ai/plugin";
 import { execSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
+import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
 
 export default tool({
-  name: "security-scanner",
   description: "Executa scans de segurança automatizados (Regex e auditoria de dependências) no código-fonte.",
   args: {
-    targetDir: tool.schema.string().default("src").describe("Diretório alvo para o scan"),
+    targetDir: tool.schema.string().describe("Diretório alvo para o scan"),
     checks: tool.schema.array(tool.schema.enum(["secrets", "sql_injection", "xss", "insecure_http", "cors", "dependencies", "prompt_injection"]))
-      .default(["secrets", "sql_injection", "xss", "insecure_http", "cors", "prompt_injection"])
+      
       .describe("Tipos de verificações a realizar"),
   },
   async execute({ targetDir, checks = ["secrets", "sql_injection", "xss", "insecure_http", "cors", "prompt_injection"] }, context) {
-    const cwd = context?.directory || process.cwd();
+    const cwd = resolveProjectCwd(context, { log: console.error });
     const fullTargetDir = path.resolve(cwd, targetDir);
     const findings: any[] = [];
 
@@ -94,7 +94,7 @@ export default tool({
 
           try {
             const content = fs.readFileSync(fullPath, "utf8");
-            const lines = content.split("\n");
+            const lines = String(content || "").split("\n");
 
             for (const check of checks) {
               if (check === "dependencies") continue;

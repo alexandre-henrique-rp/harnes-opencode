@@ -1,3 +1,13 @@
+---
+id: "tdd-iron-law"
+title: "Lei de Ferro do TDD"
+category: "convention"
+priority: "critical"
+status: "approved"
+scope: "global"
+summary: "Regras invioláveis do TDD: RED obrigatório, ratio 1:1, sem mocks excessivos, cobertura real."
+updatedAt: "2026-08-10T00:00:00Z"
+---
 # Test-Driven Development (TDD) — Lei de Ferro
 
 Este guia estabelece as diretrizes obrigatórias de TDD que devem ser seguidas pelos agentes de desenvolvimento (`backend`, `frontend`) e auditadas pelo agente revisor (`code-reviewer`) do Harness v6.

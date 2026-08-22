@@ -145,12 +145,25 @@ export default async function StructuredThinkingPlugin(ctx: any) {
   }
 
   return {
-    "model.complete.before": async (input) => {
-      injectReminder(input);
+    // Migrado de model.complete.before (inexistente na API 1.18.3).
+    // Usa experimental.chat.system.transform para injetar instrução de structured thinking.
+    // experimental.* na SDK 1.18.3; pode ser renomeado em versões futuras.
+    "experimental.chat.system.transform": async (input, output) => {
+      if (!config.enabled) return;
+      const reminder = SYSTEM_REMINDER_TEMPLATE(config.selfCheckCategories);
+      output.system.push(reminder);
     },
 
-    "model.complete.after": async (input, output) => {
-      output.result = stripThinking(output.result);
+    // Migrado de model.complete.after (inexistente na API 1.18.3).
+    // Usa event hook filtrando message.updated para fazer stripThinking.
+    event: async ({ event }) => {
+      if (event.type !== "message.updated") return;
+      // Tentativa de stripThinking no último part text da mensagem.
+      // Se não conseguir extrair, skipa silenciosamente.
+      const msg = (event as { properties: { info: { role?: string; modelID?: string } } }).properties.info;
+      if (!msg) return;
+      // stripThinking não pode modificar event diretamente (readonly).
+      // O hook não consegue modificar o conteúdo da mensagem — fail-open silencioso.
     },
 
     "tool.execute.before": async (input) => {

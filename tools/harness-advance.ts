@@ -18,23 +18,23 @@
 import { tool } from "@opencode-ai/plugin";
 import * as fs from "fs";
 import * as path from "path";
+import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
 
 export default tool({
-  name: "harness-advance",
   description:
     "Valida o gate da fase atual. Se passar, transiciona fase, atualiza state.json, loga em events.jsonl. Se falhar, classifica falha e dispara retry/rework/escalation.",
   args: {
     userApproval: tool.schema
       .boolean()
-      .optional()
+      
       .describe("Para gate tipo user-approval: true se humano aprovou, false caso contrario"),
     scores: tool.schema
       .record(tool.schema.string(), tool.schema.number())
-      .optional()
+      
       .describe("Para gate score-threshold: mapa de agent → score (ex: { 'prd-reviewer': 85, 'spec-reviewer': 92 })"),
     sprintCoverage: tool.schema
       .number()
-      .optional()
+      
       .describe("Para gate coverage-check: % de cobertura do SPEC (0-100)"),
     buildMetrics: tool.schema
       .object({
@@ -43,11 +43,11 @@ export default tool({
         highVulns: tool.schema.number().describe("Vulns high count"),
         reviewScore: tool.schema.number().describe("Review score 0-100"),
       })
-      .optional()
+      
       .describe("Para gate all-of (build phase): metricas de qualidade"),
     force: tool.schema
       .boolean()
-      .optional()
+      
       .describe("Se true, pula gate (USE COM CUIDADO, loga no audit)"),
   },
   async execute(
@@ -63,8 +63,13 @@ export default tool({
         }
       ]
     });
-    const cwd = context?.directory || process.cwd();
-    const harnessDir = path.join(cwd, ".harness");
+    let cwd = resolveProjectCwd(context, { log: console.error });
+    let searchCwd = cwd;
+    let harnessDir = path.join(searchCwd, ".harness");
+    while (!fs.existsSync(harnessDir) && searchCwd !== path.parse(searchCwd).root) {
+      searchCwd = path.dirname(searchCwd);
+      harnessDir = path.join(searchCwd, ".harness");
+    }
     const statePath = path.join(harnessDir, "state.json");
     const eventsPath = path.join(harnessDir, "events.jsonl");
     const stateMachinePath = path.join(harnessDir, "state-machine.json");
@@ -96,6 +101,8 @@ export default tool({
     const phaseState = state.phases[phase.id];
     phaseState.attempt = (phaseState.attempt || 0) + 1;
     phaseState.startedAt = phaseState.startedAt || new Date().toISOString();
+    // P2 fix: persiste imediatamente para que tentativa seguinte leia valor correto
+    fs.writeFileSync(statePath, JSON.stringify(state, null, 2));
 
     // Log tentativa
     appendEvent(eventsPath, {
@@ -245,7 +252,7 @@ function validateUserApproval(userApproval: any) {
 
 function checkMinLines(filePath: string, minLines: number): string | null {
   const content = fs.readFileSync(filePath, "utf8");
-  const lines = content.split("\n").filter((l) => l.trim().length > 0).length;
+  const lines = String(content || "").split("\n").filter((l) => l.trim().length > 0).length;
   if (lines < minLines) return `${path.basename(filePath)} tem ${lines} linhas (min ${minLines})`;
   return null;
 }

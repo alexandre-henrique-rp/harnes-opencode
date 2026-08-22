@@ -7,16 +7,16 @@
 import { tool } from "@opencode-ai/plugin";
 import * as fs from "fs";
 import * as path from "path";
+import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
 
 export default tool({
-  name: "docs-sync",
   description: "Sincroniza um resumo das últimas mudanças de código com a documentação (ex: README.md, ARCH.md).",
   args: {
-    docsTarget: tool.schema.string().optional().default("README.md").describe("Qual arquivo de doc atualizar (ex: 'README.md')"),
+    docsTarget: tool.schema.string().describe("Qual arquivo de doc atualizar (ex: 'README.md')"),
     summaryText: tool.schema.string().describe("Resumo das funcionalidades ou mudanças recém-adicionadas para incluir na doc."),
   },
   async execute({ docsTarget = "README.md", summaryText }, context) {
-    const cwd = context?.directory || process.cwd();
+    const cwd = resolveProjectCwd(context, { log: console.error });
     const docPath = path.join(cwd, docsTarget);
 
     if (!fs.existsSync(docPath)) {

@@ -1,0 +1,188 @@
+{
+  "_type": "harness-sprint-v6",
+  "version": 1,
+  "schema": "sprint-detail",
+  "sprint": {
+    "id": "S02",
+    "name": "gestao-lgpd",
+    "goal": "Lojista lista, busca e exclui clientes (LGPD Art. 18, VI)",
+    "module": "user",
+    "specRefs": ["US-003", "US-004", "US-005", "EP-002", "EP-003", "EP-004"],
+    "dependsOn": ["S01"]
+  },
+  "tasks": [
+    {
+      "id": "T-S02-001",
+      "module": "user",
+      "title": "API route GET /api/users/:id",
+      "type": "backend",
+      "workstream": "backend",
+      "specRefs": ["US-003", "EP-002"],
+      "promptRef": null,
+      "description": "Endpoint que retorna user por id. Autenticação required. Decripta CPF para verificação mas não expõe cpfEncrypted no response.",
+      "acceptanceCriteria": [
+        "GET /api/users/:id com auth retorna 200 com userResponse (sem cpfEncrypted)",
+        "GET /api/users/:id sem auth retorna 401",
+        "GET /api/users/:id com id inexistente retorna 404",
+        "Audit log registra a consulta"
+      ],
+      "files": ["src/pages/api/users/[id].ts", "test/integration/api/users.test.ts"],
+      "estimateHours": 3,
+      "dependencies": ["T-005"],
+      "status": "pending",
+      "startedInSprint": "S02",
+      "finishedInSprint": "S02",
+      "contextFlow": {
+        "source": {
+          "taskId": "T-005",
+          "sprintId": "S01",
+          "endpoint": "POST /api/users",
+          "dataPath": "response.id"
+        },
+        "target": {
+          "endpoint": "GET /api/users/:id",
+          "bindsTo": "path.id"
+        }
+      },
+      "owner": "backend",
+      "reviewerNotes": ""
+    },
+    {
+      "id": "T-S02-002",
+      "module": "user",
+      "title": "API route GET /api/users (listagem com busca por CPF)",
+      "type": "backend",
+      "workstream": "backend",
+      "specRefs": ["US-005", "EP-003"],
+      "promptRef": null,
+      "description": "Endpoint que lista users com paginação. Aceita query param cpf para busca específica. Auth required.",
+      "acceptanceCriteria": [
+        "GET /api/users?page=1&limit=20 retorna 200 com lista paginada",
+        "GET /api/users?cpf=X retorna 200 com 1 user ou 404 se não existe",
+        "Audit log registra a listagem"
+      ],
+      "files": ["src/pages/api/users/index.ts", "test/integration/api/users.test.ts"],
+      "estimateHours": 4,
+      "dependencies": ["T-005"],
+      "status": "pending",
+      "startedInSprint": "S02",
+      "finishedInSprint": "S02",
+      "contextFlow": null,
+      "owner": "backend",
+      "reviewerNotes": ""
+    },
+    {
+      "id": "T-S02-003",
+      "module": "user",
+      "title": "API route DELETE /api/users/:id (LGPD soft delete)",
+      "type": "backend",
+      "workstream": "backend",
+      "specRefs": ["US-004", "EP-004"],
+      "promptRef": null,
+      "description": "Endpoint que faz soft delete (deletedAt) imediato + agenda hard delete após 30 dias (cron job, fora deste SPEC). Auth required.",
+      "acceptanceCriteria": [
+        "DELETE /api/users/:id com auth retorna 202 (Accepted, soft delete agendado)",
+        "Audit log registra a solicitação de exclusão com timestamp",
+        "GET subsequente retorna 404 (soft delete torna invisível)",
+        "Campo deletedAt preenchido com NOW()",
+        "Campo lgpdErasureRequested setado true"
+      ],
+      "files": ["src/pages/api/users/[id].ts", "test/integration/api/users.test.ts"],
+      "estimateHours": 3,
+      "dependencies": ["T-S02-001"],
+      "status": "pending",
+      "startedInSprint": "S02",
+      "finishedInSprint": "S02",
+      "contextFlow": {
+        "source": {
+          "taskId": "T-S02-001",
+          "sprintId": "S02",
+          "endpoint": "GET /api/users/:id",
+          "dataPath": "response.id"
+        },
+        "target": {
+          "endpoint": "DELETE /api/users/:id",
+          "bindsTo": "path.id"
+        }
+      },
+      "owner": "backend",
+      "reviewerNotes": ""
+    },
+    {
+      "id": "T-S02-004",
+      "module": "user",
+      "title": "Página /users (lista + busca por CPF)",
+      "type": "frontend",
+      "workstream": "frontend",
+      "specRefs": ["US-003", "US-005"],
+      "promptRef": "user-list.PROMPT.md",
+      "description": "Página que lista clientes, com busca por CPF no topo, paginação, e botão de excluir (com confirmação LGPD)",
+      "acceptanceCriteria": [
+        "Renderiza lista de clientes com paginação",
+        "Busca por CPF filtra a lista",
+        "Botão Excluir abre modal de confirmação 'Tem certeza? Esta ação não pode ser desfeita.'",
+        "Confirmação chama DELETE /api/users/:id e remove da lista local",
+        "Toast de sucesso/erro após ação"
+      ],
+      "files": ["src/pages/users/index.tsx", "src/components/UserList.tsx", "test/frontend/pages/users.test.tsx"],
+      "estimateHours": 5,
+      "dependencies": ["T-S02-001", "T-S02-002", "T-S02-003"],
+      "status": "pending",
+      "startedInSprint": "S02",
+      "finishedInSprint": "S02",
+      "contextFlow": null,
+      "owner": "frontend",
+      "reviewerNotes": ""
+    },
+    {
+      "id": "T-S02-005",
+      "module": "user",
+      "title": "E2E chain: user-crud-with-lgpd-deletion",
+      "type": "test",
+      "workstream": "tests",
+      "specRefs": ["US-004"],
+      "promptRef": null,
+      "description": "Chain E2E completa: create (S01) → get (S02) → list (S02) → delete (S02) → verify 404",
+      "acceptanceCriteria": [
+        "Chain roda 100% em CI",
+        "Cleanup sempre (try/finally)",
+        "Response de cada step gravada em qa/S02/responses/"
+      ],
+      "files": ["qa/S02/e2e-chains.json", "e2e/user-lgpd.spec.ts"],
+      "estimateHours": 3,
+      "dependencies": ["T-S02-001", "T-S02-003", "T-S02-004"],
+      "status": "pending",
+      "startedInSprint": "S02",
+      "finishedInSprint": "S02",
+      "contextFlow": null,
+      "owner": "tester",
+      "reviewerNotes": ""
+    },
+    {
+      "id": "T-S02-006",
+      "module": "user",
+      "title": "Security audit LGPD completo",
+      "type": "security",
+      "workstream": "security",
+      "specRefs": ["US-004"],
+      "promptRef": null,
+      "description": "Auditoria final: checa que direito de exclusão (Art. 18, VI) está implementado, que dados sensíveis (CPF) estão criptografados, que audit log registra acessos",
+      "acceptanceCriteria": [
+        "0 critical vulnerabilities",
+        "0 high vulnerabilities",
+        "LGPD Art. 7º (base legal) documentada",
+        "LGPD Art. 18, VI (exclusão) implementada e testada",
+        "LGPD Art. 46 (segurança) verificada"
+      ],
+      "files": [".harness/security/audit-S02.json"],
+      "estimateHours": 2,
+      "dependencies": ["T-S02-001", "T-S02-002", "T-S02-003"],
+      "status": "pending",
+      "startedInSprint": "S02",
+      "finishedInSprint": "S02",
+      "contextFlow": null,
+      "owner": "security",
+      "reviewerNotes": ""
+    }
+  ]
+}

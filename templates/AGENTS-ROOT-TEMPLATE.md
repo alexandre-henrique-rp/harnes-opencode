@@ -84,7 +84,7 @@ vai editar antes de mexer.
 
 - ❌ Commitar `.env` ou qualquer secret
 - ❌ Editar `node_modules/`, `dist/`, `.next/`
-- ❌ Editar `e2e/` ou `qa/` (responsabilidade do `tester`)
+- ❌ Editar `e2e/` ou `.harness/qa/` (responsabilidade do `tester`)
 - ❌ Criar `AGENTS.md` nesta pasta (já é o raiz; subpastas fazem o seu)
 - ❌ Adicionar deps sem aprovação (use grill-me)
 - ❌ Hardcode de cores, espaçamentos, fontes (use tokens)

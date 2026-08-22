@@ -8,16 +8,22 @@ import { tool } from "@opencode-ai/plugin";
 import { execSync } from "child_process";
 import * as path from "path";
 import * as fs from "fs";
+import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
 
 export default tool({
-  name: "pr-automator",
   description: "Gera um resumo de Pull Request baseado nas diferenças (diff) com a branch principal.",
   args: {
-    baseBranch: tool.schema.string().optional().default("main").describe("A branch base contra qual comparar (ex: main, master)"),
-    sprintId: tool.schema.string().optional().describe("ID da sprint para adicionar contexto"),
+    baseBranch: tool.schema.string().describe("A branch base contra qual comparar (ex: main, master)"),
+    sprintId: tool.schema.string().describe("ID da sprint para adicionar contexto"),
   },
   async execute({ baseBranch = "main", sprintId }, context) {
-    const cwd = context?.directory || process.cwd();
+    let cwd = resolveProjectCwd(context, { log: console.error });
+    let searchCwd = cwd;
+    let harnessDir = path.join(searchCwd, ".harness");
+    while (!fs.existsSync(harnessDir) && searchCwd !== path.parse(searchCwd).root) {
+      searchCwd = path.dirname(searchCwd);
+      harnessDir = path.join(searchCwd, ".harness");
+    }
 
     try {
       // 1. Obtém a branch atual
@@ -54,7 +60,7 @@ export default tool({
       prBody += `## Instruções para Revisão\n1. Verificar aderência aos requisitos.\n2. Confirmar cobertura de testes.\n`;
 
       // Salva num arquivo para referência do agente ou uso humano
-      const prFile = path.join(cwd, ".harness", "PR_DRAFT.md");
+      const prFile = path.join(harnessDir, "PR_DRAFT.md");
       fs.writeFileSync(prFile, prBody);
 
       return {

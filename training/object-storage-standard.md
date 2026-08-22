@@ -1,3 +1,13 @@
+---
+id: "object-storage-standard"
+title: "Padrão de Object Storage (S3-compatible)"
+category: "architecture"
+priority: "medium"
+status: "approved"
+scope: "global"
+summary: "Convenções para upload, download e gerenciamento de arquivos em buckets S3-compatíveis."
+updatedAt: "2026-08-10T00:00:00Z"
+---
 # Object Storage Standard — Padrão para Uploads em APIs
 
 > Training de ~30 min. Aplicável a **toda API** desenvolvida no harness que receba arquivos.

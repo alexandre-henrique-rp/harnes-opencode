@@ -9,44 +9,33 @@
 
 import { tool } from "@opencode-ai/plugin";
 import { execSync } from "child_process";
-
-type Action = "status" | "commit";
-
-interface GitAutomatorArgs {
-  action: Action;
-  files?: string[];
-  message?: string;
-}
-
-interface ExecContext {
-  directory?: string;
-}
+import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
 
 export default tool({
-  name: "git-automator",
   description: "Automatiza as ações de status e commit do Git de forma otimizada para os agentes.",
   args: {
-    action: tool.schema.enum(["status", "commit"]).describe("Ação a ser realizada: 'status' lista as mudanças, 'commit' faz o commit."),
-    files: tool.schema.array(tool.schema.string()).optional().describe("Arquivos para adicionar (apenas para a ação 'commit'). Ex: ['.']"),
-    message: tool.schema.string().optional().describe("Mensagem de commit (obrigatório para 'commit')."),
+    action: tool.schema.enum(["status", "commit"]).optional().default("status").describe("Ação a ser realizada: 'status' lista as mudanças, 'commit' faz o commit."),
+    files: tool.schema.string().optional().default("").describe("Arquivos para adicionar (apenas para a ação 'commit'), separados por vírgula. Ex: '.', ou 'src/index.ts, src/app.ts'"),
+    message: tool.schema.string().optional().default("").describe("Mensagem de commit (obrigatório para 'commit')."),
   },
-  async execute(rawArgs, rawContext) {
+  async execute(rawArgs: any, rawContext: any) {
     // 1) Defesa contra args nulo/string/número — destructuring direto crasharia
     const args = (rawArgs && typeof rawArgs === "object" && !Array.isArray(rawArgs)
       ? rawArgs
-      : {}) as Partial<GitAutomatorArgs>;
+      : {}) as Record<string, any>;
 
     // 2) Defesa contra context malformado
     const context = (rawContext && typeof rawContext === "object"
       ? rawContext
-      : {}) as ExecContext;
+      : {}) as Record<string, any>;
 
     const action = typeof args.action === "string" ? args.action : "";
-    const files = Array.isArray(args.files) ? args.files : [];
+    const filesRaw = args.files;
+    const files = typeof filesRaw === "string" && filesRaw.trim() !== "" 
+      ? filesRaw.split(",").map((f: string) => f.trim()).filter(Boolean)
+      : [];
     const message = typeof args.message === "string" ? args.message : "";
-    const cwd = typeof context.directory === "string" && context.directory.length > 0
-      ? context.directory
-      : process.cwd();
+    const cwd = resolveProjectCwd(context, { log: console.error });
 
     try {
       if (action === "status") {
@@ -65,7 +54,7 @@ export default tool({
         }
 
         const filesToAdd = files.length > 0
-          ? files.map((f) => `"${String(f).replace(/"/g, '\\"')}"`).join(" ")
+          ? files.map((f: string) => `"${f.replace(/"/g, '\\"')}"`).join(" ")
           : ".";
 
         execSync(`git add ${filesToAdd}`, { cwd });

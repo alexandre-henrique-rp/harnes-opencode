@@ -1,3 +1,13 @@
+---
+id: "grill-me-quickstart"
+title: "Grill-Me Quickstart"
+category: "workflow"
+priority: "medium"
+status: "approved"
+scope: "global"
+summary: "Guia rápido de uso da skill grill-me para alinhar decisões técnicas com o usuário."
+updatedAt: "2026-08-10T00:00:00Z"
+---
 # Grill-Me — Guia Rápido (5 min)
 
 > Técnica do Matt Pocock, adaptada para o harness v6.5.0+.

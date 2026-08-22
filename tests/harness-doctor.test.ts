@@ -103,14 +103,15 @@ test("harness-doctor — diagnostico consolidado", async (t) => {
     );
 
     const result = await harnessDoctor.execute(
-      { report: "summary" },
+      { report: "full" },
       { directory: testRoot }
     );
     // Com harness inicializado, deve ter menos issues
     assert.strictEqual(result.harness.initialized, true);
     assert.strictEqual(result.harness.project, "test");
     // Score deve ser >= 70 (apenas deductions por coisas secundarias)
-    assert.ok(result.score >= 70, `Score >= 70 esperado (foi ${result.score})`);
+    const score = result.summary ? result.summary.score : result.score;
+    assert.ok(score >= 70, `Score >= 70 esperado (foi ${score})`);
   });
 
   await t.test("7. auto-allow flag aparece no allowlist info", async () => {

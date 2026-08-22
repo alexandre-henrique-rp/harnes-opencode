@@ -1,3 +1,13 @@
+---
+id: "frontend-context-first-guide"
+title: "Guia Context-First para Frontend"
+category: "workflow"
+priority: "high"
+status: "approved"
+scope: "global"
+summary: "Protocolo obrigatório do frontend agent: ler AGENTS.md, rodar grill-me, depois implementar."
+updatedAt: "2026-08-10T00:00:00Z"
+---
 # Frontend Context-First — Guia de Onboarding
 
 > Para humanos e agents novos no harness v6.5.0+.
@@ -207,6 +217,25 @@ Visual regression via Chromatic pode ser adicionado como skill
 R: Por design, frontend nunca faz TDD nesse harness. Se o projeto
 precisar, é projeto errado pro harness — ou fork do `frontend` agent
 com denylist diferente.
+
+## 🎨 Diretrizes de Excelência Visual (Anti-Generic AI Aesthetics)
+
+Inspirado nas melhores práticas de design do harness, todo código de frontend deve evitar a **"Estética Genérica de IA"** e produzir interfaces de nível de produção com alta utilidade e refinamento estético:
+
+### 🚫 Clichês de Design Proibidos (Avoid AI Tropes)
+- ❌ **Evite Roxos em Fundo Escuro:** Sem botões violeta neon ou texto roxo piscante sobre fundo dark.
+- ❌ **Evite Gradients em Títulos:** Sem `background-clip: text` com gradientes coloridos em palavras-chave do título.
+- ❌ **Evite Cards Aninhados Excessivos:** No máximo 1 nível de container/card. Nunca aninhe 3+ cards uns dentro dos outros.
+- ❌ **Evite Badge Pills com Ponto Pulsante:** Não coloque badges arredondadas tipo pílula com ponto verde/amarelo pulsando acima do header principal sem propósito real.
+- ❌ **Evite Grid/Mesh Backgrounds Exagerados:** Não encha o fundo com linhas de grade decorativas que poluam a leitura.
+
+### ✨ Pilares de Design Premium
+1. **Tipografia Distinta:** Priorize tipos de alta legibilidade (Inter, Plus Jakarta Sans, Outward, Manrope) adaptados à categoria do produto.
+2. **Micro-interações & Animações Fluidas:** Hover states com transição suave (`150ms ease-in-out`), micro-feedbacks em formulários e estados de loading limpos.
+3. **Cores Harmoniosas:** Utilize sistemas de cores tailor-made com tokens HSL em variáveis CSS nativas.
+4. **Utilidade em Primeiro Lugar:** A estética serve à funcionalidade — navegação intuitiva, velocidade e hierarquia de informação clara.
+
+---
 
 ## Próximos passos
 

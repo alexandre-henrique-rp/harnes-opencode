@@ -1,3 +1,13 @@
+---
+id: "systematic-debugging"
+title: "Debugging Sistemático"
+category: "lesson"
+priority: "high"
+status: "approved"
+scope: "global"
+summary: "Metodologia de depuração: reproduzir, isolar, formular hipótese, testar, validar."
+updatedAt: "2026-08-10T00:00:00Z"
+---
 # Depuração Sistemática e Rastreamento de Causa Raiz
 
 Este guia estabelece os protocolos obrigatórios de resolução de falhas e bugs que devem ser seguidos por todos os agentes do Harness v6.

@@ -5,6 +5,130 @@ All notable changes to OpenCode Agents v6 are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.4.6] - 2026-08-22
+
+### Minor — Feedback Visual, Resiliência de Testes e UX no Path Boundary
+
+- **Path Boundary PX & Reminders:** Injeção do hook `experimental.chat.system.transform` com cache de bloqueios recentes (`<system-reminder>`), permitindo que a IA mantenha consciência dos bloqueios de escrita mesmo em respostas truncadas.
+- **Notificações Visuais TUI:** Toast e prompt assistido (`appendPrompt`) ao bloquear escritas para orientar o desenvolvedor sobre o comando de autorização (`harness-allowlist`).
+- **Instalador & Allowlist CLI:** Adicionado parâmetro `--add-allow` no `install.sh` e suporte a bypass via `HARNESS_ALLOWLIST_AUTO_CONFIRM=1` para automações e suítes de teste.
+- **Suíte de Validação 100% Passing:** Ajuste e estabilização de 144 testes unitários e de integração (`npm run validate` 100% aprovado).
+
+## [6.4.5] - 2026-08-21
+
+### Patch — Plugin warnings não poluem mais a UI do TUI
+
+Fecha lacuna de UX: 15 fontes (`process.stderr.write` + `console.error`) em 4 arquivos jogavam texto cru em stderr que o TUI do OpenCode renderizava **competindo com a input bar**. Conforme o usuário digitava, o redesenho da TUI sobrescrevia as mensagens, criando confusão visual.
+
+### Culpados identificados
+
+| Origem | Ocorrências | Tipo de mensagem |
+|---|---|---|
+| `plugins/path-boundary.ts` (10 ocorrências `process.stderr.write`) | 10 | BLOCKED, WARNING allowlist, RATE LIMIT, RAM, AUTO-ALLOW |
+| `plugins/status-injector.ts` (2 `process.stderr.write`) | 2 | session started, fallback tip |
+| `plugins/native-sandbox.ts` (1 `process.stderr.write`) | 1 | sandbox unavailable hint |
+| `resolveProjectCwd(ctx, { log: console.error })` em 3 plugins | 3 | cwd fallback warning |
+
+### Changed — `plugins/lib/quiet-warn.ts` (NOVO, 43 linhas)
+- Helper `quietWarn(pluginName, message)` faz append em `.harness/plugin-warnings.log`
+- Fail-silent: erro de IO não bloqueia execução do plugin
+- Side-channel opcional: se `HARNESS_PLUGIN_LOG=1`, também escreve em stderr (modo debug)
+- Independente de `safe-logger.ts` (que tem outros contratos)
+
+### Changed — `plugins/path-boundary.ts`, `status-injector.ts`, `native-sandbox.ts`
+- 13 `process.stderr.write(...)` substituídos por `warn(...)` (ou removidos quando info já ia no `throw`)
+- Helpers locais `const warn = (msg) => quietWarn(pluginName, msg)` adicionados
+- Imports `quietWarn` adicionados
+
+### Changed — `audit-logger.ts`, `path-boundary.ts`, `status-injector.ts`
+- 3 callsites `resolveProjectCwd(ctx, { log: console.error })` substituídos por `resolveProjectCwd(ctx, { log: (m) => quietWarn(pluginName, m) })`
+- Preserva rastreabilidade sem poluir UI
+
+### Por que novo helper em vez de mudar `safe-logger.ts`
+- `safe-logger.ts` é usado por 5 plugins (`token-budget`, `context-compressor`, `prompt-cache-prefixer`, `structured-thinking`, `stuck-worker-watchdog`) com expectativas diferentes
+- Mudar globalmente pode regredir logging legítimo (níveis `warn`/`error` são intencionais)
+- `quiet-warn.ts` é específico para stderr cru → arquivo, sem conflitar
+
+### Known limitations
+- `safe-logger.ts` ainda chama `client.session.log` que pode renderizar em algum path do runtime dependendo da versão. Mitigação: as fontes que escrevem em stderr estão eliminadas; resíduo via `client.session.log` é raro.
+- `resolveProjectCwd` callback agora é silencioso por padrão. Para debug, usar `HARNESS_PLUGIN_LOG=1`.
+
+## [6.4.4] - 2026-08-21
+
+### Patch — Regra de Minimalismo (anti-over-engineering)
+
+Fecha lacuna: agentes (LLMs) tinham viés natural para abstração, logging excessivo e refactor oportunista. Adiciona limites numéricos, stop rules, anti-patterns cirúrgicos e auto-eligibilidade para lean profile.
+
+### Changed — `GERAIS.md` §6.4 (nova seção)
+- **6.4.1 Limites numéricos por tipo de task** (LOC/arquivos/tempo). Ao se aproximar do limite → PARE e `question`.
+- **6.4.2 Stop rule**: você PARA quando (a) ACs passing, (b) limite atingido, ou (c) decisão ambígua → ESCALAR.
+- **6.4.3 Anti-patterns cirúrgicos**: 7 violações sempre detectadas (tocar adjacente, logging extra, utils especulativos, type guards especulativos, comentários óbvios, drive-by fix).
+- **6.4.4 YAGNI checkpoint inline**: regra de 3 explícita antes de criar abstração.
+- **6.4.5 Auto-eligibilidade para lean profile**: 4 critérios (≤3 ACs, sem regras críticas, sem PII, sem migration). Critérios copiados em `state-machine-lean.json → autoEligibility` para referência programática.
+
+### Changed — `agents/code-reviewer.md`
+- Novo item 17: **Ratio LOC/AC** (gate crítico contra over-engineering). Limites: ≤50 excelente, 50-150 ok, 150-300 warning, >300 block.
+- Checklist agora 17 itens (era 16). Score = passed/17 × 100.
+- Como medir: `git diff --shortstat` para LOC, `ac_count` da task description ou SPEC.
+
+### Changed — `state-machine-lean.json`
+- Novo campo `autoEligibility` no topo: critérios, howToApply, skippedPhases, skippedAgents.
+- Documenta programaticamente a regra de §6.4.5 do GERAIS.md (auto-trigger do orchestrator).
+
+### Por que essas escolhas
+- **Patches em arquivos existentes, sem criar arquivos novos**: skill/plugin/JSON-schema seriam over-engineering aqui. A regra no system prompt é onde LLM lê.
+- **Ratio LOC/AC como gate crítico**: detecta a patologia #1 do LLM (código extra). Não dá para "passar" com diff inflado justificando.
+- **Auto-trigger via documentação**: o orchestrator já carrega state.json no init — basta o campo existir para que a checagem programática seja trivial. Não implementamos a checagem automática em código porque (a) é 1 linha de regra no prompt do orchestrator, (b) implementação complexa = mais bug que valor.
+
+### Known limitations
+- §6.4.1 e §6.4.2 são regras de prompt, não enforcement técnico. Worker que ignora vai over-engineerar. Mitigação: o gate ratio LOC/AC do code-reviewer é enforcement real.
+- Auto-trigger do lean profile depende do orchestrator checar `state.leanEligibility` (a ser adicionado em sprint futura). Por ora, decisão fica no `harness-init --profile` manual.
+
+## [6.4.3] - 2026-08-21
+
+### Patch — Worker Escalation Protocol (stuck-worker detection)
+
+Fecha lacuna estrutural: workers ficavam presos em loops de até 1h sem canal para pedir socorro ao orchestrator. Agora detectam travamento por signal (mesmo erro 3x, >10min elapsed, >80% budget, erro estrutural, ambiguidade) e emitem `escalation` estruturado no JSON de retorno.
+
+### Added — `plugins/stuck-worker-watchdog.ts` (enforcement técnico)
+- Detecta worker em **loop** (3+ tool calls idênticos em janela de 5min) via hook `tool.execute.after`
+- Detecta worker **idle** (10min+ desde último call com sucesso) via hook `model.complete.after`
+- Injeta `<system-reminder>` no output do próximo model complete, forçando o LLM a emitir `escalation` e parar
+- Cooldown de 60s entre reminders (evita poluir contexto)
+- Configurável via `opencode.json → stuckWorkerWatchdog`
+- ~170 linhas, sem dependências novas
+
+### Added — `skills/harness/worker-escalation/SKILL.md`
+- Protocolo completo de stuck-worker detection
+- Schema JSON do bloco `escalation` (`triggered`, `class`, `attempts`, `elapsedMs`, `lastError`, `tried`, `proposedActions[]`, `contextForOrchestrator`)
+- 4 classes: `loop` | `budget` | `structural` | `ambiguity`
+- Regras claras de quando escalar vs quando retry local (transient ≠ escalation)
+- Anti-patterns para workers e orchestrator
+
+### Changed — `agents/tester.md` (passo 4.5 novo)
+- Tabela de sinais que disparam escalation (3+ hashes idênticos / >10min / >80% budget / erro estrutural / ambiguidade)
+- Auto-correlação de erro por `sha1(exitCode + stderr[:200])`
+- Regra explícita: NÃO escale transient (502/503/504 → retry local)
+- Anti-patterns atualizados proíbem escalation prematura e `readyForQAGate: true` após escalar
+
+### Changed — `agents/orchestrator.md` (handler novo)
+- Seção "Se worker retorna `escalation.triggered: true`": 6 passos canônicos (ler, classificar, decidir, agir, loggar)
+- Mapeamento classe → ação: `loop` (re-dispatch com hint), `budget` (checkpoint + reduzir escopo), `structural` (re-routing para owner correto), `ambiguity` (escalar ao humano via `question`)
+- Log obrigatório em `events.jsonl` com `escalation.handled`
+- 3 anti-patterns novos proíbem ignorar escalation, re-dispatch com mesmas instruções, perguntar ao usuário antes de ler contexto
+
+### Changed — `opencode.json` e `plugins/AGENTS.md`
+- Plugin registrado no array `plugin`
+- AGENTS.md lista o novo plugin com referência ao path
+
+### Por que JSON field e não nova tool
+Trade-off documentado na skill: criar tool `escalate` exigiria editar permission-block de todos os workers (orchestrator é owner do schema). JSON field no output existente não exige mudanças de permissão. Limitação aceita: escalation dispara no fim da execução do worker, não mid-flight. Mitigação: workers devem rodar ≤10min para que essa latência seja aceitável.
+
+### Known limitations (não resolvidos nesta versão)
+- Plugin **não aborta** worker (OpenCode runtime não permite). Força via reminder; se LLM ignorar, último recurso é humano encerrar.
+- Sem enforcement de token budget por chamada (apenas `token-budget.ts` separado, sem correlação com `escalation.budget`).
+- Sem auto-classificação (orchestrator pode discordar da classe declarada pelo worker — usa a dele mas loga).
+
 ## [6.4.2] - 2026-08-04
 
 ### Patch — Resiliência do Sandbox ai-jail/bwrap

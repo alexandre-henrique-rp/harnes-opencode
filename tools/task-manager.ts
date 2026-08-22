@@ -10,9 +10,9 @@
 import { tool } from "@opencode-ai/plugin";
 import * as fs from "fs";
 import * as path from "path";
+import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
 
 export default tool({
-  name: "task-manager",
   description: "Atualiza o status de uma task, gera seu log granular e registra artefatos no registro global.",
   args: {
     taskId: tool.schema.string().describe("ID da task (ex: T001)"),
@@ -22,9 +22,9 @@ export default tool({
       path: tool.schema.string().describe("Caminho do arquivo criado/modificado"),
       type: tool.schema.string().describe("Tipo do artefato (component, service, api, etc)"),
       description: tool.schema.string().describe("O que foi feito"),
-    })).optional().describe("Lista de arquivos e alterações realizadas"),
-    blockerReason: tool.schema.string().optional().describe("Motivo do bloqueio, se status for 'blocked'"),
-    commitRange: tool.schema.string().optional().describe("Faixa de commits relacionados (ex: 'base..head') para auditoria e ledger"),
+    })).describe("Lista de arquivos e alterações realizadas"),
+    blockerReason: tool.schema.string().describe("Motivo do bloqueio, se status for 'blocked'"),
+    commitRange: tool.schema.string().describe("Faixa de commits relacionados (ex: 'base..head') para auditoria e ledger"),
   },
   async execute({ taskId, sprintId, status, artifacts = [], blockerReason, commitRange }, context) {
     const mcpResponse = (data: Record<string, any>) => ({
@@ -36,8 +36,13 @@ export default tool({
         }
       ]
     });
-    const cwd = context?.directory || process.cwd();
-    const harnessDir = path.join(cwd, ".harness");
+    let cwd = resolveProjectCwd(context, { log: console.error });
+    let searchCwd = cwd;
+    let harnessDir = path.join(searchCwd, ".harness");
+    while (!fs.existsSync(harnessDir) && searchCwd !== path.parse(searchCwd).root) {
+      searchCwd = path.dirname(searchCwd);
+      harnessDir = path.join(searchCwd, ".harness");
+    }
     const sprintDir = path.join(harnessDir, "sprints", sprintId);
     const taskPromptPath = path.join(sprintDir, "tasks", `${taskId}_PROMPT.md`);
     const taskLogPath = path.join(sprintDir, "tasks", `${taskId}_LOG.json`);
@@ -144,7 +149,7 @@ function updateProgressLedger(harnessDir: string, taskId: string, sprintId: stri
     content = `# Ledger de Progresso de Sprints\n\nEste arquivo registra de forma persistente o status de conclusão de cada tarefa de sprint, incluindo commits associados.\n\n`;
   }
   
-  const lines = content.split("\n");
+  const lines = String(content || "").split("\n");
   const taskPattern = new RegExp(`^- \\[([ x])\\] \\*\\*${taskId}\\*\\* \\(sprint ${sprintId}\\)`);
   let found = false;
   

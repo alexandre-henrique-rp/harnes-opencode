@@ -55,17 +55,20 @@ jobs:
       run: npm run validate:types
 
     # PRD-01: roda testes com relatório de cobertura
+    # shell: bash explicito garante pipefail (sem isso, | tee engole o exit code do npm test)
     - name: Run unit tests with coverage
-      run: npm run test:coverage 2>&1 | tee /tmp/coverage-output.txt
+      shell: bash
+      run: set -o pipefail; npm run test:coverage 2>&1 | tee /tmp/coverage-output.txt
 
     # PRD-01: verifica limiar de cobertura ≥ 70% em tools/
     - name: Enforce coverage threshold (≥ 70% em tools/)
       run: |
-        COVERAGE=$(grep -oP 'All files\s*\|\s*\K[\d.]+' /tmp/coverage-output.txt | head -1 || echo "0")
+        # node --test imprime 'all files' minusculo (validado com --experimental-test-coverage)
+        COVERAGE=$(grep -oP 'all files\s*\|\s*\K[\d.]+' /tmp/coverage-output.txt | head -1 || echo "0")
         echo "Cobertura total detectada: ${COVERAGE}%"
         # Threshold: 70 (PRD-01 meta inicial)
         THRESHOLD=70
-        if [ "$(echo "$COVERAGE < $THRESHOLD" | bc -l 2>/dev/null || echo "0")" = "1" ]; then
+        if [ -z "$COVERAGE" ] || [ "$(echo "$COVERAGE < $THRESHOLD" | bc -l 2>/dev/null || echo "0")" = "1" ]; then
           echo "ERRO: Cobertura ${COVERAGE}% está abaixo do limiar mínimo de ${THRESHOLD}%."
           echo "Adicione testes antes de fazer merge. Consulte PRD-01 para priorização."
           exit 1

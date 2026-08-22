@@ -10,15 +10,20 @@
 import { tool } from "@opencode-ai/plugin";
 import * as fs from "fs";
 import * as path from "path";
+import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
 
 export default tool({
-  name: "harness-sync",
   description:
     "Audita, corrige a estrutura e realiza migração (upgrade) de projetos antigos do harness, garantindo que os arquivos cruciais fiquem dentro de .harness/.",
   args: {},
   async execute(args, context) {
-    const cwd = context?.directory || process.cwd();
-    const harnessDir = path.join(cwd, ".harness");
+    let cwd = resolveProjectCwd(context, { log: console.error });
+    let searchCwd = cwd;
+    let harnessDir = path.join(searchCwd, ".harness");
+    while (!fs.existsSync(harnessDir) && searchCwd !== path.parse(searchCwd).root) {
+      searchCwd = path.dirname(searchCwd);
+      harnessDir = path.join(searchCwd, ".harness");
+    }
 
     if (!fs.existsSync(harnessDir)) {
       return { success: false, error: "Diretorio .harness/ não encontrado. Use harness-init primeiro." };

@@ -9,13 +9,13 @@ import { tool } from "@opencode-ai/plugin";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 
 export default tool({
-  name: "ui-spec-manager",
   description:
     "Inicializa pastas de UI/Design e cria esqueletos de especificações de UI ou prompts consolidados para o Google Stitch MCP.",
   args: {
@@ -24,21 +24,30 @@ export default tool({
       .describe("Nome da feature (kebab-case, ex: 'cadastro-usuario')"),
     projectName: tool.schema
       .string()
-      .optional()
+      
       .describe("Nome do projeto (kebab-case)"),
     hasLayout: tool.schema
       .boolean()
-      .optional()
-      .default(false)
+      
+      
       .describe("Se true, inicializa a pasta de assets físicos para layouts já definidos"),
     pages: tool.schema
       .array(tool.schema.string())
-      .optional()
+      
       .describe("Lista de páginas envolvidas (se houver mais de uma, gera prompt consolidado único)"),
   },
   async execute({ feature, projectName = "projeto-harness", hasLayout = false, pages = [] }, context) {
-    const cwd = context?.directory || process.cwd();
-    const harnessDir = path.join(cwd, ".harness");
+    let cwd = resolveProjectCwd(context, { log: console.error });
+    let searchCwd = cwd;
+    let harnessDir = path.join(searchCwd, ".harness");
+    while (!fs.existsSync(harnessDir) && searchCwd !== path.parse(searchCwd).root) {
+      searchCwd = path.dirname(searchCwd);
+      harnessDir = path.join(searchCwd, ".harness");
+    }
+    if (!fs.existsSync(harnessDir)) {
+      searchCwd = cwd;
+      harnessDir = path.join(cwd, ".harness");
+    }
     const uiSpecsDir = path.join(harnessDir, "ui-specs");
     const designAssetsDir = path.join(harnessDir, "design", "assets");
     const templatePath = path.join(cwd, "templates", "UI-SPEC-TEMPLATE.md");

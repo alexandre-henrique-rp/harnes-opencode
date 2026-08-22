@@ -9,9 +9,9 @@
 import { tool } from "@opencode-ai/plugin";
 import * as fs from "fs";
 import * as path from "path";
+import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
 
 export default tool({
-  name: "context-pruner",
   description:
     "Gera a assinatura/esqueleto de um arquivo de codigo TypeScript/JavaScript para economizar janela de contexto da IA.",
   args: {
@@ -20,7 +20,7 @@ export default tool({
       .describe("Caminho absoluto ou relativo para o arquivo de codigo-fonte original"),
   },
   async execute({ sourceFile }, context) {
-    const cwd = context?.directory || process.cwd();
+    const cwd = resolveProjectCwd(context, { log: console.error });
     const fullSourcePath = path.isAbsolute(sourceFile) ? sourceFile : path.join(cwd, sourceFile);
 
     if (!fs.existsSync(fullSourcePath)) {
@@ -39,7 +39,7 @@ export default tool({
       prunedContent = pruneJsTsCode(content);
     } else {
       // Se não for arquivo JS/TS, apenas copia as primeiras 50 linhas como fallback de contexto
-      const lines = content.split("\n");
+      const lines = String(content || "").split("\n");
       prunedContent = lines.slice(0, 50).join("\n") + "\n\n// ... restante do arquivo ocultado para economizar contexto ...";
     }
 
@@ -54,8 +54,8 @@ export default tool({
       success: true,
       originalPath: sourceFile,
       prunedPath: path.relative(cwd, destPath),
-      linesOriginal: content.split("\n").length,
-      linesPruned: prunedContent.split("\n").length,
+      linesOriginal: String(content || "").split("\n").length,
+      linesPruned: String(prunedContent || "").split("\n").length,
     };
   },
 });
@@ -65,7 +65,7 @@ export default tool({
  * ocultando o corpo das funções.
  */
 function pruneJsTsCode(code: string): string {
-  const lines = code.split("\n");
+  const lines = String(code || "").split("\n");
   const prunedLines: string[] = [];
   let inFunction = false;
   let braceCount = 0;

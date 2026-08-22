@@ -19,6 +19,8 @@ import { appendFile, mkdir } from "node:fs/promises";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { createHash } from "node:crypto";
+import { resolveProjectCwd } from "./lib/resolve-project-cwd.js";
+import { quietWarn } from "./lib/quiet-warn.js";
 
 interface TokenUsage {
   input: number;
@@ -77,14 +79,8 @@ export default async function AuditLoggerPlugin(ctx: any) {
   const directory = project.directory;
   const worktree = project.worktree;
 
-  // Resolve projectRoot com fallback robusto contra o bug do OpenCode (worktree="/")
-  const isValidPath = (p: unknown): p is string =>
-    typeof p === "string" && p.length >= 3 && p !== "/" && p.startsWith("/");
-
-  const projectRoot: string =
-    (isValidPath(worktree) ? worktree : null) ??
-    (isValidPath(directory) ? directory : null) ??
-    process.cwd();
+  // Resolve projectRoot com helper centralizado (resolve bug do worktree="/")
+  const projectRoot: string = resolveProjectCwd(ctx, { log: (m: string) => quietWarn("audit-logger", m) });
 
   const logFile = path.join(projectRoot, LOG_PATH);
   const hashFile = path.join(projectRoot, HASH_FILE);
@@ -156,29 +152,40 @@ export default async function AuditLoggerPlugin(ctx: any) {
   }
 
   return {
-    "model.complete.after": async (input, output) => {
-      const rawUsage = output.usage as
-        | {
-            input_tokens?: number;
-            output_tokens?: number;
-            cache_creation_input_tokens?: number;
-            cache_read_input_tokens?: number;
-          }
-        | undefined;
+    // Migrado de model.complete.after (inexistente na API 1.18.3).
+    // Captura usage via event hook filtrando message.updated (AssistantMessage.tokens).
+    // Também trata session.created (migrado de session.start).
+    // session.end, skill.loaded e decision.persisted não têm evento equivalente
+    // na API 1.18.3 — removidos.
+    event: async ({ event }) => {
+      if (event.type === "session.created") {
+        currentSession = (event as { properties: { info: { id: string } } }).properties.info.id ?? "unknown";
+        await log({
+          timestamp: new Date().toISOString(),
+          sessionId: currentSession,
+          agent: "system",
+          tool: "session.start",
+          result: "ok",
+        });
+      }
 
-      if (rawUsage) {
+      if (event.type === "message.updated") {
+        const info = (event as { properties: { info: { tokens?: { input: number; output: number; cache: { read: number; write: number } }; agent?: string } } }).properties.info;
+        const tokens = info.tokens;
+        if (!tokens) return;
+
         const usage: TokenUsage = {
-          input: rawUsage.input_tokens ?? 0,
-          output: rawUsage.output_tokens ?? 0,
-          cacheRead: rawUsage.cache_read_input_tokens ?? 0,
-          cacheWrite: rawUsage.cache_creation_input_tokens ?? 0,
+          input: tokens.input ?? 0,
+          output: tokens.output ?? 0,
+          cacheRead: tokens.cache?.read ?? 0,
+          cacheWrite: tokens.cache?.write ?? 0,
         };
         const cost = calculateCost(usage);
 
         await log({
           timestamp: new Date().toISOString(),
           sessionId: currentSession,
-          agent: input.context?.agent ?? "unknown",
+          agent: info.agent ?? "unknown",
           skill: currentSkill || undefined,
           sprint: currentSprint,
           tool: "model.complete",
@@ -188,41 +195,6 @@ export default async function AuditLoggerPlugin(ctx: any) {
           tokens: usage.input + usage.output,
         });
       }
-    },
-
-    "session.start": async (input) => {
-      currentSession = input.sessionId ?? "unknown";
-      await log({
-        timestamp: new Date().toISOString(),
-        sessionId: currentSession,
-        agent: "system",
-        tool: "session.start",
-        result: "ok",
-      });
-    },
-
-    "session.end": async () => {
-      await log({
-        timestamp: new Date().toISOString(),
-        sessionId: currentSession,
-        agent: "system",
-        tool: "session.end",
-        result: "ok",
-      });
-    },
-
-    "skill.loaded": async (input) => {
-      currentSkill = input.skill ?? "";
-      await log({
-        timestamp: new Date().toISOString(),
-        sessionId: currentSession,
-        agent: input.agent ?? "unknown",
-        skill: currentSkill,
-        sprint: currentSprint,
-        tool: "skill.load",
-        args: { name: currentSkill },
-        result: "ok",
-      });
     },
 
     "tool.execute.before": async (input, output) => {
@@ -260,20 +232,6 @@ export default async function AuditLoggerPlugin(ctx: any) {
         result: resultStatus,
         errorMessage: output.error?.message,
         tokens,
-      });
-    },
-
-    "decision.persisted": async (input) => {
-      await log({
-        timestamp: new Date().toISOString(),
-        sessionId: currentSession,
-        agent: input.agent ?? "unknown",
-        sprint: currentSprint,
-        tool: "decision.persist",
-        file: input.path,
-        result: "ok",
-        decisionLog: input.path,
-        tokens: estimateTokens(input.content ?? ""),
       });
     },
   };

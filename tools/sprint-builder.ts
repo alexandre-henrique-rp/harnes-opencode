@@ -9,33 +9,42 @@ import { tool } from "@opencode-ai/plugin";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 
 export default tool({
-  name: "sprint-builder",
   description:
     "Inicializa diretórios de sprints de forma física e cria esqueletos de tarefas TXXX_PROMPT.md de forma determinística.",
   args: {
     sprintId: tool.schema.string().describe("ID da sprint a ser construída (ex: 'S01')"),
-    projectName: tool.schema.string().optional().describe("Nome do projeto"),
+    projectName: tool.schema.string().describe("Nome do projeto"),
     tasks: tool.schema
       .array(
         tool.schema.object({
           id: tool.schema.string(),
           title: tool.schema.string(),
           type: tool.schema.enum(["backend", "frontend", "test"]),
-          milestone: tool.schema.string().optional().default("M1"),
+          milestone: tool.schema.string(),
         })
       )
-      .optional()
+      
       .describe("Lista de tarefas para preencher de forma determinística"),
   },
   async execute({ sprintId, projectName = "projeto-harness", tasks = [] }, context) {
-    const cwd = context?.directory || process.cwd();
-    const harnessDir = path.join(cwd, ".harness");
+    let cwd = resolveProjectCwd(context, { log: console.error });
+    let searchCwd = cwd;
+    let harnessDir = path.join(searchCwd, ".harness");
+    while (!fs.existsSync(harnessDir) && searchCwd !== path.parse(searchCwd).root) {
+      searchCwd = path.dirname(searchCwd);
+      harnessDir = path.join(searchCwd, ".harness");
+    }
+    if (!fs.existsSync(harnessDir)) {
+      searchCwd = cwd;
+      harnessDir = path.join(cwd, ".harness");
+    }
     const sprintsDir = path.join(harnessDir, "sprints");
     const activeSprintDir = path.join(sprintsDir, sprintId);
     const tasksDir = path.join(activeSprintDir, "tasks");

@@ -179,39 +179,36 @@ export default async function PromptCachePrefixerPlugin(ctx: any) {
   }
 
   return {
-    "model.complete.before": async (input) => {
+    // Migrado de model.complete.before (inexistente na API 1.18.3).
+    // Usa experimental.chat.system.transform para injetar prefixo de cache.
+    // experimental.* na SDK 1.18.3; pode ser renomeado em versões futuras.
+    "experimental.chat.system.transform": async (input, output) => {
       if (!config.enabled) return;
 
       const layout = extractLayout(input);
       const { prompt, cacheBreakpoint, expectedCacheable } = reorderPrompt(layout);
 
-      (input as Record<string, unknown>).system = prompt.split("<!-- cache:breakpoint -->")[0];
-      const originalMessages = Array.isArray((input as any).messages) ? (input as any).messages : [];
-      (input as Record<string, unknown>).messages = [
-        ...originalMessages.slice(0, -1),
-        {
-          role: "user",
-          content: prompt.split("<!-- cache:breakpoint -->")[1]?.trim() ?? layout.query,
-        },
-      ];
+      output.system = [prompt.split("<!-- cache:breakpoint -->")[0]];
       (input as Record<string, unknown>)._cacheBreakpoint = cacheBreakpoint;
       (input as Record<string, unknown>)._expectedCacheableTokens = expectedCacheable;
     },
 
-    "model.complete.after": async (input, output) => {
+    // Migrado de model.complete.after (inexistente na API 1.18.3).
+    // Captura metrics via event hook filtrando message.updated.
+    event: async ({ event }) => {
       if (!config.enabled || !config.emitMetrics) return;
+      if (event.type !== "message.updated") return;
 
-      const usage = output.usage as
-        | {
-            input_tokens?: number;
-            output_tokens?: number;
-            cache_creation_input_tokens?: number;
-            cache_read_input_tokens?: number;
-          }
-        | undefined;
+      const info = (event as { properties: { info: { tokens?: { input: number; output: number; cache: { read: number; write: number } } } } }).properties.info;
+      const tokens = info.tokens;
+      if (!tokens) return;
 
-      if (usage?.cache_read_input_tokens && usage?.input_tokens) {
-        const cacheRatio = usage.cache_read_input_tokens / usage.input_tokens;
+      const cacheRead = tokens.cache?.read ?? 0;
+      const cacheWrite = tokens.cache?.write ?? 0;
+      const inputTokens = tokens.input ?? 0;
+
+      if (inputTokens > 0) {
+        const cacheRatio = cacheRead / inputTokens;
         if (cacheRatio > 0.5) {
           cacheHits++;
         } else {
@@ -220,12 +217,12 @@ export default async function PromptCachePrefixerPlugin(ctx: any) {
 
         safeLog(client, {
           level: "info",
-          message: `prompt-cache: hit=${usage.cache_read_input_tokens}/${usage.input_tokens} (${Math.round(cacheRatio * 100)}%)`,
+          message: `prompt-cache: hit=${cacheRead}/${inputTokens} (${Math.round(cacheRatio * 100)}%)`,
           metadata: {
-            inputTokens: usage.input_tokens,
-            outputTokens: usage.output_tokens,
-            cacheRead: usage.cache_read_input_tokens,
-            cacheWrite: usage.cache_creation_input_tokens,
+            inputTokens,
+            outputTokens: tokens.output,
+            cacheRead,
+            cacheWrite,
             ratio: cacheRatio,
           },
         });

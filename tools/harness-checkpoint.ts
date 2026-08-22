@@ -1,5 +1,6 @@
 import { tool } from "@opencode-ai/plugin";
 import { execSync } from "child_process";
+import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
 
 const STASH_PREFIX = "harness-checkpoint";
 const STASH_EMERGENCY = "harness-emergency";
@@ -11,14 +12,13 @@ function git(cwd: string, args: string): string {
 function listStashes(cwd: string) {
   const out = git(cwd, `stash list --grep='${STASH_PREFIX}:' --format='%gd|%s|%cr'`);
   if (!out) return [];
-  return out.split("\n").filter(Boolean).map((line) => {
+  return String(out || "").split("\n").filter(Boolean).map((line) => {
     const [ref, message, age] = line.split("|");
     return { ref, message, age };
   });
 }
 
 export default tool({
-  name: "harness-checkpoint",
   description: "Cria/lista/restaura checkpoints via git stash (não polui histórico do projeto).",
   args: {
     action: { type: "string", description: "'create' | 'list' | 'diff' | 'restore'" },
@@ -26,7 +26,7 @@ export default tool({
     force: { type: "boolean", description: "Confirma restore destrutivo" },
   },
   async execute({ action, taskId, force = false }, context) {
-    const cwd = context?.directory || process.cwd();
+    const cwd = resolveProjectCwd(context, { log: console.error });
     const taskName = taskId || `task-${Date.now()}`;
 
     try { git(cwd, "rev-parse --is-inside-work-tree"); }

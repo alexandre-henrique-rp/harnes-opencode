@@ -9,16 +9,21 @@ import { tool } from "@opencode-ai/plugin";
 import * as fs from "fs";
 import * as path from "path";
 import { execSync } from "child_process";
+import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
 
 export default tool({
-  name: "progress-tracker",
   description: "Gera um relatório completo do progresso do projeto lendo os cabeçalhos das tasks.",
   args: {
-    milestoneId: tool.schema.string().optional().describe("Filtrar por marco específico"),
+    milestoneId: tool.schema.string().describe("Filtrar por marco específico"),
   },
   async execute({ milestoneId }, context) {
-    const cwd = context?.directory || process.cwd();
-    const harnessDir = path.join(cwd, ".harness");
+    let cwd = resolveProjectCwd(context, { log: console.error });
+    let searchCwd = cwd;
+    let harnessDir = path.join(searchCwd, ".harness");
+    while (!fs.existsSync(harnessDir) && searchCwd !== path.parse(searchCwd).root) {
+      searchCwd = path.dirname(searchCwd);
+      harnessDir = path.join(searchCwd, ".harness");
+    }
     const sprintsDir = path.join(harnessDir, "sprints");
 
     if (!fs.existsSync(sprintsDir)) {
@@ -38,7 +43,7 @@ export default tool({
       bySprint: {}
     };
 
-    const lines = output.split("\n").filter(l => l.trim());
+    const lines = String(output || "").split("\n").filter(l => l.trim());
     for (const line of lines) {
       const [filePath, statusLine] = line.split(":status: ");
       const status = statusLine.replace(/"/g, "").trim();

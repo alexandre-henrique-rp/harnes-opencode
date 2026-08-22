@@ -416,7 +416,7 @@ opencode-agents-v6/
 
 ## 🤝 Contribuições e Créditos
 
-Quer contribuir com o projeto? Leia nossas diretrizes completas em [CONTRIBUTING.md](file:///home/kingdev/Documentos/Opencode_agents_v6/CONTRIBUTING.md) para saber como começar!
+Quer contribuir com o projeto? Leia nossas diretrizes completas em [CONTRIBUTING.md](file:///home/kingdev/.config/opencode/CONTRIBUTING.md) para saber como começar!
 
 ### 🛡️ ai-jail — Sandbox para Agentes de IA
 

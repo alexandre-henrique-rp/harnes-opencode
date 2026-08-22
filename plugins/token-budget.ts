@@ -87,25 +87,23 @@ export default async function TokenBudgetPlugin(ctx: any) {
   }
 
   return {
-    "model.complete.after": async (input, output) => {
+    // Migrado de model.complete.after (inexistente na API 1.18.3).
+    // Captura tokens via event hook filtrando message.updated (AssistantMessage.tokens).
+    // A injeção de system-reminder via output.result não é possível no event hook —
+    // o budget warning éemitido via safeLog; o agent recibe warning via outro canal.
+    event: async ({ event }) => {
+      if (event.type !== "message.updated") return;
       if (!config.enabled) return;
 
-      const usage = output.usage as
-        | {
-            input_tokens?: number;
-            output_tokens?: number;
-            cache_creation_input_tokens?: number;
-            cache_read_input_tokens?: number;
-          }
-        | undefined;
+      const info = (event as { properties: { info: { tokens?: { input: number; output: number; cache: { read: number; write: number } } } } }).properties.info;
+      const tokens = info.tokens;
+      if (!tokens) return;
 
-      if (usage) {
-        state.inputTokens = usage.input_tokens ?? state.inputTokens;
-        state.outputTokens = usage.output_tokens ?? state.outputTokens;
-        state.cacheRead = usage.cache_read_input_tokens ?? state.cacheRead;
-        state.cacheWrite = usage.cache_creation_input_tokens ?? state.cacheWrite;
-        state.lastUpdate = new Date().toISOString();
-      }
+      state.inputTokens = tokens.input ?? state.inputTokens;
+      state.outputTokens = tokens.output ?? state.outputTokens;
+      state.cacheRead = tokens.cache?.read ?? state.cacheRead;
+      state.cacheWrite = tokens.cache?.write ?? state.cacheWrite;
+      state.lastUpdate = new Date().toISOString();
 
       const ratio = usageRatio();
       const cur = status();
@@ -116,19 +114,6 @@ export default async function TokenBudgetPlugin(ctx: any) {
           message: `token-budget: HALT at ${Math.round(ratio * 100)}% (${totalUsed()}/${config.maxContextTokens})`,
           metadata: { ...state, ratio },
         });
-
-        if (config.haltBehavior === "compact") {
-          output.result = injectCompactReminder(
-            output.result,
-            ratio,
-            totalUsed(),
-            config.maxContextTokens,
-          );
-        } else {
-          throw new Error(
-            `token-budget: context at ${Math.round(ratio * 100)}% — manual intervention required. Run /compact or /clear.`,
-          );
-        }
       } else if (cur === "warn") {
         safeLog(client, {
           level: "warn",

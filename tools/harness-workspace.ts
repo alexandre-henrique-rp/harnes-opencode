@@ -11,6 +11,7 @@ import { tool } from "@opencode-ai/plugin";
 import { execSync, execFileSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
+import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
 
 interface AiJailConfig {
   rw_maps?: string[];
@@ -180,11 +181,10 @@ export function ensureAiJailConfig(projectRoot: string): { created: boolean } {
 }
 
 export default tool({
-  name: "harness-workspace",
   description: "Garante a existência do diretório temporário do Harness (.harness/tmp) com .gitignore apropriado e retorna seu caminho. Também executa diagnóstico do sandbox.",
   args: {},
   async execute({}, context) {
-    const cwd = context?.directory || process.cwd();
+    const cwd = resolveProjectCwd(context, { log: console.error });
     const harnessTmpDir = path.resolve(cwd, ".harness", "tmp");
 
     if (!fs.existsSync(harnessTmpDir)) {

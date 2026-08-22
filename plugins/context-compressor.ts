@@ -115,10 +115,10 @@ ${content.slice(0, 50_000)}  // hard cap before sending
       const compressibleTools = ["read", "bash", "grep", "glob", "fetch"];
       if (!compressibleTools.includes(input.tool)) return;
 
-      const content = extractContent(output.result);
+      const content = extractContent(output.output);
       if (!content || typeof content !== "string") return;
 
-      const filePath = output.args?.filePath ?? output.args?.path ?? input.tool;
+      const filePath = input.args?.filePath ?? input.args?.path ?? input.tool;
 
       if (shouldCompress(String(filePath), content)) {
         const originalTokens = estimateTokens(content);
@@ -126,7 +126,7 @@ ${content.slice(0, 50_000)}  // hard cap before sending
         const compressedTokens = estimateTokens(compressed);
 
         // Substitui o resultado
-        output.result = replaceContent(output.result, compressed);
+        output.output = replaceContent(output.output, compressed);
 
         // Loga métrica
         safeLog(client, {

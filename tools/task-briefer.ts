@@ -8,16 +8,16 @@
 import { tool } from "@opencode-ai/plugin";
 import * as fs from "fs";
 import * as path from "path";
+import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
 
 export default tool({
-  name: "task-briefer",
   description: "Gera um arquivo de briefing compacto para uma tarefa específica de uma sprint, limpando metadados YAML redundantes.",
   args: {
     taskId: tool.schema.string().describe("ID da task (ex: T001)"),
     sprintId: tool.schema.string().describe("ID da sprint (ex: S01)")
   },
   async execute({ taskId, sprintId }, context) {
-    const cwd = context?.directory || process.cwd();
+    const cwd = resolveProjectCwd(context, { log: console.error });
     const taskPath = path.resolve(cwd, ".harness", "sprints", sprintId, "tasks", `${taskId}_PROMPT.md`);
     const harnessTmpDir = path.resolve(cwd, ".harness", "tmp");
 

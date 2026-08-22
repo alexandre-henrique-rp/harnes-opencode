@@ -19,6 +19,7 @@ import { tool } from "@opencode-ai/plugin";
 import { execFileSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
+import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
 
 function parseYamlFrontmatter(content: string): any {
   const match = content.match(/^---\n([\s\S]*?)\n---/);
@@ -35,7 +36,6 @@ function parseYamlFrontmatter(content: string): any {
 }
 
 export default tool({
-  name: "harness-context",
   description:
     "Constroi task description para sub-agent. Junta capability grant + estado + RAG + output contract. Retorna markdown pronto para task().",
   args: {
@@ -46,16 +46,19 @@ export default tool({
       .string()
       .describe("Descricao curta do escopo da task (1 frase)"),
     includeFiles: tool.schema
-      .array(tool.schema.string())
-      .optional()
-      .describe("Paths adicionais para incluir no contexto (ex: ['PRD.md', 'design/user-register.PROMPT.md'])"),
+      .string()
+      
+      .describe("Paths adicionais separados por vírgula para incluir (ex: 'PRD.md, design/schema.md')"),
     extraContext: tool.schema
       .string()
-      .optional()
+      
       .describe("Contexto extra em markdown (opcional)"),
   },
-  async execute({ targetAgent, scope, includeFiles = [], extraContext = "" }, context) {
-    const cwd = context?.directory || process.cwd();
+  async execute({ targetAgent, scope, includeFiles = "", extraContext = "" }, context) {
+    const cwd = resolveProjectCwd(context, { log: console.error });
+    const parsedIncludeFiles = typeof includeFiles === "string" && includeFiles.trim() !== ""
+      ? includeFiles.split(",").map(f => f.trim()).filter(Boolean)
+      : [];
     const harnessDir = path.join(cwd, ".harness");
     const statePath = path.join(harnessDir, "state.json");
     const stateMachinePath = path.join(harnessDir, "state-machine.json");
@@ -258,9 +261,9 @@ export default tool({
 
     // Files adicionais a incluir (com context pruning ativado para arquivos de suporte)
     const extraFilesSection =
-      includeFiles.length > 0
+      parsedIncludeFiles.length > 0
         ? "**Files adicionais a ler (assinaturas e esqueleto):**\n" +
-          includeFiles.map((f: string) => {
+          parsedIncludeFiles.map((f: string) => {
             const prunedPath = pruneFileForContext(cwd, f);
             if (prunedPath !== f) {
               return `- \`${f}\` (Versao esqueleto em: \`${prunedPath}\`)`;
@@ -332,7 +335,7 @@ function pruneFileForContext(cwd: string, sourceFile: string): string {
 
   try {
     const content = fs.readFileSync(fullPath, "utf8");
-    const lines = content.split("\n");
+    const lines = String(content || "").split("\n");
     const prunedLines: string[] = [];
     let inFunction = false;
     let braceCount = 0;

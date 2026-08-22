@@ -13,7 +13,13 @@
  */
 import type { Plugin } from "@opencode-ai/plugin";
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
+import { resolveProjectCwd } from "./lib/resolve-project-cwd.js";
+import { quietWarn } from "./lib/quiet-warn.js";
+
+// Helper local: warnings vão para arquivo (não stderr) para não poluir a UI do TUI.
+const warn = (msg: string) => quietWarn("path-boundary", msg);
 
 // ─── Tipos e Interfaces ──────────────────────────────────────────────────────
 
@@ -27,6 +33,7 @@ interface AgentPermission {
   write?: CapabilityRule | Record<string, CapabilityRule>;
   edit?: CapabilityRule | Record<string, CapabilityRule>;
   bash?: CapabilityRule | Record<string, CapabilityRule>;
+  read?: CapabilityRule | Record<string, CapabilityRule>;
 }
 
 interface PathBoundaryConfig {
@@ -39,22 +46,200 @@ interface PathBoundaryConfig {
 interface BoundaryResult {
   ok: boolean;
   reason?: string;
-  matchedRule?: "allow" | "deny" | "ask" | "default-deny" | "always-deny" | "redirect" | "default" | "auto-allow";
+  matchedRule?:
+    | "allow"
+    | "deny"
+    | "ask"
+    | "default-deny"
+    | "always-deny"
+    | "redirect"
+    | "default"
+    | "auto-allow";
   rule?: string;
 }
+// ─── Frontmatter Parser (agents/*.md) ────────────────────────────────────────
+
+/**
+ * Extrai o frontmatter YAML de um arquivo markdown.
+ * Formato esperado:
+ *   ---
+ *   name: backend
+ *   permission:
+ *     write:
+ *       "src/**": allow
+ *       "server/**": allow
+ *     bash: allow
+ *   ---
+ */
+function parseFrontmatter(content: string): Record<string, any> {
+  const match = content.match(/^---\n([\s\S]*?)\n---/);
+  if (!match) return {};
+  const yaml = match[1];
+  const result: Record<string, any> = {};
+  let currentKey = "";
+  let currentIndent = 0;
+  const lines = yaml.split("\n");
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    // Top-level key: value
+    const topMatch = line.match(/^(\w+):\s*(.*)$/);
+    if (topMatch && !line.startsWith(" ") && !line.startsWith("\t")) {
+      currentKey = topMatch[1];
+      const value = topMatch[2].trim();
+      if (value === "") {
+        //可能有nested block below - 初始化为object
+        result[currentKey] = {};
+      } else {
+        //处理简单值
+        result[currentKey] = parseYamlValue(value);
+      }
+      continue;
+    }
+    
+    // Nested key: value (under currentKey)
+    const nestedMatch = line.match(/^(\s+)(\w+):\s*(.*)$/);
+    if (nestedMatch && currentKey && result[currentKey] && typeof result[currentKey] === "object") {
+      const indent = nestedMatch[1].length;
+      const key = nestedMatch[2];
+      const value = nestedMatch[3].trim();
+      //直接设置嵌套属性
+      (result[currentKey] as Record<string, any>)[key] = parseYamlValue(value);
+    }
+  }
+  return result;
+}
+
+function parseYamlValue(value: string): any {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  if (value === "null" || value === "~") return null;
+  // Remove quotes
+  if ((value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))) {
+    return value.slice(1, -1);
+  }
+  return value;
+}
+
+/**
+ * Carrega as permissoes de escrita dos arquivos agents/*.md.
+ * Cada arquivo define um frontmatter YAML com bloco `permission`.
+ * Fallback: se o campo for string simples (ex: `bash: allow`),
+ * mapeia para o formato de evaluate aceito.
+ */
+function loadAgentsFromMarkdown(agentsDir: string): Record<string, AgentPermission> {
+  const result: Record<string, AgentPermission> = {};
+  try {
+    if (!fs.existsSync(agentsDir)) return result;
+    const files = fs.readdirSync(agentsDir).filter((f) => f.endsWith(".md"));
+    for (const file of files) {
+      const filePath = path.join(agentsDir, file);
+      const content = fs.readFileSync(filePath, "utf8");
+      const fm = parseFrontmatter(content);
+      const name = fm["name"] as string | undefined;
+      if (!name) continue;
+      const perm = fm["permission"];
+      if (!perm || typeof perm !== "object") continue;
+
+      const agentPerm: AgentPermission = {};
+      // permission.write: { "src/**": allow, ... } 或 { "src/**": "allow" }
+      if (perm.write) {
+        if (typeof perm.write === "object") {
+          const writeObj: Record<string, CapabilityRule> = {};
+          for (const [k, v] of Object.entries(perm.write as Record<string, any>)) {
+            writeObj[k] = v as CapabilityRule;
+          }
+          agentPerm.write = writeObj;
+        } else {
+          agentPerm.write = perm.write as CapabilityRule;
+        }
+      }
+      // permission.edit
+      if (perm.edit) {
+        if (typeof perm.edit === "object") {
+          const editObj: Record<string, CapabilityRule> = {};
+          for (const [k, v] of Object.entries(perm.edit as Record<string, any>)) {
+            editObj[k] = v as CapabilityRule;
+          }
+          agentPerm.edit = editObj;
+        } else {
+          agentPerm.edit = perm.edit as CapabilityRule;
+        }
+      }
+      // permission.bash: allow | deny | "allow" | "deny"
+      if (perm.bash) {
+        agentPerm.bash = perm.bash as CapabilityRule;
+      }
+      // permission.read
+      if (perm.read) {
+        agentPerm.read = perm.read as CapabilityRule;
+      }
+      if (Object.keys(agentPerm).length > 0) {
+        result[name] = agentPerm;
+      }
+    }
+  } catch (e) {
+    // Best-effort: erro no parse nao bloqueia o plugin
+    warn(`Erro ao carregar agents from markdown: ${(e as Error).message}`);
+  }
+  return result;
+}
+
+// Cache para frontmatter dos agents (mtime-based reload)
+const agentFrontmatterCache: {
+  mtimeMs: number;
+  data: Record<string, AgentPermission>;
+} = { mtimeMs: 0, data: {} };
+
+function getAgentsFromMarkdown(agentsDir: string): Record<string, AgentPermission> {
+  if (!fs.existsSync(agentsDir)) return {};
+  let latestMtime = 0;
+  try {
+    const files = fs.readdirSync(agentsDir).filter((f) => f.endsWith(".md"));
+    for (const f of files) {
+      const m = fs.statSync(path.join(agentsDir, f)).mtimeMs;
+      if (m > latestMtime) latestMtime = m;
+    }
+  } catch { return agentFrontmatterCache.data; }
+
+  if (latestMtime !== agentFrontmatterCache.mtimeMs) {
+    agentFrontmatterCache.mtimeMs = latestMtime;
+    agentFrontmatterCache.data = loadAgentsFromMarkdown(agentsDir);
+  }
+  return agentFrontmatterCache.data;
+}
+
 // ─── Constantes Globais ──────────────────────────────────────────────────────
 
 const ALLOWLIST_PATH = path.join(
   process.env.HOME || "~",
-  ".config/opencode/harness-allowlist.json"
+  ".config/opencode/harness-allowlist.json",
 );
 
-// Allowlist a nivel de projeto: .harness/harness-allowlist.json
-// Se existir, eh MERGEADA com a global (project pode estender, nao loosar).
+// Allowlist a nivel de projeto: harness-allowlist.json
+// O harness CRIA um allowlist no projeto alvo em: <cwd>/.harness/harness-allowlist.json
+// Esse allowlist TEM PRIORIDADE sobre o global.
+//
+// Busca em DOIS locais (por ordem de prioridade):
+//   1. <cwd>/.harness/harness-allowlist.json (criado pelo harness no projeto alvo)
+//   2. <cwd>/harness-allowlist.json (fallback: quando o cwd eh o proprio repo do harness)
+//
 // Deny rules de ambos sao aplicados (defense in depth).
-// Allow rules de ambos sao OR'ed (qualquer match permite).
+// Allow rules do projeto tem prioridade absoluta.
 function getProjectAllowlistPath(cwd: string): string {
-  return path.join(cwd, ".harness", "harness-allowlist.json");
+  // Prioridade 1: o que o harness CRIA no projeto alvo
+  const harnessPath = path.join(cwd, ".harness", "harness-allowlist.json");
+  if (fs.existsSync(harnessPath)) {
+    return harnessPath;
+  }
+  // Prioridade 2: raiz do workspace (ex: quando cwd = ~/.config/opencode/)
+  const rootPath = path.join(cwd, "harness-allowlist.json");
+  if (fs.existsSync(rootPath)) {
+    return rootPath;
+  }
+  // Nenhum encontrado — retorna o path padrao (.harness/) para checagens de existencia
+  return harnessPath;
 }
 
 interface MergedAllowlist {
@@ -78,17 +263,51 @@ function getMtime(filePath: string): number {
   }
 }
 
-function readAllowlistFile(filePath: string, sourceName: string): { rules: { allow: string[]; deny: string[] }; status: { ok: boolean; reason?: string } } {
+function readAllowlistFile(
+  filePath: string,
+  sourceName: string,
+): {
+  rules: { allow: string[]; deny: string[] };
+  status: { ok: boolean; reason?: string };
+} {
   try {
     const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    const allow: string[] = [];
+    const deny: string[] = [];
+
+    if (Array.isArray(data.allow)) {
+      for (const item of data.allow) {
+        if (typeof item === "string") allow.push(item);
+      }
+    }
+    if (Array.isArray(data.deny)) {
+      for (const item of data.deny) {
+        if (typeof item === "string") deny.push(item);
+      }
+    }
+
+    if (Array.isArray(data.rules)) {
+      for (const rule of data.rules) {
+        if (
+          rule &&
+          typeof rule === "object" &&
+          typeof rule.pattern === "string"
+        ) {
+          if (rule.type === "deny") {
+            deny.push(rule.pattern);
+          } else {
+            allow.push(rule.pattern);
+          }
+        }
+      }
+    }
+
     return {
-      rules: {
-        allow: data.allow || [],
-        deny: data.deny || [],
-      },
+      rules: { allow, deny },
       status: { ok: true },
     };
   } catch (e) {
+    warn(`WARNING: Erro ao ler allowlist ${sourceName} (${filePath}): ${(e as Error).message}`);
     return {
       rules: { allow: [], deny: [] },
       status: { ok: false, reason: `parse error: ${(e as Error).message}` },
@@ -133,8 +352,13 @@ export function loadMergedAllowlist(cwd: string): MergedAllowlist {
     result.sources.push({ path: projectPath, ...status });
   }
 
-  // 2. Global (baseline)
-  if (fs.existsSync(ALLOWLIST_PATH)) {
+  // 2. Global (baseline) — só carrega se for um arquivo DIFERENTE do project-level
+  //    Evita merge duplicado quando o workspace == ~/.config/opencode/
+  const resolvedProject = projectPath ? path.resolve(projectPath) : "";
+  const resolvedGlobal = path.resolve(ALLOWLIST_PATH);
+  const isSameFile = resolvedProject === resolvedGlobal;
+
+  if (!isSameFile && fs.existsSync(ALLOWLIST_PATH)) {
     const { rules, status } = readAllowlistFile(ALLOWLIST_PATH, "global");
     rules.allow.forEach((p) => allowSet.add(p));
     rules.deny.forEach((p) => denySet.add(p));
@@ -173,7 +397,10 @@ function isAutoAllowDisabled(cwd: string): boolean {
 }
 
 function isCooldownActive(cwd: string, pattern: string): boolean {
-  const cooldownMs = parseInt(process.env.HARNESS_AUTO_ALLOW_COOLDOWN_MS || "60000", 10);
+  const cooldownMs = parseInt(
+    process.env.HARNESS_AUTO_ALLOW_COOLDOWN_MS || "60000",
+    10,
+  );
   if (cooldownMs <= 0) return false; // cooldown desabilitado
   const lastAdded = autoAllowCooldown.get(`${cwd}|${pattern}`) || 0;
   return Date.now() - lastAdded < cooldownMs;
@@ -181,8 +408,17 @@ function isCooldownActive(cwd: string, pattern: string): boolean {
 
 // Rate limit: max N auto-adds por minuto (sliding window)
 const autoAllowRecentAdds: number[] = []; // timestamps de auto-adds
+
+export function _resetAutoAllowState(): void {
+  autoAllowRecentAdds.length = 0;
+  autoAllowCooldown.clear();
+}
+
 function isRateLimited(): boolean {
-  const maxPerMin = parseInt(process.env.HARNESS_AUTO_ALLOW_MAX_PER_MIN || "10", 10);
+  const maxPerMin = parseInt(
+    process.env.HARNESS_AUTO_ALLOW_MAX_PER_MIN || "10",
+    10,
+  );
   if (maxPerMin <= 0) return false; // rate limit desabilitado
   const now = Date.now();
   const oneMinAgo = now - 60_000;
@@ -197,13 +433,16 @@ function recordAutoAdd(): void {
   autoAllowRecentAdds.push(Date.now());
 }
 
-function writeAutoAllowAudit(cwd: string, entry: {
-  ts: string;
-  pattern: string;
-  type: "allow" | "deny";
-  blockedPath: string;
-  source: "auto" | "manual";
-}): void {
+function writeAutoAllowAudit(
+  cwd: string,
+  entry: {
+    ts: string;
+    pattern: string;
+    type: "allow" | "deny";
+    blockedPath: string;
+    source: "auto" | "manual";
+  },
+): void {
   try {
     const auditDir = path.join(cwd, ".harness", "audit");
     fs.mkdirSync(auditDir, { recursive: true });
@@ -211,7 +450,7 @@ function writeAutoAllowAudit(cwd: string, entry: {
     fs.appendFileSync(auditFile, JSON.stringify(entry) + "\n");
   } catch (e) {
     // best-effort: falha no audit nao bloqueia a operacao
-    process.stderr.write(`[path-boundary] audit write falhou: ${(e as Error).message}\n`);
+    warn(`audit write falhou: ${(e as Error).message}`);
   }
 }
 
@@ -219,7 +458,7 @@ export function addToProjectAllowlist(
   cwd: string,
   pattern: string,
   type: "allow" | "deny",
-  options: { source?: "auto" | "manual"; blockedPath?: string } = {}
+  options: { source?: "auto" | "manual"; blockedPath?: string } = {},
 ): boolean {
   const source = options.source || "manual";
   const projectPath = getProjectAllowlistPath(cwd);
@@ -231,10 +470,7 @@ export function addToProjectAllowlist(
 
   // Rate limit: se ja foram adicionados muitos patterns no ultimo minuto, skip
   if (source === "auto" && isRateLimited()) {
-    process.stderr.write(
-      `[path-boundary] RATE LIMIT: max auto-adds por minuto atingido. Block adicionando "${pattern}". ` +
-      `Aumente HARNESS_AUTO_ALLOW_MAX_PER_MIN ou espere 60s.\n`
-    );
+    warn(`RATE LIMIT: max auto-adds por minuto atingido. Block adicionando "${pattern}". Aumente HARNESS_AUTO_ALLOW_MAX_PER_MIN ou espere 60s.`);
     return false;
   }
 
@@ -247,9 +483,26 @@ export function addToProjectAllowlist(
       fs.mkdirSync(path.dirname(projectPath), { recursive: true });
       data = { allow: [], deny: [] };
     }
+
+    let modified = false;
+
+    if (Array.isArray(data.rules)) {
+      const existsInRules = data.rules.some(
+        (r: any) => r && r.pattern === pattern && (r.type || "allow") === type,
+      );
+      if (!existsInRules) {
+        data.rules.push({ pattern, type, target: "project" });
+        modified = true;
+      }
+    }
+
     const list = data[type] || (data[type] = []);
     if (!list.includes(pattern)) {
       list.push(pattern);
+      modified = true;
+    }
+
+    if (modified) {
       fs.writeFileSync(projectPath, JSON.stringify(data, null, 2) + "\n");
       // Invalida cache
       allowlistCache.clear();
@@ -268,7 +521,7 @@ export function addToProjectAllowlist(
     }
     return false;
   } catch (e) {
-    process.stderr.write(`[path-boundary] Erro ao adicionar ao allowlist: ${(e as Error).message}\n`);
+    warn(`Erro ao adicionar ao allowlist: ${(e as Error).message}`);
     return false;
   }
 }
@@ -282,7 +535,10 @@ const ALWAYS_DENY = [
   /\/node_modules\//,
   /\/\.git\//,
   /package-lock\.json$/,
-  /\.harness-allowlist\.json$/,
+  // P0.3 fix: barra faltante entre ".harness" e "harness-allowlist.json".
+  // Antes: casava ".harness-allowlist.json" (sem path separado). Agora: casa
+  // `.harness/harness-allowlist.json` corretamente.
+  /\.harness\/harness-allowlist\.json$/,
 ];
 
 // Caminhos de estado que exigem redirect para ferramenta atômica dedicada
@@ -290,7 +546,8 @@ const FORCE_TOOL_REDIRECT = [
   {
     pattern: /\.harness\/state\.json$/,
     tool: "harness_advance",
-    reason: "state.json só pode ser editado via harness_advance tool (valida gate)",
+    reason:
+      "state.json só pode ser editado via harness_advance tool (valida gate)",
   },
   {
     pattern: /\.harness\/events\.jsonl$/,
@@ -341,6 +598,18 @@ function matchGlob(filePath: string, pattern: string): boolean {
   return filePath === pattern || filePath.startsWith(pattern + path.sep);
 }
 
+function loadProjectAllowlist(cwd: string): {
+  allow: string[];
+  deny: string[];
+} {
+  const projectPath = getProjectAllowlistPath(cwd);
+  if (fs.existsSync(projectPath)) {
+    const { rules } = readAllowlistFile(projectPath, "project");
+    return rules;
+  }
+  return { allow: [], deny: [] };
+}
+
 /**
  * Avalia se um path é permitido para escrita por um agente específico.
  */
@@ -353,11 +622,17 @@ export function evaluate(args: {
   const { agent, filePath, action, config } = args;
 
   // 1. Resolve para path absoluto
-  const abs = path.isAbsolute(filePath) ? filePath : path.resolve(config.cwd, filePath);
+  const abs = path.isAbsolute(filePath)
+    ? filePath
+    : path.resolve(config.cwd, filePath);
   const rel = path.relative(config.cwd, abs);
 
   if (rel.startsWith("..")) {
-    return { ok: false, reason: "Path escapes project root", matchedRule: "default-deny" };
+    return {
+      ok: false,
+      reason: "Path escapes project root",
+      matchedRule: "default-deny",
+    };
   }
 
   // 2. Valida ALWAYS_DENY global (defesa contra adulteração de estado do harness)
@@ -394,9 +669,17 @@ export function evaluate(args: {
     if (typeof agentPerm === "string") {
       switch (agentPerm) {
         case "deny":
-          return { ok: false, reason: `Agent ${agent} has explicit ${action}=deny`, matchedRule: "deny" };
+          return {
+            ok: false,
+            reason: `Agent ${agent} has explicit ${action}=deny`,
+            matchedRule: "deny",
+          };
         case "ask":
-          return { ok: false, reason: `Agent ${agent} has explicit ${action}=ask`, matchedRule: "ask" };
+          return {
+            ok: false,
+            reason: `Agent ${agent} has explicit ${action}=ask`,
+            matchedRule: "ask",
+          };
         case "allow":
           if (config.agents[agent]?.[action] !== undefined) {
             return { ok: true, matchedRule: "allow" };
@@ -406,14 +689,22 @@ export function evaluate(args: {
     }
 
     // 4.2 Objeto estruturado com allow/deny (ou apenas um deles)
-    if (typeof agentPerm === "object" && ("deny" in agentPerm || "allow" in agentPerm)) {
+    if (
+      typeof agentPerm === "object" &&
+      ("deny" in agentPerm || "allow" in agentPerm)
+    ) {
       const denyList = (agentPerm as { deny?: string[] }).deny ?? [];
       const allowList = (agentPerm as { allow?: string[] }).allow ?? [];
 
       // Denylist do agente tem precedência absoluta
       for (const pattern of denyList) {
         if (matchGlob(rel, pattern)) {
-          return { ok: false, reason: `Agent denylist match: ${pattern}`, matchedRule: "deny", rule: pattern };
+          return {
+            ok: false,
+            reason: `Agent denylist match: ${pattern}`,
+            matchedRule: "deny",
+            rule: pattern,
+          };
         }
       }
 
@@ -424,13 +715,29 @@ export function evaluate(args: {
         }
       }
 
-      // Se o agente tem permissões explícitas mas o caminho não bateu com allowlist
-      return { ok: false, reason: `No agent allow rule matched for ${rel}`, matchedRule: "default-deny" };
+      // Se o agente tem permissões explícitas mas o caminho não bateu com a allowlist do agente,
+      // verifica se a allowlist do PROJETO (.harness/harness-allowlist.json) libera explicitamente.
+      const projAllowlist = loadProjectAllowlist(config.cwd);
+      for (const pattern of projAllowlist.allow) {
+        if (matchGlob(rel, pattern)) {
+          return { ok: true, matchedRule: "allow", rule: pattern };
+        }
+      }
+
+      return {
+        ok: false,
+        reason: `Path ${rel} not in agent ${agent} allowlist`,
+        matchedRule: "default-deny",
+      };
     }
 
     // 4.3 Mapa pattern -> rule
     if (typeof agentPerm === "object" && !Array.isArray(agentPerm)) {
-      const matches: Array<{ pattern: string; rule: CapabilityRule; priority: number }> = [];
+      const matches: Array<{
+        pattern: string;
+        rule: CapabilityRule;
+        priority: number;
+      }> = [];
       for (const [pattern, rule] of Object.entries(agentPerm)) {
         if (matchGlob(rel, pattern)) {
           const isDeny = rule === "deny" || pattern.startsWith("!");
@@ -441,106 +748,198 @@ export function evaluate(args: {
       if (matches.length > 0) {
         const first = matches[0];
         if (first.rule === "deny") {
-          return { ok: false, reason: `Agent match-pattern deny: ${first.pattern}`, matchedRule: "deny", rule: first.pattern };
+          return {
+            ok: false,
+            reason: `Agent match-pattern deny: ${first.pattern}`,
+            matchedRule: "deny",
+            rule: first.pattern,
+          };
         }
         if (first.rule === "ask") {
-          return { ok: false, reason: `Agent match-pattern ask: ${first.pattern}`, matchedRule: "ask", rule: first.pattern };
+          return {
+            ok: false,
+            reason: `Agent match-pattern ask: ${first.pattern}`,
+            matchedRule: "ask",
+            rule: first.pattern,
+          };
         }
         return { ok: true, matchedRule: "allow", rule: first.pattern };
       }
     }
   } else if (config.defaultDeny && Object.keys(config.agents).length > 0) {
-    return { ok: false, reason: `Agent ${agent} not configured and defaultDeny active`, matchedRule: "default-deny" };
+    return {
+      ok: false,
+      reason: `Agent ${agent} not configured and defaultDeny active`,
+      matchedRule: "default-deny",
+    };
   }
 
-  // 5. Carrega allowlist merged (project + global)
+  // 5. Avalia allowlist do PROJETO ALVO (prioridade máxima)
+  //
+  // REGRA DE PRIORIDADE:
+  //   - O allowlist que o harness CRIA no projeto alvo (.harness/harness-allowlist.json)
+  //     tem prioridade absoluta sobre o allowlist global.
+  //   - O allowlist GLOBAL (~/.config/opencode/harness-allowlist.json) serve APENAS
+  //     como baseline de proteção (deny de .env, secrets, chaves).
+  //   - Se o projeto alvo NAO tem allowlist proprio, o agente pode trabalhar
+  //     livremente dentro do repo (fail-open por padrao).
+  //
   const mode = process.env.HARNESS_PATH_BOUNDARY_MODE || "fail-open";
-  const merged = loadMergedAllowlist(config.cwd);
+  const projectAllowlistPath = getProjectAllowlistPath(config.cwd);
+  const hasProjectAllowlist = fs.existsSync(projectAllowlistPath);
 
-  if (merged.sources.length === 0) {
-    if (mode === "fail-closed") {
-      process.stderr.write(`[path-boundary] WARNING: nenhum harness-allowlist.json encontrado. Escrita bloqueada.\n`);
-      return { ok: false, reason: "No allowlist (project or global) found in fail-closed mode", matchedRule: "default-deny" };
-    }
-  } else {
-    const hasErrors = merged.sources.some((s) => !s.ok);
-    if (hasErrors) {
-      const bad = merged.sources.filter((s) => !s.ok);
-      const msg = `[path-boundary] WARNING: allowlist com erro de parse — ${bad.map((b) => `${b.path}: ${b.reason}`).join("; ")}\n`;
-      process.stderr.write(msg);
-      if (mode === "fail-closed") {
-        return { ok: false, reason: "Allowlist corrupted in fail-closed mode", matchedRule: "default-deny" };
-      }
-    }
+  // --- DENY GLOBAL: sempre aplicado (protege .env, secrets, chaves) ---
+  // Busca deny rules da allowlist global SOMENTE se for arquivo diferente do projeto.
+  const resolvedProjectAL = path.resolve(projectAllowlistPath);
+  const resolvedGlobalAL = path.resolve(ALLOWLIST_PATH);
+  const globalIsSameAsProject = resolvedProjectAL === resolvedGlobalAL;
 
-// Deny rules: de qualquer source, bloqueiam
-      for (const pattern of merged.deny) {
-        if (matchGlob(rel, pattern)) {
-          return { ok: false, reason: `Denylist match: ${pattern}`, matchedRule: "deny", rule: pattern };
-        }
-      }
-
-      // Allow rules: qualquer source permite
-      let allowed = false;
-      for (const pattern of merged.allow) {
-        if (matchGlob(rel, pattern)) {
-          allowed = true;
-          break;
-        }
-      }
-
-      if (!allowed && merged.allow.length > 0) {
-        // Sugere automaticamente o pattern que o usuario pode adicionar
-        const suggestedPattern = suggestAllowPattern(rel);
-
-        // Modo auto-allow: se a env var estiver setada E nao desabilitado
-        // por .harness/.no-auto-allow nem por HARNESS_NO_AUTO_ALLOW=1.
-        if (process.env.HARNESS_AUTO_ALLOW_ON_BLOCK === "1" && !isAutoAllowDisabled(config.cwd)) {
-          const added = addToProjectAllowlist(config.cwd, suggestedPattern, "allow", {
-            source: "auto",
-            blockedPath: rel,
-          });
-          if (added) {
-            process.stderr.write(
-              `[path-boundary] AUTO-ALLOW: adicionado "${suggestedPattern}" ao .harness/harness-allowlist.json (audit: .harness/audit/auto-allow.jsonl)\n`
-            );
-            return { ok: true, matchedRule: "auto-allow", rule: suggestedPattern };
-          }
-          // Cooldown ativo ou duplicado: cai para o fluxo normal de bloqueio
-        }
-
-        // Se config.defaultDeny for true, bloqueia imediatamente
-        if (config.defaultDeny) {
-           return { ok: false, reason: `Default deny active for path ${rel}`, matchedRule: "default-deny" };
-        }
-
+  if (!globalIsSameAsProject && fs.existsSync(ALLOWLIST_PATH)) {
+    const { rules: globalRules } = readAllowlistFile(ALLOWLIST_PATH, "global");
+    for (const pattern of globalRules.deny) {
+      if (matchGlob(rel, pattern)) {
         return {
           ok: false,
-          // Mensagem OTIMIZADA para o agente: manda PARAR e perguntar ao usuario.
-          reason: `Path "${rel}" nao esta em nenhuma allowlist (project + global).\n` +
-                  `\n` +
-                  `>>> ACAO OBRIGATORIA PARA O AGENTE <<<\n` +
-                  `NAO retente esta escrita. NAO tente paths alternativos. NAO faca loops.\n` +
-                  `USE a tool 'question' para perguntar ao usuario:\n` +
-                  `  "O path '${rel}' esta bloqueado pelo path-boundary. Posso adicionar '${suggestedPattern}' ao allowlist do projeto para liberar?"\n` +
-                  `\n` +
-                  `Se o usuario autorizar, chame o MCP tool:\n` +
-                  `  harness-allowlist action=add pattern="${suggestedPattern}" type=allow target=project\n` +
-                  `\n` +
-                  `OU o usuario pode rodar manualmente:\n` +
-                  `  ./install.sh --add-allow '${suggestedPattern}'\n` +
-                  `OU editar .harness/harness-allowlist.json e tentar novamente\n` +
-                  `(o plugin tem hot-reload via mtime, restart NAO eh necessario).`,
-          matchedRule: "default-deny",
+          reason: `Global denylist match: ${pattern}`,
+          matchedRule: "deny",
+          rule: pattern,
+        };
+      }
+    }
+    // NOTA: allow rules do global NAO restringem o projeto. Apenas deny.
+  }
+
+  // --- Se o projeto NAO tem allowlist proprio ---
+  if (!hasProjectAllowlist) {
+    if (mode === "fail-closed") {
+      warn(`WARNING: No project allowlist found in fail-closed mode at ${projectAllowlistPath}`);
+      return {
+        ok: false,
+        reason: "No project allowlist found in fail-closed mode",
+        matchedRule: "default-deny",
+      };
+    }
+    // Fail-open (padrao): agente pode trabalhar livremente dentro do repo
+    return { ok: true, matchedRule: "default" };
+  }
+
+  // --- Projeto TEM allowlist proprio — aplica a logica completa ---
+  const { rules: projectRules, status: projectStatus } = readAllowlistFile(
+    projectAllowlistPath,
+    "project",
+  );
+
+  if (!projectStatus.ok) {
+    const msg = `[path-boundary] WARNING: project allowlist com erro de parse — ${projectAllowlistPath}: ${projectStatus.reason}\n`;
+    warn(msg.trim());
+    if (mode === "fail-closed") {
+      return {
+        ok: false,
+        reason: "Project allowlist corrupted in fail-closed mode",
+        matchedRule: "default-deny",
+      };
+    }
+    // Fail-open: se o parse falhou, permite (nao bloqueia por corrupcao)
+    return { ok: true, matchedRule: "default" };
+  }
+
+  // Deny rules DO PROJETO: bloqueiam
+  for (const pattern of projectRules.deny) {
+    if (matchGlob(rel, pattern)) {
+      return {
+        ok: false,
+        reason: `Project denylist match: ${pattern}`,
+        matchedRule: "deny",
+        rule: pattern,
+      };
+    }
+  }
+
+  // Allow rules DO PROJETO: se o path bate, permite
+  let allowed = false;
+  for (const pattern of projectRules.allow) {
+    if (matchGlob(rel, pattern)) {
+      allowed = true;
+      break;
+    }
+  }
+
+  if (allowed) {
+    return { ok: true, matchedRule: "allow" };
+  }
+
+  // Path nao bateu com nenhuma allow rule do projeto
+  if (projectRules.allow.length > 0) {
+    // Sugere automaticamente o pattern que o usuario pode adicionar
+    const suggestedPattern = suggestAllowPattern(rel);
+
+    // Modo auto-allow: se a env var estiver setada E nao desabilitado
+    // por .harness/.no-auto-allow nem por HARNESS_NO_AUTO_ALLOW=1.
+    if (
+      process.env.HARNESS_AUTO_ALLOW_ON_BLOCK === "1" &&
+      !isAutoAllowDisabled(config.cwd)
+    ) {
+      const added = addToProjectAllowlist(
+        config.cwd,
+        suggestedPattern,
+        "allow",
+        {
+          source: "auto",
+          blockedPath: rel,
+        },
+      );
+      if (added) {
+        warn(`AUTO-ALLOW: adicionado "${suggestedPattern}" ao project allowlist (audit: .harness/audit/auto-allow.jsonl)`);
+        return {
+          ok: true,
+          matchedRule: "auto-allow",
           rule: suggestedPattern,
         };
       }
-      return { ok: true, matchedRule: "allow" };
+      // Cooldown ativo ou duplicado: cai para o fluxo normal de bloqueio
+    }
+
+    // Se config.defaultDeny for true, bloqueia imediatamente
+    if (config.defaultDeny) {
+      return {
+        ok: false,
+        reason: `Default deny active for path ${rel}`,
+        matchedRule: "default-deny",
+      };
+    }
+
+    return {
+      ok: false,
+      reason:
+        `Path "${rel}" nao esta no allowlist do projeto (${projectAllowlistPath}).\n` +
+        `\n` +
+        `>>> ACAO OBRIGATORIA PARA O AGENTE <<<\n` +
+        `NAO retente esta escrita. NAO tente paths alternativos. NAO faca loops.\n` +
+        `USE a tool 'question' para perguntar ao usuario:\n` +
+        `  "O path '${rel}' esta bloqueado pelo path-boundary. Posso adicionar '${suggestedPattern}' ao allowlist do projeto para liberar?"\n` +
+        `\n` +
+        `Se o usuario autorizar, chame o MCP tool:\n` +
+        `  harness-allowlist action=add pattern="${suggestedPattern}" type=allow target=project\n` +
+        `\n` +
+        `OU o usuario pode rodar manualmente:\n` +
+        `  ./install.sh --add-allow '${suggestedPattern}'\n` +
+        `OU editar o allowlist do projeto e tentar novamente\n` +
+        `(o plugin tem hot-reload via mtime, restart NAO eh necessario).`,
+      matchedRule: "default-deny",
+      rule: suggestedPattern,
+    };
   }
+
+  // Projeto tem allowlist mas sem allow rules (so deny rules) = permite tudo que nao bateu deny
+  return { ok: true, matchedRule: "default" };
 
   // 6. Se defaultDeny for ativado e não temos allowlist permitindo explicitamente
   if (config.defaultDeny) {
-    return { ok: false, reason: `Agent ${agent} has no explicit ${action} permission configured`, matchedRule: "default-deny" };
+    return {
+      ok: false,
+      reason: `Agent ${agent} has no explicit ${action} permission configured`,
+      matchedRule: "default-deny",
+    };
   }
 
   return { ok: true, matchedRule: "default" };
@@ -555,24 +954,42 @@ export function validateCapabilityGrant(grant: {
   paths?: { allow?: string[]; deny?: string[] };
 }): { ok: true } | { ok: false; reason: string } {
   if (grant.agent === "frontend") {
-    const banned = ["backend-tdd", "qa-e2e", "security-audit-audit-mode", "lgpd-compliance"];
+    const banned = [
+      "backend-tdd",
+      "qa-e2e",
+      "security-audit-audit-mode",
+      "lgpd-compliance",
+    ];
     const found = (grant.skills ?? []).filter((s) => banned.includes(s));
     if (found.length > 0) {
-      return { ok: false, reason: `frontend agent must not have skills: ${found.join(", ")}` };
+      return {
+        ok: false,
+        reason: `frontend agent must not have skills: ${found.join(", ")}`,
+      };
     }
 
     const required = ["frontend-context-first", "grill-me"];
     const missing = required.filter((s) => !(grant.skills ?? []).includes(s));
     if (missing.length > 0) {
-      return { ok: false, reason: `frontend agent missing required skills: ${missing.join(", ")}` };
+      return {
+        ok: false,
+        reason: `frontend agent missing required skills: ${missing.join(", ")}`,
+      };
     }
   }
 
   if (grant.agent === "backend") {
-    const banned = ["frontend-context-first", "frontend-style-guide", "frontend-component-patterns"];
+    const banned = [
+      "frontend-context-first",
+      "frontend-style-guide",
+      "frontend-component-patterns",
+    ];
     const found = (grant.skills ?? []).filter((s) => banned.includes(s));
     if (found.length > 0) {
-      return { ok: false, reason: `backend agent must not have skills: ${found.join(", ")}` };
+      return {
+        ok: false,
+        reason: `backend agent must not have skills: ${found.join(", ")}`,
+      };
     }
   }
 
@@ -582,14 +999,21 @@ export function validateCapabilityGrant(grant: {
 /**
  * Infere quais pastas o agente vai tocar baseado no conteúdo da tarefa.
  */
-export function inferFoldersFromTask(task: { files?: string[]; description?: string }): string[] {
+export function inferFoldersFromTask(task: {
+  files?: string[];
+  description?: string;
+}): string[] {
   const folders = new Set<string>();
   for (const file of task.files ?? []) {
-    const dir = file.includes("/") ? file.substring(0, file.lastIndexOf("/")) : ".";
+    const dir = file.includes("/")
+      ? file.substring(0, file.lastIndexOf("/"))
+      : ".";
     folders.add(dir);
   }
   if (task.description) {
-    const matches = task.description.match(/(?:src|app|lib|components|features|modules)\/[\w\-/.]*/g);
+    const matches = task.description.match(
+      /(?:src|app|lib|components|features|modules)\/[\w\-/.]*/g,
+    );
     for (const m of matches ?? []) {
       const dir = m.includes("/") ? m.substring(0, m.lastIndexOf("/")) : m;
       folders.add(dir);
@@ -601,12 +1025,16 @@ export function inferFoldersFromTask(task: { files?: string[]; description?: str
 // ─── Plugin Entrypoint ───────────────────────────────────────────────────────
 
 export const PathBoundaryPlugin: Plugin = async (ctx) => {
-  const projectRoot: string =
-    ctx.worktree && ctx.worktree !== "/" && ctx.worktree.startsWith("/")
-      ? ctx.worktree
-      : ctx.directory && ctx.directory !== "/" && ctx.directory.startsWith("/")
-      ? ctx.directory
-      : process.cwd();
+  // Resolve projectRoot com helper centralizado (resolve bug do worktree="/")
+  const projectRoot: string = resolveProjectCwd(ctx, { log: (m: string) => quietWarn("path-boundary", m) });
+
+  // v6.6.2 — Log de recursos (ajuda debug de OOM)
+  const freeMemGB = (os.freemem() / 1024 / 1024 / 1024).toFixed(1);
+  const totalMemGB = (os.totalmem() / 1024 / 1024 / 1024).toFixed(1);
+  warn(`RAM: ${freeMemGB}GB livre / ${totalMemGB}GB total`);
+  if (parseFloat(freeMemGB) < 2) {
+    warn(`⚠️  RAM crítica. Recomenda-se: HARNESS_PLAYWRIGHT_WORKERS=1 HARNESS_VITEST_WORKERS=1`);
+  }
 
   const config: PathBoundaryConfig = {
     cwd: projectRoot,
@@ -628,7 +1056,9 @@ export const PathBoundaryPlugin: Plugin = async (ctx) => {
   try {
     const opencodeJsonPath = path.join(projectRoot, "opencode.json");
     if (fs.existsSync(opencodeJsonPath)) {
-      const opencodeData = JSON.parse(fs.readFileSync(opencodeJsonPath, "utf8"));
+      const opencodeData = JSON.parse(
+        fs.readFileSync(opencodeJsonPath, "utf8"),
+      );
       if (opencodeData && opencodeData.agent) {
         const parsedAgents: Record<string, AgentPermission> = {};
         for (const [name, data] of Object.entries(opencodeData.agent)) {
@@ -636,10 +1066,142 @@ export const PathBoundaryPlugin: Plugin = async (ctx) => {
             parsedAgents[name] = (data as any).permission;
           }
         }
+        // opencode.json é baseline; frontmatter dos agents/*.md SobRESCREVE (mais específico)
+        // Por isso carregamos frontmatter por cima
         config.agents = parsedAgents;
       }
     }
   } catch (e) {}
+
+  // Carrega permissoes do frontmatter dos agents/*.md (mais específicas, sobrescrevem opencode.json)
+  const agentsMarkdownDir = path.join(projectRoot, "agents");
+  if (fs.existsSync(agentsMarkdownDir)) {
+    const markdownAgents = getAgentsFromMarkdown(agentsMarkdownDir);
+    for (const [name, perm] of Object.entries(markdownAgents)) {
+      // Merge: frontmatter SOBRESCREVE o que veio do opencode.json
+      // (objeto resultante tem as chaves do frontmatter sobre as do opencode.json)
+      config.agents[name] = {
+        ...(config.agents[name] || {}),
+        ...perm,
+      } as AgentPermission;
+    }
+  }
+
+  // ─── Cache de bloqueios recentes (PX: aviso no contexto do LLM) ────────────
+  // Quando uma escrita e bloqueada, registramos aqui. O hook
+  // experimental.chat.system.transform (mais abaixo) usa esse cache para
+  // injetar um <system-reminder> no system prompt da proxima chamada ao LLM,
+  // garantindo que o aviso apareca JUNTO COM a resposta da IA, nao so no
+  // tool result.
+  //
+  // TTL: 5 minutos. Apos isso o block e considerado "resolvido" e sai do
+  // system prompt. Bound: MAX_BLOCKS (FIFO eviction).
+  const recentBlocks = new Map<
+    string,
+    { reason: string; agent: string; action: string; ts: number }
+  >();
+  const BLOCK_TTL_MS = 5 * 60 * 1000;
+  const MAX_BLOCKS = 16;
+
+  function recordBlock(
+    filePath: string,
+    reason: string,
+    agent: string,
+    action: string,
+  ): void {
+    if (recentBlocks.size >= MAX_BLOCKS) {
+      const firstKey = recentBlocks.keys().next().value;
+      if (firstKey !== undefined) recentBlocks.delete(firstKey);
+    }
+    recentBlocks.set(filePath, {
+      reason,
+      agent,
+      action,
+      ts: Date.now(),
+    });
+  }
+
+  function getActiveBlocks(): Array<{
+    filePath: string;
+    reason: string;
+    agent: string;
+    action: string;
+    ageMs: number;
+  }> {
+    const now = Date.now();
+    // Limpa expirados
+    for (const [k, v] of recentBlocks) {
+      if (now - v.ts > BLOCK_TTL_MS) recentBlocks.delete(k);
+    }
+    return Array.from(recentBlocks.entries()).map(([filePath, v]) => ({
+      filePath,
+      reason: v.reason,
+      agent: v.agent,
+      action: v.action,
+      ageMs: now - v.ts,
+    }));
+  }
+
+  // Sugere o pattern mais provavel para liberar a escrita.
+  // Heuristica: dirname/** ou * se for arquivo de config conhecido.
+  function suggestPattern(filePath: string): string {
+    const dir = path.dirname(filePath);
+    if (dir === "." || dir === "/") return filePath;
+    if (filePath.startsWith(".harness/")) return ".harness/**";
+    if (filePath.startsWith(".github/")) return ".github/**";
+    if (filePath.startsWith("plugins/")) return "plugins/**";
+    if (filePath.startsWith("agents/")) return "agents/**";
+    if (filePath.startsWith("tools/")) return "tools/**";
+    if (filePath.startsWith("tests/")) return "tests/**";
+    if (filePath.startsWith("schemas/")) return "schemas/**";
+    if (filePath.startsWith("system/")) return "system/**";
+    return `${dir}/**`;
+  }
+
+  // Helper: dispara toast visual + appendPrompt com comando acionavel.
+  // Falhas sao silenciosas (cliente pode nao estar conectado em testes).
+  function notifyBlockVisually(
+    agent: string,
+    action: string,
+    filePath: string,
+    reason: string,
+    suggestedPattern: string,
+  ): void {
+    const tui = client?.tui;
+    if (!tui) return;
+
+    // 1) Toast visual (aparece instantaneamente na UI do OpenCode)
+    if (typeof tui.showToast === "function") {
+      try {
+        void tui.showToast({
+          body: {
+            title: "path-boundary bloqueou escrita",
+            message: `${agent} tentou ${action} em ${filePath}. Motivo: ${reason}`,
+            variant: "error",
+            duration: 5000,
+          },
+        });
+      } catch {
+        // fail-silent: se UI offline, ignora
+      }
+    }
+
+    // 2) Append prompt (texto pre-pronto que aparece na caixa de entrada
+    //    do usuario; ao enviar, vira a proxima mensagem ao LLM)
+    if (typeof tui.appendPrompt === "function") {
+      const cmd = `harness-allowlist action=add pattern="${suggestedPattern}" type=allow target=project`;
+      try {
+        void tui.appendPrompt({
+          body: {
+            text: `[path-boundary] Tentativa bloqueada: ${action} em \`${filePath}\`. ` +
+              `Se foi intencional, rode: \`${cmd}\``,
+          },
+        });
+      } catch {
+        // fail-silent
+      }
+    }
+  }
 
   return {
     "tool.execute.before": async (input, output) => {
@@ -664,7 +1226,10 @@ export const PathBoundaryPlugin: Plugin = async (ctx) => {
       }
 
       const agent = input.context?.agent ?? "default";
-      const action = input.tool === "write" || input.tool === "write_to_file" ? "write" : "edit";
+      const action =
+        input.tool === "write" || input.tool === "write_to_file"
+          ? "write"
+          : "edit";
 
       const result = evaluate({
         agent,
@@ -674,12 +1239,43 @@ export const PathBoundaryPlugin: Plugin = async (ctx) => {
       });
 
       if (!result.ok) {
-        process.stderr.write(`[path-boundary] BLOCKED: ${agent} cannot ${action} ${filePath}\n`);
+        // PX: notifica visualmente (toast + appendPrompt) E registra no
+        // cache de blocks para o system reminder da proxima chamada.
+        const suggested = suggestPattern(filePath);
+        recordBlock(filePath, result.reason, agent, action);
+        notifyBlockVisually(agent, action, filePath, result.reason, suggested);
+
+        // Mensagem rica no throw — vai pro tool result error e fica
+        // visivel ao LLM na conversa.
+        const unlockCmd = `harness-allowlist action=add pattern="${suggested}" type=allow target=project`;
         throw new Error(
-          `[path-boundary] BLOCKED: ${agent} cannot ${action} ${filePath}\n` +
-          `\n${result.reason}`
+          `[path-boundary] BLOCKED: ${agent} cannot ${action} ${filePath} (BLOQUEADO em PT-BR)\n` +
+            `\nMotivo: ${result.reason}\n` +
+            `\nPara liberar este caminho (com confirmacao): ${unlockCmd}\n` +
+            `Ou edite .harness/harness-allowlist.json e adicione "${suggested}" em allow.\n` +
+            `\n(Voce vera um aviso visivel no TUI do OpenCode e um system-reminder na proxima resposta.)`,
         );
       }
+    },
+
+    // PX: injeta system reminder com bloqueios recentes para que o LLM
+    // saiba do bloqueio MESMO se o tool result foi cortado/truncado.
+    // Roda antes de cada chamada de chat e adiciona ao system prompt.
+    "experimental.chat.system.transform": async (_input, output) => {
+      const blocks = getActiveBlocks();
+      if (blocks.length === 0) return;
+
+      const lines = blocks.map(
+        (b) =>
+          `- \`${b.filePath}\` (${b.action}, agente=${b.agent}, ${Math.round(b.ageMs / 1000)}s atras): ${b.reason}`,
+      );
+      output.system.push(
+        `\n<system-reminder>\n` +
+          `[path-boundary] ${blocks.length} escrita(s) bloqueada(s) recente(s):\n` +
+          `${lines.join("\n")}\n` +
+          `Para liberar, adicione o pattern ao .harness/harness-allowlist.json ou use a tool harness-allowlist.\n` +
+          `</system-reminder>\n`,
+      );
     },
   };
 };

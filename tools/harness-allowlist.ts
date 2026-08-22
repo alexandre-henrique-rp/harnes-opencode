@@ -18,6 +18,7 @@
 import { tool } from "@opencode-ai/plugin";
 import * as fs from "fs";
 import * as path from "path";
+import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
 import * as os from "os";
 
 const GLOBAL_ALLOWLIST = path.join(
@@ -60,8 +61,66 @@ function ensureProjectAllowlist(cwd: string): string {
   return filePath;
 }
 
+function eventsJsonlPath(cwd: string): string {
+  return path.join(cwd, ".harness", "events.jsonl");
+}
+
+function getAutoConfirmFlag(): boolean {
+  return process.env.HARNESS_ALLOWLIST_AUTO_CONFIRM === "1";
+}
+
+interface AuditEvent {
+  ts: string;
+  tool: "harness-allowlist";
+  action: string;
+  pattern: string;
+  type: string;
+  target: string;
+  result: "requested" | "approved" | "blocked";
+  reason?: string;
+}
+
+function writeAuditEvent(cwd: string, event: AuditEvent): void {
+  try {
+    const eventsPath = eventsJsonlPath(cwd);
+    const dir = path.dirname(eventsPath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.appendFileSync(eventsPath, JSON.stringify(event) + "\n");
+  } catch {
+    // best-effort: falha no audit nao deve bloquear a operacao
+  }
+}
+
+function checkConfirmationGate(args: {
+  action: string;
+  pattern: string;
+  type: string;
+  target: string;
+  cwd: string;
+}): { requiresConfirmation: boolean; reason?: string } {
+  const { action, pattern, type, target, cwd } = args;
+
+  // target=global SEMPRE exige confirmacao humana (afeta todos os projetos)
+  if (target === "global") {
+    return {
+      requiresConfirmation: true,
+      reason: "target=global afeta todos os projetos — confirmacao humana obrigatoria",
+    };
+  }
+
+  // Se HARNESS_ALLOWLIST_AUTO_CONFIRM=1, permite bypass (CI/script)
+  if (getAutoConfirmFlag()) {
+    return { requiresConfirmation: false };
+  }
+
+  // Default fail-secure: exige confirmacao
+  return {
+    requiresConfirmation: true,
+    reason: "HARNESS_ALLOWLIST_AUTO_CONFIRM=1 para bypass (CI/scripts)",
+  };
+}
+
 export default tool({
-  name: "harness-allowlist",
   description:
     "Gerencia o allowlist merged (project + global). Acoes: list (mostra regras), add (adiciona pattern), remove (remove pattern). Use para liberar paths bloqueados pelo path-boundary.",
   args: {
@@ -70,27 +129,39 @@ export default tool({
       .describe("Acao a executar: list, add ou remove"),
     pattern: tool.schema
       .string()
-      .optional()
       .describe("Pattern glob (ex: 'docs/**', 'src/legacy/**'). Obrigatorio para add/remove."),
     type: tool.schema
       .enum(["allow", "deny"])
-      .optional()
-      .default("allow")
       .describe("Tipo de regra: allow (default) ou deny"),
     target: tool.schema
       .enum(["project", "global"])
-      .optional()
-      .default("project")
       .describe("Onde adicionar/remover: project (default, .harness/harness-allowlist.json) ou global (~/.config/opencode/...)"),
   },
-  async execute({ action, pattern, type = "allow", target = "project" }, context) {
-    const cwd = context?.directory || process.cwd();
+  async execute(rawArgs: any, rawContext: any) {
+    const args = (rawArgs && typeof rawArgs === "object" && !Array.isArray(rawArgs) ? rawArgs : {}) as Record<string, any>;
+    const action = typeof args.action === "string" ? args.action : "";
+    const pattern = typeof args.pattern === "string" ? args.pattern : "";
+    const type = typeof args.type === "string" ? args.type : "allow";
+    const target = typeof args.target === "string" ? args.target : "project";
+    const context = (rawContext && typeof rawContext === "object" ? rawContext : {}) as Record<string, any>;
+    const cwd = resolveProjectCwd(context, { log: console.error });
     const filePath = target === "project"
       ? ensureProjectAllowlist(cwd)
       : GLOBAL_ALLOWLIST;
 
     // action=list
     if (action === "list") {
+      // Auditoria: toda chamada é logada (mesmo read-only)
+      writeAuditEvent(cwd, {
+        ts: new Date().toISOString(),
+        tool: "harness-allowlist",
+        action: "list",
+        pattern: "",
+        type: "",
+        target: "",
+        result: "approved",
+      });
+
       const projectFile = projectAllowlistPath(cwd);
       const projectExists = fs.existsSync(projectFile);
       const globalExists = fs.existsSync(GLOBAL_ALLOWLIST);
@@ -103,6 +174,15 @@ export default tool({
           const data = readJSON(projectFile);
           (data.allow || []).forEach((p) => allowSet.add(`[project] ${p}`));
           (data.deny || []).forEach((p) => denySet.add(`[project] ${p}`));
+          if (Array.isArray((data as any).rules)) {
+            for (const r of (data as any).rules) {
+              if (r?.pattern) {
+                const t = r.type === "deny" ? "deny" : "allow";
+                if (t === "deny") denySet.add(`[project] ${r.pattern}`);
+                else allowSet.add(`[project] ${r.pattern}`);
+              }
+            }
+          }
         } catch (e) {
           // ignora
         }
@@ -112,6 +192,15 @@ export default tool({
           const data = readJSON(GLOBAL_ALLOWLIST);
           (data.allow || []).forEach((p) => allowSet.add(`[global] ${p}`));
           (data.deny || []).forEach((p) => denySet.add(`[global] ${p}`));
+          if (Array.isArray((data as any).rules)) {
+            for (const r of (data as any).rules) {
+              if (r?.pattern) {
+                const t = r.type === "deny" ? "deny" : "allow";
+                if (t === "deny") denySet.add(`[global] ${r.pattern}`);
+                else allowSet.add(`[global] ${r.pattern}`);
+              }
+            }
+          }
         } catch (e) {
           // ignora
         }
@@ -141,6 +230,31 @@ export default tool({
 
     // action=add
     if (action === "add") {
+      // Registra evento de auditoria ANTES de qualquer modificacao
+      writeAuditEvent(cwd, {
+        ts: new Date().toISOString(),
+        tool: "harness-allowlist",
+        action: "add",
+        pattern,
+        type,
+        target,
+        result: "requested",
+      });
+
+      // Confirmation gate: fail-secure by default
+      const gate = checkConfirmationGate({ action, pattern, type, target, cwd });
+      if (gate.requiresConfirmation) {
+        return {
+          success: false,
+          requiresConfirmation: true,
+          action,
+          pattern,
+          type,
+          target,
+          hint: gate.reason,
+        };
+      }
+
       if (!fs.existsSync(filePath)) {
         if (target === "project") ensureProjectAllowlist(cwd);
         else return { success: false, error: `Allowlist global nao existe: ${GLOBAL_ALLOWLIST}` };
@@ -153,8 +267,22 @@ export default tool({
         return { success: false, error: `Falha ao parsear ${filePath}: ${(e as Error).message}` };
       }
 
+      let existsInRules = false;
+      if (Array.isArray((data as any).rules)) {
+        const rules: any[] = (data as any).rules;
+        existsInRules = rules.some((r) => r && r.pattern === pattern && (r.type || "allow") === type);
+        if (!existsInRules) {
+          rules.push({ pattern, type, target: target || "project" });
+        }
+      }
+
       const list = type === "allow" ? (data.allow ||= []) : (data.deny ||= []);
-      if (list.includes(pattern)) {
+      const existsInList = list.includes(pattern);
+      if (!existsInList) {
+        list.push(pattern);
+      }
+
+      if (existsInList && (!Array.isArray((data as any).rules) || existsInRules)) {
         return {
           success: true,
           alreadyExists: true,
@@ -163,8 +291,19 @@ export default tool({
         };
       }
 
-      list.push(pattern);
       writeJSON(filePath, data);
+
+      // Registra aprovacao no audit trail
+      writeAuditEvent(cwd, {
+        ts: new Date().toISOString(),
+        tool: "harness-allowlist",
+        action: "add",
+        pattern,
+        type,
+        target,
+        result: "approved",
+      });
+
       return {
         success: true,
         added: pattern,
@@ -177,6 +316,31 @@ export default tool({
 
     // action=remove
     if (action === "remove") {
+      // Registra evento de auditoria ANTES de qualquer modificacao
+      writeAuditEvent(cwd, {
+        ts: new Date().toISOString(),
+        tool: "harness-allowlist",
+        action: "remove",
+        pattern,
+        type,
+        target,
+        result: "requested",
+      });
+
+      // Confirmation gate: fail-secure by default
+      const gate = checkConfirmationGate({ action, pattern, type, target, cwd });
+      if (gate.requiresConfirmation) {
+        return {
+          success: false,
+          requiresConfirmation: true,
+          action,
+          pattern,
+          type,
+          target,
+          hint: gate.reason,
+        };
+      }
+
       if (!fs.existsSync(filePath)) {
         return { success: false, error: `Allowlist nao existe: ${filePath}` };
       }
@@ -188,17 +352,44 @@ export default tool({
         return { success: false, error: `Falha ao parsear ${filePath}: ${(e as Error).message}` };
       }
 
+      let foundInRules = false;
+      if (Array.isArray((data as any).rules)) {
+        const rules: any[] = (data as any).rules;
+        const idx = rules.findIndex((r) => r && r.pattern === pattern && (r.type || "allow") === type);
+        if (idx !== -1) {
+          rules.splice(idx, 1);
+          foundInRules = true;
+        }
+      }
+
       const list = type === "allow" ? (data.allow || []) : (data.deny || []);
       const idx = list.indexOf(pattern);
-      if (idx === -1) {
+      let foundInList = false;
+      if (idx !== -1) {
+        list.splice(idx, 1);
+        foundInList = true;
+      }
+
+      if (!foundInList && !foundInRules) {
         return {
           success: false,
           error: `Pattern "${pattern}" nao encontrado em ${type} (${target})`,
         };
       }
 
-      list.splice(idx, 1);
       writeJSON(filePath, data);
+
+      // Registra aprovacao no audit trail
+      writeAuditEvent(cwd, {
+        ts: new Date().toISOString(),
+        tool: "harness-allowlist",
+        action: "remove",
+        pattern,
+        type,
+        target,
+        result: "approved",
+      });
+
       return {
         success: true,
         removed: pattern,

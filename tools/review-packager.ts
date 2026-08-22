@@ -9,17 +9,17 @@ import { tool } from "@opencode-ai/plugin";
 import { execSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
+import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
 
 export default tool({
-  name: "review-packager",
   description: "Gera um pacote com diff detalhado e histórico de commits entre BASE e HEAD, gravando-o em um arquivo temporário.",
   args: {
     baseCommit: tool.schema.string().describe("Commit, branch ou tag de base (ex: main, git rev-parse HEAD antes da tarefa)"),
-    headCommit: tool.schema.string().default("HEAD").describe("Commit, branch ou tag de destino (ex: HEAD)"),
-    outFile: tool.schema.string().optional().describe("Caminho opcional do arquivo de saída. Se omitido, salva sob .harness/tmp/")
+    headCommit: tool.schema.string().describe("Commit, branch ou tag de destino (ex: HEAD)"),
+    outFile: tool.schema.string().describe("Caminho opcional do arquivo de saída. Se omitido, salva sob .harness/tmp/")
   },
   async execute({ baseCommit, headCommit = "HEAD", outFile }, context) {
-    const cwd = context?.directory || process.cwd();
+    const cwd = resolveProjectCwd(context, { log: console.error });
     const harnessTmpDir = path.resolve(cwd, ".harness", "tmp");
 
     // Validações básicas de commit no Git

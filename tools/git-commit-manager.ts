@@ -9,18 +9,24 @@ import { tool } from "@opencode-ai/plugin";
 import { execSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
+import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
 
 export default tool({
-  name: "git-commit-manager",
   description: "Cria um commit semântico automático baseado no log de uma task concluída.",
   args: {
     taskId: tool.schema.string().describe("ID da task (ex: T001)"),
     sprintId: tool.schema.string().describe("ID da sprint (ex: S01)"),
-    type: tool.schema.enum(["feat", "fix", "docs", "test", "refactor", "chore"]).default("feat").describe("Tipo semântico do commit"),
+    type: tool.schema.enum(["feat", "fix", "docs", "test", "refactor", "chore"]).describe("Tipo semântico do commit"),
   },
   async execute({ taskId, sprintId, type }, context) {
-    const cwd = context?.directory || process.cwd();
-    const logPath = path.join(cwd, ".harness", "sprints", sprintId, "tasks", `${taskId}_LOG.json`);
+    let cwd = resolveProjectCwd(context, { log: console.error });
+    let searchCwd = cwd;
+    let harnessDir = path.join(searchCwd, ".harness");
+    while (!fs.existsSync(harnessDir) && searchCwd !== path.parse(searchCwd).root) {
+      searchCwd = path.dirname(searchCwd);
+      harnessDir = path.join(searchCwd, ".harness");
+    }
+    const logPath = path.join(harnessDir, "sprints", sprintId, "tasks", `${taskId}_LOG.json`);
 
     if (!fs.existsSync(logPath)) {
       return { success: false, error: `Log da task ${taskId} nao encontrado para gerar commit.` };
@@ -42,7 +48,7 @@ export default tool({
       
       // Also add the log and prompt files
       execSync(`git add "${path.relative(cwd, logPath)}"`, { cwd });
-      const promptPath = path.join(cwd, ".harness", "sprints", sprintId, "tasks", `${taskId}_PROMPT.md`);
+      const promptPath = path.join(harnessDir, "sprints", sprintId, "tasks", `${taskId}_PROMPT.md`);
       if (fs.existsSync(promptPath)) {
         execSync(`git add "${path.relative(cwd, promptPath)}"`, { cwd });
       }

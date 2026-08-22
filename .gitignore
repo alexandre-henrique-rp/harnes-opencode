@@ -1,49 +1,23 @@
-# Node / TypeScript
-node_modules/
+node_modules
+package.json
+package-lock.json
+bun.lock
+.gitignorebackup/
+tmp/
+.harness/tmp/
+.harness/audit/
+.harness/sandbox-diagnostic.json
+.ai-jail
+.env
+.env.local
+.env.*
 *.log
-npm-debug.log*
-pnpm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-store/
-
-# Coverage
-coverage/
-.nyc_output/
-
-# Build artifacts
+.DS_Store
+.idea/
+.vscode/
 dist/
 build/
-*.tsbuildinfo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Backups do install.sh
-*.bak.*
-*.bak
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# Harness runtime (auditoria é local, nao versionada)
-.harness/audit/
-.harness/sessions/
-
-# Env / secrets
-.env
-.env.*
-secrets/
-*.pem
-*.key
-
-.harness/
-.mimocode/
-.ai-jail
-node_modules/
-tmp/
+coverage/
+*.tar.gz
+*.zip
+*.tgz

@@ -8,18 +8,28 @@ import { tool } from "@opencode-ai/plugin";
 import * as fs from "fs";
 import * as path from "path";
 import { execSync } from "child_process";
+import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
 
 export default tool({
-  name: "changelog-automator",
   description: "Atualiza o arquivo CHANGELOG.md lendo os logs de tarefas concluídas e o histórico recente do Git.",
   args: {
     version: tool.schema.string().describe("Versão do release (ex: 1.2.0)"),
     sprintId: tool.schema.string().optional().describe("Se informado, consolida apenas baseado nesta sprint."),
+    changes: tool.schema.array(tool.schema.string()).optional().describe("Lista de alterações adicionadas no release."),
   },
-  async execute({ version, sprintId }, context) {
-    const cwd = context?.directory || process.cwd();
-    const changelogPath = path.join(cwd, "CHANGELOG.md");
-    const harnessDir = path.join(cwd, ".harness");
+  async execute({ version, sprintId, changes }, context) {
+    let cwd = resolveProjectCwd(context, { log: console.error });
+    let searchCwd = cwd;
+    let harnessDir = path.join(searchCwd, ".harness");
+    while (!fs.existsSync(harnessDir) && searchCwd !== path.parse(searchCwd).root) {
+      searchCwd = path.dirname(searchCwd);
+      harnessDir = path.join(searchCwd, ".harness");
+    }
+    if (!fs.existsSync(harnessDir)) {
+      searchCwd = cwd;
+      harnessDir = path.join(cwd, ".harness");
+    }
+    const changelogPath = path.join(searchCwd, "CHANGELOG.md");
 
     try {
       let recentCommits = "";
@@ -31,6 +41,14 @@ export default tool({
 
       const today = new Date().toISOString().split("T")[0];
       let newEntry = `## [${version}] - ${today}\n\n`;
+
+      if (changes && changes.length > 0) {
+        newEntry += `### Alterações\n`;
+        changes.forEach((c: string) => {
+          newEntry += `- ${c}\n`;
+        });
+        newEntry += `\n`;
+      }
 
       if (sprintId) {
         const sprintDbPath = path.join(harnessDir, "sprints", `${sprintId}.json`);

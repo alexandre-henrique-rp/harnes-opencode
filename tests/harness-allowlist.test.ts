@@ -13,6 +13,7 @@ import harnessAllowlist from "../tools/harness-allowlist.ts";
 
 // Diretorio de teste isolado
 const testRoot = fs.mkdtempSync(path.join(os.tmpdir(), "harness-allowlist-test-"));
+process.env.HARNESS_ALLOWLIST_AUTO_CONFIRM = "1";
 
 test("harness-allowlist — gerenciamento de allowlist", async (t) => {
   await t.test("1. list — cria .harness/harness-allowlist.json se nao existir", async () => {

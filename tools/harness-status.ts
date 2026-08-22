@@ -14,15 +14,15 @@
 import { tool } from "@opencode-ai/plugin";
 import * as fs from "fs";
 import * as path from "path";
+import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
 
 export default tool({
-  name: "harness-status",
   description:
     "Mostra o estado atual do workflow Harness v6. Le .harness/state.json + events.jsonl, retorna fase, progresso, sprint, ultimo evento.",
   args: {
     verbose: tool.schema
       .boolean()
-      .optional()
+      
       .describe("Se true, retorna detalhes de cada fase (scores, timestamps, attempts)"),
   },
   async execute({ verbose = false }, context) {
@@ -37,8 +37,15 @@ export default tool({
     });
 
     try {
-      const cwd = context?.directory || process.cwd();
-      const harnessDir = path.join(cwd, ".harness");
+      let cwd = resolveProjectCwd(context, { log: console.error });
+      let harnessDir = path.join(cwd, ".harness");
+      
+      // Procura subindo os diretórios caso esteja executando dentro de uma subpasta
+      while (!fs.existsSync(harnessDir) && cwd !== path.parse(cwd).root) {
+        cwd = path.dirname(cwd);
+        harnessDir = path.join(cwd, ".harness");
+      }
+
       const statePath = path.join(harnessDir, "state.json");
       const eventsPath = path.join(harnessDir, "events.jsonl");
       const stateMachinePath = path.join(harnessDir, "state-machine.json");
@@ -93,8 +100,8 @@ export default tool({
       let lastEvents: any[] = [];
       try {
         if (fs.existsSync(eventsPath)) {
-          const content = fs.readFileSync(eventsPath, "utf8") || "";
-          const lines = content.trim().split("\n").filter(Boolean);
+          const content = String(fs.readFileSync(eventsPath, "utf8") || "");
+          const lines = content ? String(content).split("\n").map(l => l.trim()).filter(Boolean) : [];
           lastEvents = lines
             .slice(-10)
             .map((l) => { try { return JSON.parse(l); } catch { return null; } })

@@ -1,0 +1,97 @@
+{
+  "_type": "harness-business-rules-v6",
+  "_description": "Template para o arquivo vivo .harness/business-rules.json que cataloga todas as regras de negócio detectadas ou explicitadas. Evolui junto com o projeto. Cada regra vira pelo menos 1 contract test.",
+  "version": "1.0.0",
+  "lastUpdated": "{{ISO8601}}",
+  "source": "auto-detected | user-provided | doc-extracted | manual-edit",
+  "metadata": {
+    "totalRules": 0,
+    "critical": 0,
+    "advisory": 0,
+    "coveredByTests": 0,
+    "uncoveredByTests": 0
+  },
+  "rules": [
+    {
+      "id": "BR-001",
+      "description": "Exemplo: Finalizar atendimento gera ordem de pagamento com valor da tabela do médico",
+      "trigger": {
+        "method": "POST",
+        "path": "/api/atendimentos/{id}/finalizar",
+        "actor": "medico"
+      },
+      "criticality": "critical",
+      "source": "user-provided",
+      "addedAt": "{{ISO8601}}",
+      "lastEditedBy": "user",
+      "entities": ["atendimento", "ordem_pagamento", "medico", "tabela_precos"],
+      "effects": [
+        {
+          "entity": "ordem_pagamento",
+          "mustExist": true,
+          "verifyEndpoint": {
+            "method": "GET",
+            "path": "/api/ordens?atendimento_id={id}",
+            "expectedStatus": 200
+          },
+          "fieldChecks": [
+            {
+              "field": "items[0].valor",
+              "rule": "match",
+              "source": "tabela_precos[procedimento].valor",
+              "description": "Valor deve vir da tabela de preços do médico para o procedimento"
+            },
+            {
+              "field": "items[0].medico_id",
+              "rule": "equals",
+              "source": "context.medico_id",
+              "description": "FK deve apontar para o médico que finalizou o atendimento"
+            },
+            {
+              "field": "items[0].status",
+              "rule": "equals",
+              "value": "pendente",
+              "description": "Ordem nasce com status pendente, não paga"
+            },
+            {
+              "field": "items.length",
+              "rule": "equals",
+              "value": 1,
+              "description": "Exatamente 1 ordem por atendimento"
+            }
+          ]
+        }
+      ],
+      "specRefs": ["US-005", "AC-005-1", "AC-005-2"],
+      "testsCovered": ["CT-005"],
+      "status": "active",
+      "notes": "Regra crítica — bug histórico: ordem não era gerada e teste passava porque status era 200."
+    }
+  ],
+  "schema": {
+    "_comment": "Schema de validação dos campos de cada rule",
+    "id": "string, kebab-case após prefixo BR-, ex: BR-001",
+    "description": "string, 1 frase clara do que a regra garante",
+    "trigger.method": "GET|POST|PUT|PATCH|DELETE",
+    "trigger.path": "string, path do endpoint que dispara a regra",
+    "trigger.actor": "string opcional, quem executa (medico, paciente, sistema)",
+    "criticality": "critical (bloqueia sprint) | advisory (registra)",
+    "source": "auto-detected | user-provided | doc-extracted | manual-edit",
+    "entities[]": "array de nomes de entidades/tabelas envolvidas",
+    "effects[]": "array de efeitos colaterais obrigatórios",
+    "effects[].entity": "string, entidade afetada (ex: ordem_pagamento)",
+    "effects[].mustExist": "boolean, se true a entidade DEVE ser criada/modificada",
+    "effects[].verifyEndpoint.method": "GET|POST",
+    "effects[].verifyEndpoint.path": "string, endpoint para verificar o efeito",
+    "effects[].verifyEndpoint.expectedStatus": "int, status HTTP esperado",
+    "effects[].fieldChecks[]": "array de validações por campo",
+    "effects[].fieldChecks[].field": "string, caminho JSON do campo (suporta notação de array: items[0].valor)",
+    "effects[].fieldChecks[].rule": "equals | match | contains | not-empty | in-range",
+    "effects[].fieldChecks[].value": "valor literal (se rule=equals|not-empty|in-range)",
+    "effects[].fieldChecks[].source": "caminho para valor dinâmico (se rule=match|equals com source)",
+    "effects[].fieldChecks[].description": "string, o que essa validação garante",
+    "specRefs[]": "IDs de US/AC da SPEC.md que essa regra cobre",
+    "testsCovered[]": "IDs de contract tests (CT-XXX) que validam essa regra",
+    "status": "active | deprecated | pending-review"
+  }
+}
