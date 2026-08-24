@@ -84,14 +84,21 @@ Se a task casa com `TRIVIAL_PATTERNS` (ver `/harness-quick`) E `state.phase === 
 
 ## Phase 5 fan-out (Build + Quality)
 
-Dispare **5 workers em paralelo**:
+**Fonte única de verdade:** [`state-machine.json`](file:///home/kingdev/Documentos/Opencode_agents_v6/state-machine.json) (`phase.5.build`). Em caso de divergência entre este prompt e a state machine, a state machine prevalece.
 
-1. `backend` + `frontend` + `tester` (sempre)
-2. `security` (sempre — auditoria estática)
-3. `code-reviewer` (sempre)
-4. `lgpd-officer` (**só se `containsPII: true`**)
+Dispare **3 workers em paralelo** (`maxParallel: 3`):
 
-Espere todos retornarem, então valide gate agregado de **5 gates essenciais** (ver `qa-gate.md`).
+1. `backend` (sempre)
+2. `frontend` (sempre)
+3. `tester` (sempre)
+
+Apos os 3 retornarem, **sequencialmente**:
+
+4. `security` (sempre — auditoria estatica; roda apos build para evitar OOM em maquinas com pouca RAM)
+5. `code-reviewer` (sempre)
+6. `lgpd-officer` (**so se `state.containsPII === true`**)
+
+Espere todos retornarem, entao valide o gate agregado `all-of` (ver `qa-gate.md`).
 
 ---
 

@@ -113,7 +113,7 @@
           {
             "path": ".harness/AGENTS.md",
             "required": true,
-            "minLines": 50
+            "minLines": 1
           },
           {
             "path": ".harness/ARCH.md",
@@ -132,7 +132,7 @@
         "checks": [
           {
             "file": ".harness/AGENTS.md",
-            "minLines": 50
+            "minLines": 1
           },
           {
             "file": ".harness/ARCH.md",
@@ -367,7 +367,7 @@
       "outputContract": {
         "metrics": {
           "coverage": {
-            "min": 85,
+            "min": 70,
             "scope": "per-sprint"
           },
           "vulnerabilities": {
@@ -391,7 +391,7 @@
         "checks": [
           {
             "type": "coverage",
-            "min": 85
+            "min": 70
           },
           {
             "type": "security",

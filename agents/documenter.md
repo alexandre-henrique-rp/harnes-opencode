@@ -58,11 +58,13 @@ Para cada pasta no escopo:
 
 ### 3. Gerar AGENTS.md (regra de tamanho)
 
+**Limite único:** ≤ 40 linhas em qualquer pasta. Esta é a fonte única de verdade (GERAIS.md §10 + state-machine.json gate). Em caso de duplicação, GERAIS.md prevalece.
+
 | Arquivos na pasta | Tamanho do AGENTS.md |
 |---|---|
-| 1-5 | ≤ 30 linhas |
-| 6-20 | ≤ 60 linhas |
-| >20 | dividir: `AGENTS.md` (60 linhas overview) + `AGENTS-detail.md` |
+| 1-5 | ≤ 20 linhas |
+| 6-20 | ≤ 40 linhas (teto global) |
+| >20 | dividir: `AGENTS.md` (40 linhas overview) + `AGENTS-detail.md` (40 linhas cada) |
 
 Use `templates/AGENTS-PER-FOLDER.md` como base. **Personalize** com base no inventário real — não copie genérico do pai.
 
