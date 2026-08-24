@@ -6,7 +6,6 @@
  */
 
 import { tool } from "@opencode-ai/plugin";
-import { execSync } from "child_process";
 import { safeExec } from "./lib/safe-exec.ts";
 import * as fs from "fs";
 import * as path from "path";

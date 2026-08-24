@@ -22,8 +22,6 @@ import * as fs from "fs";
 import * as path from "path";
 import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
 import * as os from "os";
-import { execSync } from "child_process";
-
 import {
   loadMergedAllowlist,
   addToProjectAllowlist,
