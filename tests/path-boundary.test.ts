@@ -343,6 +343,8 @@ test("path-boundary — suite P0 (PRD-04)", async (t) => {
         stderrChunks.push(String(chunk));
         return true;
       };
+      const origLog = process.env.HARNESS_PLUGIN_LOG;
+      process.env.HARNESS_PLUGIN_LOG = "1";
 
       const { plugin, projectDir, cleanup } = await setupPlugin(
         null,
@@ -362,6 +364,8 @@ test("path-boundary — suite P0 (PRD-04)", async (t) => {
         );
       } finally {
         (process.stderr as any).write = origWrite;
+        if (origLog === undefined) delete process.env.HARNESS_PLUGIN_LOG;
+        else process.env.HARNESS_PLUGIN_LOG = origLog;
         cleanup();
       }
     },
