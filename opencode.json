@@ -3,7 +3,16 @@
   "lsp": true,
   "formatter": true,
   "instructions": ["~/.config/opencode/GERAIS.md", "./system/objectivity.md"],
-  "plugin": ["./plugins/audit-logger.ts"],
+  "plugin": [
+    "./plugins/path-boundary.ts",
+    "./plugins/audit-logger.ts",
+    "./plugins/status-injector.ts",
+    "./plugins/context-compressor.ts",
+    "./plugins/prompt-cache-prefixer.ts",
+    "./plugins/token-budget.ts",
+    "./plugins/structured-thinking.ts",
+    "./plugins/stuck-worker-watchdog.ts"
+  ],
   "permission": {
     "bash": {
       "*": "allow",

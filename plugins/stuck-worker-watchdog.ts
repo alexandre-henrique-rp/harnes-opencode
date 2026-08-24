@@ -12,8 +12,12 @@
  *
  * Ação (não destrutiva — OpenCode runtime não permite abortar agent):
  *   - Loga warn em audit
- *   - Injeta <system-reminder> no model.complete.after quando detecta
+ *   - Injeta <system-reminder> via experimental.chat.system.transform quando detecta
  *   - Cooldown de 60s entre reminders para não poluir contexto
+ *
+ * Migração v6.6.2: trocado de `model.complete.after` (hook inexistente em
+ * @opencode-ai/plugin 1.18.3) para `experimental.chat.system.transform`
+ * (output.system.push).
  *
  * Config (opencode.json):
  *   "stuckWorkerWatchdog": {
@@ -102,19 +106,8 @@ function hashCall(tool: string, args: unknown): string {
   return `${tool}:${(h >>> 0).toString(16)}`;
 }
 
-function appendReminder(result: unknown, reminder: string): unknown {
-  if (typeof result === "string") return result + reminder;
-  if (result && typeof result === "object") {
-    const r = result as Record<string, unknown>;
-    if (typeof r.content === "string") return { ...r, content: r.content + reminder };
-    if (Array.isArray(r.content)) {
-      return {
-        ...r,
-        content: [...r.content, { type: "text", text: reminder }],
-      };
-    }
-  }
-  return result;
+function reminderAsSystemBlock(reminder: string): string {
+  return `\n<system-reminder>\n${reminder}\n</system-reminder>\n`;
 }
 
 const REMINDER_TEMPLATE = (reason: string, threshold: number) => `<system-reminder>
@@ -181,7 +174,7 @@ export default async function StuckWorkerWatchdogPlugin(ctx: any) {
       }
     },
 
-    "model.complete.after": async (_input, output) => {
+    "experimental.chat.system.transform": async (_input, output) => {
       if (!config.enabled) return;
       const state = getState();
 
@@ -189,7 +182,6 @@ export default async function StuckWorkerWatchdogPlugin(ctx: any) {
       const idle = state.idleTooLong(config.maxIdleMs);
       if (!loop && !idle) return;
 
-      // Cooldown entre reminders para não poluir contexto
       const now = Date.now();
       if (now - state.lastReminderTs < config.reminderCooldownMs) return;
       state.lastReminderTs = now;
@@ -206,7 +198,10 @@ export default async function StuckWorkerWatchdogPlugin(ctx: any) {
         },
       });
 
-      output.result = appendReminder(output.result, REMINDER_TEMPLATE(reason, config.maxSameCallRepeats));
+      const blocks = (output as { system?: string[] }).system;
+      if (Array.isArray(blocks)) {
+        blocks.push(reminderAsSystemBlock(REMINDER_TEMPLATE(reason, config.maxSameCallRepeats)));
+      }
     },
   };
 }

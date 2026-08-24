@@ -36,13 +36,13 @@ function makeCtx(extra: Record<string, any> = {}): any {
 //   early-return em sandbox-unavailable). Ja tem testes proprios em
 //   tests/path-boundary*.test.ts.
 // - native-sandbox: idem, alem de depender de ai-jail probe.
-// - stuck-worker-watchdog: nao quebra mesmo sem hooks validos (faz polling).
 const PLUGINS = [
   { path: "../plugins/audit-logger.ts", name: "audit-logger" },
   { path: "../plugins/context-compressor.ts", name: "context-compressor" },
   { path: "../plugins/prompt-cache-prefixer.ts", name: "prompt-cache-prefixer" },
   { path: "../plugins/status-injector.ts", name: "status-injector" },
   { path: "../plugins/structured-thinking.ts", name: "structured-thinking" },
+  { path: "../plugins/stuck-worker-watchdog.ts", name: "stuck-worker-watchdog" },
   { path: "../plugins/token-budget.ts", name: "token-budget" },
 ];
 
