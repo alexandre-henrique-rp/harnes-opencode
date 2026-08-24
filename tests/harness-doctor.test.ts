@@ -34,14 +34,12 @@ test("harness-doctor — diagnostico consolidado", async (t) => {
     assert.ok(result.environment);
     assert.ok(result.harness);
     assert.ok(result.allowlist);
-    assert.ok(result.sandbox);
     assert.ok(result.audit);
     assert.ok(Array.isArray(result.recommendations));
 
-    // Environment
+    // Environment (v6.5.0: removido campo aiJail — sandbox descontinuado)
     assert.strictEqual(typeof result.environment.platform, "string");
     assert.ok(result.environment.node.startsWith("v"));
-    assert.ok(result.environment.aiJail);
 
     // Harness (sem init, deve ter initialized=false)
     assert.strictEqual(result.harness.initialized, false);
@@ -71,13 +69,13 @@ test("harness-doctor — diagnostico consolidado", async (t) => {
     assert.ok(result.allowlist.mergedCount);
   });
 
-  await t.test("5. inclui sandbox status", async () => {
+  await t.test("5. (v6.5.0) sandbox removido — relatorio nao expoe mais esse campo", async () => {
     const result = await harnessDoctor.execute(
       { report: "full" },
       { directory: testRoot }
     );
-    assert.ok(result.sandbox.recommendation);
-    assert.ok(["available", "unavailable", "disabled"].includes(result.sandbox.status));
+    // v6.5.0: sandbox removido. O relatorio nao deve mais ter campo "sandbox".
+    assert.strictEqual(result.sandbox, undefined, "campo sandbox removido em v6.5.0");
   });
 
   await t.test("6. com harness inicializado, score sobe", async () => {

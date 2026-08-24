@@ -70,12 +70,13 @@ test("Suíte de Ciclo de Vida do Harness v6 (init, status, sync, context)", asyn
 
       // Inicializa .harness/ e cria arquivo solto na raiz
       await harnessInit.execute({ project: "test-app" }, { directory: dir });
-      const legacyConfig = path.join(dir, ".ai-jail");
-      fs.writeFileSync(legacyConfig, "test-content");
+      // v6.5.0: .ai-jail removido. Testando com outro arquivo de config valido.
+      const legacyConfig = path.join(dir, "opencode.json");
+      fs.writeFileSync(legacyConfig, "{}");
 
       const syncRes = await harnessSync.execute({}, { directory: dir });
       assert.strictEqual(syncRes.success, true);
-      assert.ok(fs.existsSync(path.join(dir, ".harness", ".ai-jail")));
+      assert.ok(fs.existsSync(path.join(dir, ".harness", "opencode.json")));
       assert.ok(!fs.existsSync(legacyConfig));
     } finally {
       cleanup();
