@@ -3,7 +3,7 @@
  *
  * Sincroniza e corrige a estrutura do .harness/ em projetos já inicializados.
  * Utilidade:
- * 1. Move arquivos de configuração como `.ai-jail`, `opencode.json`, `state-machine.json` e `failure-protocol.json` para `.harness/`.
+ * 1. Move arquivos de configuração como `opencode.json`, `state-machine.json` e `failure-protocol.json` para `.harness/`.
  * 2. Migra estruturas antigas de tasks (se soltas em txt ou logs) para o novo padrão relacional JSON (ex: S01.json).
  */
 
@@ -33,8 +33,8 @@ export default tool({
     const migrations: string[] = [];
 
     // 1. Move arquivos de configuração globais para .harness/
+    // (v6.5.0: removido .ai-jail — sandbox descontinuado)
     const configFiles = [
-      ".ai-jail",
       "opencode.json",
       "state-machine.json",
       "state-machine-lean.json",

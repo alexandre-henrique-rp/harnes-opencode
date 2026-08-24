@@ -181,9 +181,9 @@ export default tool({
       JSON.stringify(agentBoundaries, null, 2)
     );
 
-    // Mover config files como .ai-jail e opencode.json se estiverem na raiz
+    // Mover config files do harness se estiverem na raiz do projeto
+    // (v6.5.0: removido .ai-jail — sandbox descontinuado)
     const configFiles = [
-      ".ai-jail",
       "opencode.json",
       "state-machine.json",
       "state-machine-lean.json",

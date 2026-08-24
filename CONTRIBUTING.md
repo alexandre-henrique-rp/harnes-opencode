@@ -27,7 +27,7 @@ O harness é composto por 4 pilares:
 > [!IMPORTANT]
 > O método de instalação oficial é via `install.sh` (curl ou execução local). O harness **não é publicado como pacote npm público**. O `npm install` serve apenas para instalar as dependências de desenvolvimento do repositório.
 >
-> **Por que `@opencode-ai/plugin` está em `dependencies` (não `devDependencies`):** os 4 plugins de runtime (`path-boundary.ts`, `audit-logger.ts`, `native-sandbox.ts`, `status-injector.ts`) importam esse SDK em produção. Manter em `devDependencies` quebraria os plugins em ambientes que executam `npm install --omit=dev`.
+> **Por que `@opencode-ai/plugin` está em `dependencies` (não `devDependencies`):** os plugins de runtime (`path-boundary.ts`, `audit-logger.ts`, `status-injector.ts`, `context-compressor.ts`, `token-budget.ts`, `structured-thinking.ts`, `prompt-cache-prefixer.ts`, `stuck-worker-watchdog.ts`) importam esse SDK em produção. Manter em `devDependencies` quebraria os plugins em ambientes que executam `npm install --omit=dev`. (v6.5.0: removido `native-sandbox.ts`.)
 
 ### Passo a Passo
 1. Faça o fork e clone o repositório do projeto:

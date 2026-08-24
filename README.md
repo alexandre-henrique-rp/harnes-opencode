@@ -35,164 +35,25 @@ Inspirado nas práticas de *vibe-coding* e Extreme Programming (XP), como progra
 ### 🌟 Diferenciais Competitivos (vs v5)
 * **Eficiência Extrema:** Core otimizado contendo apenas ~90 arquivos principais de configuração, ferramentas e plugins para um harness muito mais leve e coeso.
 * **Segurança e Boundaries:** Permissionamento baseado em 3 camadas (tool whitelist + path boundary por agente + capability grant).
-* **Sandbox ai-jail:** Execução isolada via `ai-jail` (bubblewrap/seatbelt) para proteger o sistema host durante a execução de agentes.
+* **Sandbox ai-jail:** Removido em v6.5.0 — segurança via path-boundary.
 * **Conformidade LGPD:** DPO/Advogada digital integrada de fábrica que roda de forma assíncrona ao final de cada sprint para validar a conformidade da infraestrutura e banco de dados.
 * **Strict vs Lean:** Escolha entre o fluxo corporativo completo com auditorias rigorosas ou o fluxo `lean` rápido de 3 fases (Briefing, Planejamento e Build).
 
 ---
 
-## 🛡️ Sandbox ai-jail
+## 🛡️ Segurança de escrita (v6.5.0+)
 
-O harness utiliza o **[ai-jail](https://github.com/akitaonrails/ai-jail)**, criado por [Fabio Akita (@akitaonrails)](https://github.com/akitaonrails), para isolar a execução dos agentes em nível de kernel (bubblewrap no Linux, seatbelt no macOS). Saiba mais no artigo original: [Dicas e Toolkit de IA do Akita - ai-jail](https://akitaonrails.com/2026/05/24/dicas-e-toolkit-de-ia-do-akita-ai-jail-ai-memory-ai-usagebar/).
+A partir da v6.5.0, o harness **descontinuou o sandbox ai-jail**. Toda a segurança de escrita passa a ser feita exclusivamente pelo plugin [`path-boundary`](file:///home/kingdev/Documentos/Opencode_agents_v6/plugins/path-boundary.ts), que:
 
-### Como Funciona a Proteção
+- Lê allowlist merged (projeto + global);
+- Bloqueia `ALWAYS_DENY` (state, reviews, audit, allowlist, lockfiles, etc);
+- Respeita permissões por agente (de `opencode.json` + frontmatter de `agents/*.md`);
+- Default é **fail-closed** (v6.5.0 — antes era fail-open).
 
-Quando você executa `opencode` em um projeto com o harness instalado, um **wrapper de segurança** (`~/.local/bin/opencode`) e o plugin `native-sandbox.ts` interceptam a chamada e executam as tarefas dentro do sandbox isolado pelo `ai-jail`.
+Para os 3 layers clássicos (tool whitelist + path boundary + capability grant), ver `GERAIS.md` §2 e `state-machine.json`.
 
-- **Bloqueio de Comandos Destrutivos:** Proteção ativa no nível do kernel e regex que intercepta e aborta comandos perigosos como `rm -rf /`, `rm -rf ~`, fork bombs (`:(){ :|:& };:`), formatação de disco (`mkfs.*`, `dd of=/dev/sdX`) e `chmod 777 /`.
-- **Mascaramento de Arquivos Sensíveis:** Arquivos como `.env`, `.env.local`, `credentials.json` e `harness-allowlist.json` são mascarados (parecem vazios ou inexistentes para o agente).
-- **Ocultação de Dados de Infraestrutura:** Pastas sensíveis da home como `.ssh`, `.kube`, `.aws`, `.gcloud` e `.netrc` ficam completamente invisíveis no sandbox.
-- **Preservação do Mapeamento do OpenCode:** Os diretórios `~/.config/opencode` (agentes e comandos) e `~/.opencode` (plugins e binários) permanecem acessíveis em leitura/escrita para que a CLI funcione normalmente.
-
----
-
-### Guia Completo de Parâmetros (`.harness/ai-jail.json`)
-
-Cada projeto pode customizar o isolamento editando o arquivo **`.harness/ai-jail.json`**. Abaixo está o detalhamento técnico de cada parâmetro:
-
-| Parâmetro | Tipo | Padrão no Harness | Descrição Detalhada & Impacto de Segurança |
-| :--- | :--- | :--- | :--- |
-| `rw_maps` | `string[]` | `["~/.opencode", "~/.config/opencode"]` | **Mapeamentos Leitura/Escrita (Read-Write).** Diretórios fora do projeto que o agente tem permissão para ler e modificar. Pode usar `~` para a home do usuário. Útil para caches de ferramentas (ex: `~/.cache`, `~/.npm`, `~/.pnpm-store`). |
-| `ro_maps` | `string[]` | `[]` | **Mapeamentos Somente Leitura (Read-Only).** Diretórios visíveis ao agente mas protegidos contra qualquer alteração. Ideal para bibliotecas globais, SDKs do sistema (`/usr/local`, `~/.cargo/registry`, `/usr/share`) sem risco de mutação. |
-| `hide_dotdirs` | `string[]` | `[".netrc", ".kube"]` | **Diretórios Ocultos (Dotdirs).** Pastas iniciadas por ponto na home que ficam **completamente invisíveis** dentro do sandbox. Evita vazamento de chaves SSH (`.ssh`), Kubernetes (`.kube`), AWS (`.aws`), Google Cloud (`.gcloud`) ou logins Git (`.netrc`). |
-| `mask` | `string[]` | `[".env", ".env.local", "credentials.json", "harness-allowlist.json"]` | **Arquivos Mascarados (Masked Files).** Arquivos específicos na raiz ou subpastas do projeto mascarados como vazios ou inexistentes. Impede que o agente leia credenciais de banco de dados, chaves API ou segredos. |
-| `no_docker` | `boolean` | `true` | **Bloqueio do Socket Docker.** Se `true`, bloqueia o acesso a `/var/run/docker.sock`, impedindo que o agente execute containers privilegiados para escapar do sandbox. Defina como `false` apenas em projetos que exigem `docker` ou `docker compose`. |
-| `no_private_home` | `boolean` | `true` | **Preservação do Home Real.** Se `true` (padrão do Harness v6), mantém o `$HOME` real acessível (com os mapeamentos aplicados), necessário para carregar agentes em `~/.config/opencode`. Se `false`, cria uma home privada temporária em `/tmp` isolando 100% o ambiente. |
-
----
-
-### Exemplos Práticos de Configuração
-
-#### 🔹 1. Padrão / Recomendado (Desenvolvimento Web Geral & Node.js)
-Ideal para a maioria dos projetos web, APIs e aplicações TypeScript/JavaScript.
-```json
-{
-  "rw_maps": [
-    "~/.opencode",
-    "~/.config/opencode",
-    "~/.npm"
-  ],
-  "ro_maps": [],
-  "hide_dotdirs": [
-    ".netrc",
-    ".kube",
-    ".ssh",
-    ".aws",
-    ".gcloud"
-  ],
-  "mask": [
-    ".env",
-    ".env.local",
-    ".env.production",
-    "credentials.json",
-    "harness-allowlist.json"
-  ],
-  "no_docker": true,
-  "no_private_home": true
-}
-```
-
-#### 🔹 2. Projeto com Docker & Microserviços (`docker compose`)
-Para projetos que exigem execução de containers localmente ou testes de integração com banco de dados.
-```json
-{
-  "rw_maps": [
-    "~/.opencode",
-    "~/.config/opencode",
-    "~/.docker"
-  ],
-  "ro_maps": [],
-  "hide_dotdirs": [
-    ".netrc",
-    ".kube"
-  ],
-  "mask": [
-    ".env.production",
-    "secrets/*.pem"
-  ],
-  "no_docker": false,
-  "no_private_home": true
-}
-```
-
-#### 🔹 3. Alta Segurança / Isolamento Estrito (Auditorias & CI/CD)
-Isolamento máximo: home privada temporária, Docker bloqueado, todas as chaves de nuvem/SSH ocultas e arquivos `.env` mascarados.
-```json
-{
-  "rw_maps": [],
-  "ro_maps": [
-    "/usr/share"
-  ],
-  "hide_dotdirs": [
-    ".ssh",
-    ".aws",
-    ".gcloud",
-    ".kube",
-    ".netrc",
-    ".gnupg"
-  ],
-  "mask": [
-    ".env",
-    ".env.*",
-    "*.pem",
-    "*.key",
-    "secrets/**"
-  ],
-  "no_docker": true,
-  "no_private_home": false
-}
-```
-
-#### 🔹 4. Monorepos & Linguagens Globais (Python, Go, Rust)
-Mapeia os caches globais das linguagens para garantir alta velocidade de compilação sem comprometer os dados pessoais.
-```json
-{
-  "rw_maps": [
-    "~/.opencode",
-    "~/.config/opencode",
-    "~/.cache",
-    "~/.cargo",
-    "~/.go"
-  ],
-  "ro_maps": [
-    "/usr/local/go"
-  ],
-  "hide_dotdirs": [
-    ".ssh",
-    ".aws",
-    ".kube"
-  ],
-  "mask": [
-    ".env",
-    "credentials.json"
-  ],
-  "no_docker": true,
-  "no_private_home": true
-}
-```
-
----
-
-### 🔄 Regeneração da Configuração do Sandbox
-
-O arquivo `.ai-jail` na raiz do seu projeto é gerado automaticamente a partir das configurações definidas em `.harness/ai-jail.json`.
-
-> [!TIP]
-> **Como aplicar alterações:** Sempre que você modificar o arquivo `.harness/ai-jail.json`, remova o arquivo `.ai-jail` na raiz do seu repositório:
-> ```bash
-> rm .ai-jail
-> ```
-> O Harness regenerará o `.ai-jail` atualizado automaticamente na próxima execução do OpenCode ou de qualquer ferramenta do workflow.
+> [!WARNING]
+> **v6.5.0 breaking change:** Comandos bash agora rodam sem sandbox. A segurança depende inteiramente do `path-boundary`. Projetos que dependiam de `AI_JAIL_ACTIVE=1` precisam migrar suas restrições para o allowlist.
 
 ---
 
@@ -327,7 +188,7 @@ opencode-agents-v6/
 ├── opencode.json               # Configurações globais de MCPs, permissões e plugins
 ├── state-machine.json          # Contrato de fases, transições e gates binários
 ├── GERAIS.md                   # System Prompt central do harness (bilingue PT-BR/EN)
-├── .harness/ai-jail.json       # Configuração do sandbox ai-jail por projeto
+├── .harness/ai-jail.json       # (descontinuado em v6.5.0)
 ├── agents/                     # Identidades dos 20 agentes especializados
 ├── commands/                   # Comandos expostos na interface do OpenCode (/harness-*)
 ├── plugins/                    # Plugins customizados do OpenCode (audit, path boundary)
@@ -342,17 +203,15 @@ opencode-agents-v6/
 
 Quer contribuir com o projeto? Leia nossas diretrizes completas em [CONTRIBUTING.md](file:///home/kingdev/.config/opencode/CONTRIBUTING.md) para saber como começar!
 
-### 🛡️ ai-jail — Sandbox para Agentes de IA
+### 🛡️ ai-jail — Sandbox (descontinuado em v6.5.0)
 
-O **[ai-jail](https://github.com/akitaonrails/ai-jail)** é uma ferramenta de sandboxing criada por **[Fabio Akita (@akitaonrails)](https://github.com/akitaonrails)** que isola a execução de agentes de IA em nível de kernel, usando bubblewrap (Linux) ou sandbox-exec (macOS). Ele protege o sistema host contra comandos perigosos enquanto permite que os agentes trabalhem de forma segura.
+Até a v6.4.x o harness integrava o **[ai-jail](https://github.com/akitaonrails/ai-jail)**, sandbox de kernel criado por **[Fabio Akita (@akitaonrails)](https://github.com/akitaonrails)**. A partir da v6.5.0 o ai-jail foi removido e a segurança passou a ser exercida exclusivamente pelo plugin `path-boundary`. Veja `state-machine.json` e `plugins/path-boundary.ts` para a nova política.
 
-- **Criador:** [Fabio Akita](https://github.com/akitaonrails) — [@akitaonrails](https://twitter.com/akitaonrails)
-- **Repositório:** [github.com/akitaonrails/ai-jail](https://github.com/akitaonrails/ai-jail)
-- **Artigo explicativo:** [Dicas e Toolkit de IA do Akita - ai-jail, ai-memory, ai-usagebar](https://akitaonrails.com/2026/05/24/dicas-e-toolkit-de-ia-do-akita-ai-jail-ai-memory-ai-usagebar/)
+- **Repositório original:** [github.com/akitaonrails/ai-jail](https://github.com/akitaonrails/ai-jail)
 
 ### Créditos Gerais
 
-* **Fabio Akita ([@akitaonrails](https://github.com/akitaonrails)):** Criador do ai-jail e inspirador das discussões sobre a metodologia de *vibe-coding*, TDD e disciplina extrema em engenharia de software aplicada ao desenvolvimento com IA. Conceitos e inspirações extraídos de seu blog oficial [AkitaOnRails](https://akitaonrails.com/).
+* **Fabio Akita ([@akitaonrails](https://github.com/akitaonrails)):** Inspirador das discussões sobre a metodologia de *vibe-coding*, TDD e disciplina extrema em engenharia de software aplicada ao desenvolvimento com IA. Conceitos e inspirações extraídos de seu blog oficial [AkitaOnRails](https://akitaonrails.com/).
 * **OpenCode (sst/opencode):** Runtime de alto desempenho para execução e orquestração de agentes.
 
 ---

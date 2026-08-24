@@ -3,11 +3,12 @@
  *
  * Diagnostico consolidado do ambiente + configuracao + recomendacoes.
  * Consolida:
- *   - Status do ai-jail/bwrap (via harness-workspace.diagnoseSandbox)
  *   - Estado do allowlist merged (project + global) + audit log
  *   - Status do harness (.harness/ existe? state.json? phase atual?)
  *   - Variaveis de ambiente relevantes
  *   - Recomendacoes acionaveis baseadas nos problemas encontrados
+ *
+ * Mudanca v6.5.0: removido status de ai-jail/bwrap (sandbox descontinuado).
  *
  * Saida: relatorio estruturado com score 0-100 e lista priorizada de issues.
  *
@@ -23,7 +24,6 @@ import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
 import * as os from "os";
 import { execSync } from "child_process";
 
-import { diagnoseSandbox } from "./harness-workspace.ts";
 import {
   loadMergedAllowlist,
   addToProjectAllowlist,
@@ -49,12 +49,6 @@ interface DoctorReport {
     node: string;
     bun: string | null;
     opencode: string | null;
-    aiJail: {
-      installed: boolean;
-      version: string | null;
-      bwrapWorks: boolean;
-      userNamespacesEnabled: boolean | null;
-    };
   };
   harness: {
     initialized: boolean;
@@ -75,10 +69,6 @@ interface DoctorReport {
     autoAllowDisabledByEnv: boolean;
     cooldownMs: number;
     maxPerMin: number;
-  };
-  sandbox: {
-    status: "available" | "unavailable" | "disabled";
-    recommendation: string;
   };
   resources: {
     freeRamGB: number;
@@ -270,15 +260,8 @@ export default tool({
     const nodeVer = process.version;
     const bunVer = tryExec("bun --version").output || null;
     const opencodePath = tryExec("command -v opencode").output || null;
-    const aiJailInstalled = tryExec("command -v ai-jail").ok;
-    const aiJailVersion = aiJailInstalled
-      ? tryExec("ai-jail --version 2>&1 || echo 'unknown'").output
-      : null;
 
-    // 2. Sandbox
-    const sandboxDiag = diagnoseSandbox();
-
-    // 3. Allowlist (merged)
+    // 2. Allowlist (merged)
     const merged = loadMergedAllowlist(cwd);
     const projectAllowExists = fs.existsSync(PROJECT_ALLOWLIST(cwd));
     const globalAllowExists = fs.existsSync(GLOBAL_ALLOWLIST);
@@ -300,13 +283,13 @@ export default tool({
       10
     );
 
-    // 4. Harness state
+    // 3. Harness state
     const harness = readState(cwd);
 
-    // 5. Audit
+    // 4. Audit
     const audit = readAudit(cwd);
 
-    // 5.5. Recursos do sistema (v6.6.2)
+    // 5. Recursos do sistema
     const resources = checkResources();
 
     // 6. Issues & recommendations
@@ -321,28 +304,6 @@ export default tool({
       recommendations.push({
         priority: "high",
         text: "Execute a tool 'harness-init' com project=<nome> para inicializar.",
-      });
-    }
-
-    if (!aiJailInstalled) {
-      recommendations.push({
-        priority: "low",
-        text: "ai-jail nao instalado (opcional mas recomendado para sandbox). Veja https://github.com/akitaonrails/ai-jail",
-      });
-    }
-
-    if (!sandboxDiag.bwrapWorks && sandboxDiag.aiJailInstalled) {
-      issues.push({
-        priority: "medium",
-        message: "bwrap nao funciona neste kernel (user namespaces off).",
-      });
-      recommendations.push({
-        priority: "medium",
-        text: "Para habilitar: sudo sysctl -w kernel.unprivileged_userns_clone=1",
-      });
-      recommendations.push({
-        priority: "medium",
-        text: "Ou rode opencode dentro do ai-jail: AI_JAIL_ACTIVE=1 ai-jail opencode",
       });
     }
 
@@ -400,12 +361,6 @@ export default tool({
         node: nodeVer,
         bun: bunVer,
         opencode: opencodePath,
-        aiJail: {
-          installed: aiJailInstalled,
-          version: aiJailVersion,
-          bwrapWorks: sandboxDiag.bwrapWorks,
-          userNamespacesEnabled: sandboxDiag.userNamespacesEnabled,
-        },
       },
       harness,
       allowlist: {
@@ -422,14 +377,6 @@ export default tool({
         autoAllowDisabledByEnv,
         cooldownMs,
         maxPerMin,
-      },
-      sandbox: {
-        status: sandboxDiag.alreadySandboxed || sandboxDiag.bwrapWorks
-          ? "available"
-          : !sandboxDiag.aiJailInstalled
-          ? "disabled"
-          : "unavailable",
-        recommendation: sandboxDiag.recommendation,
       },
       resources: {
         freeRamGB: resources.freeRamGB,

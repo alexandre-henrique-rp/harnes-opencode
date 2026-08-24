@@ -6,15 +6,16 @@
 # opencode.json(c) — esses arquivos sao considered sacred (config do usuario).
 #
 # O que faz:
-#   1. Detecta plataforma e dependencias (node, bun, opencode, ai-jail)
-#   2. Testa bwrap e sugere fallback
-#   3. Valida paths de MCP em opencode.json(c) e AVISA se nao baterem com $HOME
-#   4. Cria .env.example (e .env se nao existir)
-#   5. Atualiza .gitignore com paths padrao do harness
-#   6. Lista arquivos essenciais para download (--list-essentials)
-#   7. Empacota o projeto sem "sujeira" em tar.gz (--package)
-#   8. Adiciona patterns no allowlist do projeto (--add-allow, --add-deny)
-#   9. Lista o merged allowlist efetivo (--show-allowlist)
+#   1. Detecta plataforma e dependencias (node, bun, opencode)
+#   2. Valida paths de MCP em opencode.json(c) e AVISA se nao baterem com $HOME
+#   3. Cria .env.example (e .env se nao existir)
+#   4. Atualiza .gitignore com paths padrao do harness
+#   5. Lista arquivos essenciais para download (--list-essentials)
+#   6. Empacota o projeto sem "sujeira" em tar.gz (--package)
+#   7. Adiciona patterns no allowlist do projeto (--add-allow, --add-deny)
+#   8. Lista o merged allowlist efetivo (--show-allowlist)
+#
+# Mudanca v6.5.0: removido teste de ai-jail/bwrap (sandbox descontinuado).
 #
 # Para tornar o projeto portatil para outros usuarios:
 #   - O DONO do projeto deve editar manualmente opencode.json(c) e trocar
@@ -122,16 +123,8 @@ validate_environment() {
   info "Projeto: $PROJECT_ROOT"
 
   if command -v ai-jail >/dev/null 2>&1; then
-    ok "ai-jail instalado: $(command -v ai-jail)"
-    if ai-jail --exec echo __probe__ >/dev/null 2>&1; then
-      ok "bwrap funcional (kernel com user namespaces)"
-    else
-      warn "bwrap indisponivel neste kernel. Sandbox por-comando ficara desabilitado."
-      info "  Recomendacao: AI_JAIL_ACTIVE=1 ai-jail opencode"
-    fi
-  else
-    warn "ai-jail nao instalado (opcional mas recomendado)"
-    info "  https://github.com/akitaonrails/ai-jail"
+    info "ai-jail detectado, mas sandbox descontinuado em v6.5.0+."
+    info "  Path-boundary plugin cobre a seguranca de escrita."
   fi
 
   if command -v node >/dev/null 2>&1; then
@@ -424,7 +417,7 @@ setup_env() {
 
   if [[ ! -f "$example" ]]; then
     cat > "$example" <<'EOF'
-# Harness v6 - Environment variables
+# Harness v6.5.0 - Environment variables
 # Copie este arquivo para .env e preencha os valores.
 
 # Google Stitch MCP (opcional, mas recomendado para design)
@@ -433,9 +426,9 @@ STITCH_API_KEY=
 # Context7 MCP (opcional, default key compartilhada funciona para testes)
 CONTEXT7_API_KEY=ctx7sk-55f0c677-1371-4a7a-99bf-040726afbb46
 
-# Sandbox (opcional - deixe em branco para auto-detectar)
-# AI_JAIL_ACTIVE=1
-# HARNESS_NO_SANDBOX=0
+# v6.5.0+: ai-jail/bwrap removidos. Seguranca via path-boundary plugin.
+# HARNESS_PATH_BOUNDARY_MODE=fail-open   # padrao eh fail-closed
+# HARNESS_AUTO_ALLOW_ON_BLOCK=0
 EOF
     ok ".env.example criado"
   fi
@@ -473,8 +466,6 @@ ensure_gitignore() {
     "tmp/"
     ".harness/tmp/"
     ".harness/audit/"
-    ".harness/sandbox-diagnostic.json"
-    ".ai-jail"
     # Secrets
     ".env"
     ".env.local"
@@ -636,9 +627,8 @@ main() {
   echo -e "${RESET}"
   echo "  Proximos passos:"
   echo "    1. Edite .env com suas chaves (STITCH_API_KEY, etc)"
-  echo "    2. Se bwrap indisponivel: AI_JAIL_ACTIVE=1 ai-jail opencode"
-  echo "    3. Inicie uma sessao: opencode"
-  echo "    4. Para empacotar para download: ./install.sh --package dist/harness.tar.gz"
+  echo "    2. Inicie uma sessao: opencode"
+  echo "    3. Para empacotar para download: ./install.sh --package dist/harness.tar.gz"
   echo ""
   echo "  Comandos uteis:"
   echo "    ./install.sh --list-essentials   # lista o que entra no pacote"

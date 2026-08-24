@@ -5,6 +5,32 @@ All notable changes to OpenCode Agents v6 are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.5.0] - 2026-08-24
+
+### BREAKING — Sandbox ai-jail removido
+
+A integração com o sandbox de kernel `ai-jail` (criado por Fabio Akita) foi descontinuada. Toda a segurança de escrita passa a ser exercida exclusivamente pelo plugin `path-boundary`.
+
+**Removido:**
+- `plugins/native-sandbox.ts` (plugin de wrapping de comandos)
+- `tests/ai-jail-sandbox.test.ts` (testes do plugin)
+- `commands/harness-jail.md` (slash command)
+- Função `diagnoseSandbox()` em `tools/harness-workspace.ts`
+- Função `ensureAiJailConfig()` em `tools/harness-workspace.ts`
+- Seção `sandbox` no relatório de `tools/harness-doctor.ts`
+- Variáveis `AI_JAIL_ACTIVE` e `HARNESS_NO_SANDBOX` (de `tools/env.example`)
+- Arquivo `.harness/ai-jail.json` da distribuição
+- Padrão `.ai-jail` da allowlist de migração
+
+**Fortalecido (em substituição):**
+- `path-boundary-core.ts::suggestAllowPattern` — corrigido A1 (auto-allow `**` em arquivos da raiz → agora retorna o próprio nome do arquivo)
+- `path-boundary-core.ts::evaluate` — corrigido A2 (default `HARNESS_PATH_BOUNDARY_MODE` agora é `fail-closed`; valor inválido cai no fail-closed com warning)
+
+**Migration:**
+- Quem dependia de `AI_JAIL_ACTIVE=1`: migrar regras para `harness-allowlist.json` + frontmatter dos `agents/*.md`
+- Quem tinha regras em `.harness/ai-jail.json`: traduzir `rw_maps` → `allow`, `mask`/`hide_dotdirs` → `deny`
+- Modo fail-open legado: definir explicitamente `HARNESS_PATH_BOUNDARY_MODE=fail-open` no env
+
 ## [6.4.6] - 2026-08-22
 
 ### Minor — Feedback Visual, Resiliência de Testes e UX no Path Boundary
