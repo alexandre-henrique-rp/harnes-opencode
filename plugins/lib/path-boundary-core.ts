@@ -474,7 +474,10 @@ function matchesAny(filePath: string, patterns: RegExp[]): RegExp | null {
 export function suggestAllowPattern(relPath: string): string {
   if (/\.[a-z0-9]{1,5}$/i.test(relPath)) {
     const parent = relPath.substring(0, relPath.lastIndexOf("/"));
-    return parent ? `${parent}/**` : "**";
+    // A1: nunca sugerir "**" sozinho — para arquivo na raiz,
+    // retornar o nome exato (ex: "package.json") em vez de liberar tudo.
+    if (!parent) return relPath;
+    return `${parent}/**`;
   }
   return `${relPath}/**`;
 }
@@ -656,7 +659,17 @@ export function evaluate(args: {
     };
   }
 
-  const mode = process.env.HARNESS_PATH_BOUNDARY_MODE || "fail-open";
+  // A2 (v6.5.0): default e fail-CLOSED. Antes era fail-open e permitia
+  // escrita em projetos sem allowlist (politica perimissiva). Para
+  // manter compatibilidade temporaria, set HARNESS_PATH_BOUNDARY_MODE=fail-open
+  // explicitamente. Em versao futura, fail-open sera removido.
+  const RAW_MODE = process.env.HARNESS_PATH_BOUNDARY_MODE;
+  const mode = RAW_MODE === "fail-open" ? "fail-open" : "fail-closed";
+  if (RAW_MODE === undefined) {
+    warn(`HARNESS_PATH_BOUNDARY_MODE nao definido: usando default fail-closed (A2). Para fail-open explicito, defina HARNESS_PATH_BOUNDARY_MODE=fail-open.`);
+  } else if (RAW_MODE !== "fail-open" && RAW_MODE !== "fail-closed") {
+    warn(`HARNESS_PATH_BOUNDARY_MODE="${RAW_MODE}" invalido: usando default fail-closed. Valores validos: fail-open, fail-closed.`);
+  }
   const projectAllowlistPath = getProjectAllowlistPath(config.cwd);
   const hasProjectAllowlist = fs.existsSync(projectAllowlistPath);
 
