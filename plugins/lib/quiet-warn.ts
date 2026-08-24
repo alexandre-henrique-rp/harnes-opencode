@@ -29,14 +29,8 @@ const DIR = ".harness";
 export function quietWarn(pluginName: string, message: string): void {
   const line = `[${new Date().toISOString()}] [${pluginName}] ${message.trim()}\n`;
 
-  // Side-channel opcional: console.error se usuário pediu verbose ou em modo de teste
-  if (
-    process.env.HARNESS_PLUGIN_LOG === "1" ||
-    process.env.NODE_ENV === "test" ||
-    process.env.NODE_TEST_CONTEXT !== undefined ||
-    process.execArgv.includes("--test") ||
-    process.argv.includes("--test")
-  ) {
+  // Side-channel opcional: console.error SÓ se usuário pediu verbose
+  if (process.env.HARNESS_PLUGIN_LOG === "1") {
     process.stderr.write(line);
   }
 

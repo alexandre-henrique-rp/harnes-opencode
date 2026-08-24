@@ -80,7 +80,8 @@ export default async function AuditLoggerPlugin(ctx: any) {
   const worktree = project.worktree;
 
   // Resolve projectRoot com helper centralizado (resolve bug do worktree="/")
-  const projectRoot: string = resolveProjectCwd(ctx, { log: (m: string) => quietWarn("audit-logger", m) });
+  const rawProjectRoot = resolveProjectCwd(ctx, { log: (m: string) => quietWarn("audit-logger", m) });
+  const projectRoot = typeof rawProjectRoot === "string" ? rawProjectRoot : ((rawProjectRoot as any)?.directory || (rawProjectRoot as any)?.worktree || process.cwd());
 
   const logFile = path.join(projectRoot, LOG_PATH);
   const hashFile = path.join(projectRoot, HASH_FILE);
@@ -241,7 +242,7 @@ export default async function AuditLoggerPlugin(ctx: any) {
  * Relatório agregado de tokens/custo por agent/skill/sprint.
  * Chamado pelo scripts/token-report.sh.
  */
-export async function tokenUsageReport(
+async function tokenUsageReport(
   projectRoot: string,
   filter: { sprint?: string; agent?: string } = {},
 ): Promise<{
@@ -357,9 +358,8 @@ function emptyReport() {
   };
 }
 
-export { DEFAULT_COST, type CostConfig };
-
-export async function queryAuditLog(
+// Helper functions
+async function queryAuditLog(
   projectRoot: string,
   filter: {
     sprint?: string;
