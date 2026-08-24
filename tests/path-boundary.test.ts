@@ -275,6 +275,33 @@ test("path-boundary — suite P0 (PRD-04)", async (t) => {
   );
 
   await t.test(
+    "3b. ALWAYS_DENY — .harness/reviews/** → score gravável é vetado",
+    async () => {
+      const allowlist = JSON.stringify({
+        allow: ["**"],
+        deny: [],
+      });
+      const { plugin, projectDir, cleanup } = await setupPlugin(
+        allowlist,
+        "fail-open",
+      );
+      try {
+        await assert.rejects(
+          () =>
+            callWriteTool(
+              plugin,
+              path.join(projectDir, ".harness", "reviews", "code-reviewer.json"),
+            ),
+          /path-boundary.*BLOCKED/,
+          ".harness/reviews/** deve ser sempre bloqueado (impede fraude de score)",
+        );
+      } finally {
+        cleanup();
+      }
+    },
+  );
+
+  await t.test(
     "4. Allowlist corrompida (fail-open) → NÃO bloqueia escrita fora de ALWAYS_DENY (projeto sem allowlist próprio = tudo permitido)",
     async () => {
       const { plugin, projectDir, cleanup } = await setupPlugin(

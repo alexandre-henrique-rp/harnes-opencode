@@ -275,4 +275,28 @@ test("harness-advance — suite P0 (PRD-01)", async (t) => {
       cleanup();
     }
   });
+
+  await t.test("7. A7 — métricas de segurança ausentes devem bloquear o gate (não vira zero)", async () => {
+    // Cenário: gate all-of com check de seguranca exige criticalVulns=0 e highVulns=0.
+    // Sem buildMetrics.criticalVulns, o gate DEVE falhar (nao tratar undefined como 0).
+    const { dir, cleanup } = createFakeProject({}, {
+      type: "all-of",
+      checks: [
+        { type: "security", maxCritical: 0, maxHigh: 0 },
+      ],
+    });
+    try {
+      // buildMetrics SEM os campos de seguranca
+      const result = await runAdvance(dir, { buildMetrics: { coverage: 90 } });
+
+      assert.strictEqual(result.success, false, "Gate deve falhar quando métricas de segurança estão ausentes");
+      const reason = JSON.stringify(result.gateResult || {});
+      assert.ok(
+        reason.includes("undefined") || reason.includes("ausente"),
+        `Mensagem deve indicar que a metrica esta ausente, nao tratar como 0: ${reason}`
+      );
+    } finally {
+      cleanup();
+    }
+  });
 });

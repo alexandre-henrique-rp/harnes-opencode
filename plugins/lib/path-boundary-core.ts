@@ -443,6 +443,7 @@ export const ALWAYS_DENY = [
   /\.harness\/state\.json$/,
   /\.harness\/events\.jsonl$/,
   /\.harness\/audit\//,
+  /\.harness\/reviews\//,
   /\/node_modules\//,
   /\/\.git\//,
   /package-lock\.json$/,

@@ -18,6 +18,7 @@ import type { Plugin } from "@opencode-ai/plugin";
 import { appendFile, mkdir } from "node:fs/promises";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { redactSensitive } from "./lib/audit-redact.ts";
 import { createHash } from "node:crypto";
 import { resolveProjectCwd } from "./lib/resolve-project-cwd.js";
 import { quietWarn } from "./lib/quiet-warn.js";
@@ -200,7 +201,8 @@ export default async function AuditLoggerPlugin(ctx: any) {
 
     "tool.execute.before": async (input, output) => {
       const file = output.args?.filePath ?? output.args?.path;
-      const argsStr = JSON.stringify(output.args ?? {});
+      const safeArgs = redactSensitive(output.args ?? {});
+      const argsStr = JSON.stringify(safeArgs);
       const tokens = estimateTokens(argsStr);
       await log({
         timestamp: new Date().toISOString(),
@@ -210,7 +212,7 @@ export default async function AuditLoggerPlugin(ctx: any) {
         sprint: currentSprint,
         tool: input.tool,
         file: typeof file === "string" ? file : undefined,
-        args: output.args,
+        args: safeArgs,
         result: "ok",
         tokens,
       });
@@ -219,7 +221,8 @@ export default async function AuditLoggerPlugin(ctx: any) {
     "tool.execute.after": async (input, output) => {
       const resultStatus = output.error ? "error" : output.blocked ? "blocked" : "ok";
       const file = output.args?.filePath ?? output.args?.path;
-      const resultStr = JSON.stringify(output.result ?? output.error ?? {});
+      const safeResult = redactSensitive(output.result ?? output.error ?? {});
+      const resultStr = JSON.stringify(safeResult);
       const tokens = estimateTokens(resultStr);
       await log({
         timestamp: new Date().toISOString(),
@@ -231,7 +234,9 @@ export default async function AuditLoggerPlugin(ctx: any) {
         file: typeof file === "string" ? file : undefined,
         args: { status: resultStatus },
         result: resultStatus,
-        errorMessage: output.error?.message,
+        errorMessage: output.error?.message
+          ? redactSensitive(output.error.message)
+          : undefined,
         tokens,
       });
     },

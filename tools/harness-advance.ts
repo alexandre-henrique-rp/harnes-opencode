@@ -368,12 +368,16 @@ function checkCoverageMetrics(check: any, buildMetrics: any, failures: string[])
 }
 
 function checkSecurityMetrics(check: any, buildMetrics: any, failures: string[]) {
-  const crit = buildMetrics?.criticalVulns || 0;
-  const high = buildMetrics?.highVulns || 0;
-  if (crit > (check.maxCritical || 0)) {
+  const crit = buildMetrics?.criticalVulns;
+  const high = buildMetrics?.highVulns;
+  if (crit === undefined || crit === null) {
+    failures.push(`Critical vulns undefined (metrica ausente — scanner nao rodou?)`);
+  } else if (crit > (check.maxCritical || 0)) {
     failures.push(`Critical vulns ${crit} > ${check.maxCritical}`);
   }
-  if (high > (check.maxHigh || 0)) {
+  if (high === undefined || high === null) {
+    failures.push(`High vulns undefined (metrica ausente — scanner nao rodou?)`);
+  } else if (high > (check.maxHigh || 0)) {
     failures.push(`High vulns ${high} > ${check.maxHigh}`);
   }
 }
