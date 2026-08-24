@@ -11,9 +11,12 @@ import * as path from "path";
 import { resolveProjectCwd } from "./lib/resolve-project-cwd.js";
 import { quietWarn } from "./lib/quiet-warn.js";
 import {
+  _resetAutoAllowState,
+  addToProjectAllowlist,
   evaluate,
   getAgentsFromMarkdown,
   loadMergedAllowlist,
+  validateCapabilityGrant,
   type AgentPermission,
   type PathBoundaryConfig,
 } from "./lib/path-boundary-core.ts";
@@ -240,5 +243,12 @@ const PathBoundaryPlugin: Plugin = async (ctx) => {
   };
 };
 
-export { PathBoundaryPlugin, loadMergedAllowlist };
+export {
+  PathBoundaryPlugin,
+  _resetAutoAllowState,
+  addToProjectAllowlist,
+  evaluate,
+  loadMergedAllowlist,
+  validateCapabilityGrant,
+};
 export default PathBoundaryPlugin;

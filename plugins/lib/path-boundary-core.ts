@@ -345,6 +345,12 @@ function recordAutoAdd(): void {
   autoAllowRecentAdds.push(Date.now());
 }
 
+export function _resetAutoAllowState(): void {
+  autoAllowCooldown.clear();
+  autoAllowRecentAdds.length = 0;
+  allowlistCache.clear();
+}
+
 function writeAutoAllowAudit(
   cwd: string,
   entry: {
