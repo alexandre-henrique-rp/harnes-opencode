@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [6.5.0] - 2026-08-24
 
+### PATCH — A4: shell em tools centralizado e seguro
+
+Sem sandbox (decisão da seção anterior), toda chamada `execSync`/`spawnSync` virou ponto de risco. Criado `tools/lib/safe-exec.ts` com 3 helpers:
+
+- **`safeExec(cmd, args[], opts)`** — wrapper de `execFileSync`. Args como array, sem shell. Timeout default 30s. Ambiente mínimo (PATH + HOME + LANG). Bloqueia path traversal no cwd.
+- **`runGit(args[], opts)`** — wrapper para git com whitelist de subcomandos (`init`, `add`, `branch`, `commit`, `diff`, `fetch`, `log`, `rev-list`, `rev-parse`, `show`, `status`, `tag`, `stash`, `checkout`, `merge`, `rebase`, `reset`, `config`) e blacklist de opções perigosas (`--upload-pack`, `--receive-pack`, `--exec`).
+- **`safeShellExec(args[], opts)`** — escape hatch para casos legítimos de shell, com blacklist de metacaracteres (`;`, `&&`, `||`, `|`, `>`, `<`, `` ` ``, `$(`, `\n`, `\r`).
+
+**Migrados:** `git-automator`, `git-commit-manager`, `harness-checkpoint`, `review-packager`, `pr-automator`, `changelog-automator`, `vuln-checker`, `playwright-runner`, `progress-tracker`, `security-scanner`, `harness-doctor`. Zero `execSync`/`spawnSync` em `tools/` e `plugins/`.
+
+**Tests:** `tests/safe-exec.test.ts` (17 testes) — args como array não interpretam shell, exit code propagado, blacklist git, path traversal bloqueado, cwd customizado.
+
+## [6.5.0] - 2026-08-24
+
+### BREAKING — Sandbox ai-jail removido
+
 ### BREAKING — Sandbox ai-jail removido
 
 A integração com o sandbox de kernel `ai-jail` (criado por Fabio Akita) foi descontinuada. Toda a segurança de escrita passa a ser exercida exclusivamente pelo plugin `path-boundary`.

@@ -511,6 +511,39 @@ function loadProjectAllowlist(cwd: string): {
   return { allow: [], deny: [] };
 }
 
+/**
+ * Resolve symlinks e normalizacao lexica. M14 (v6.5.0+):
+ * - Se o path existe: usa fs.realpathSync (resolve todos os symlinks).
+ * - Se nao existe (criacao de arquivo novo): aplica normalizacao lexica
+ *   manual (resolve '..' e '.') e tenta realpath do parent.
+ * - Em caso de erro (perm negada, FS readonly): faz fallback para o path
+ *   original apos normalizacao lexica.
+ */
+export function resolveRealpath(p: string): string {
+  try {
+    if (fs.existsSync(p)) {
+      return fs.realpathSync(p);
+    }
+  } catch {
+    // Ignora — tenta resolver o parent
+  }
+
+  // Path nao existe: tenta resolver o parent + basename normalizado
+  try {
+    const parent = path.dirname(p);
+    const base = path.basename(p);
+    if (fs.existsSync(parent)) {
+      const realParent = fs.realpathSync(parent);
+      return path.join(realParent, base);
+    }
+  } catch {
+    // Ignora — usa normalizacao lexica
+  }
+
+  // Fallback: normalizacao lexica sem tocar no filesystem
+  return path.resolve(p);
+}
+
 export function evaluate(args: {
   agent: string;
   filePath: string;
@@ -522,7 +555,13 @@ export function evaluate(args: {
   const abs = path.isAbsolute(filePath)
     ? filePath
     : path.resolve(config.cwd, filePath);
-  const rel = path.relative(config.cwd, abs);
+
+  // M14 (v6.5.0+): resolver symlinks antes de qualquer checagem.
+  // Caso o path nao exista (criacao) ou realpath falhe, faz fallback
+  // para path.resolve mas aplica normalizacao contra '../'.
+  const resolvedAbs = resolveRealpath(abs);
+
+  const rel = path.relative(config.cwd, resolvedAbs);
 
   if (rel.startsWith("..")) {
     return {
@@ -532,17 +571,30 @@ export function evaluate(args: {
     };
   }
 
-  const deniedRegexp = matchesAny(abs, ALWAYS_DENY);
+  // M14: testa AMBOS — path original (lexical) E realpath (resolved)
+  // — contra ALWAYS_DENY. Sem isso, um symlink em .harness/reviews/
+  // apontando para src/foo.ts passaria (lexical reviews/ -> block,
+  // mas resolved src/ -> passa). Agora qualquer um dos dois que case
+  // com ALWAYS_DENY bloqueia.
+  const deniedLexical = matchesAny(abs, ALWAYS_DENY);
+  if (deniedLexical) {
+    return {
+      ok: false,
+      reason: `ALWAYS_DENY match (path): ${deniedLexical.toString()}`,
+      matchedRule: "always-deny",
+    };
+  }
+  const deniedRegexp = matchesAny(resolvedAbs, ALWAYS_DENY);
   if (deniedRegexp) {
     return {
       ok: false,
-      reason: `ALWAYS_DENY match: ${deniedRegexp.toString()}`,
+      reason: `ALWAYS_DENY match (realpath): ${deniedRegexp.toString()}`,
       matchedRule: "always-deny",
     };
   }
 
   for (const redirect of FORCE_TOOL_REDIRECT) {
-    if (redirect.pattern.test(abs)) {
+    if (redirect.pattern.test(resolvedAbs)) {
       return {
         ok: false,
         reason: `FORCE_TOOL_REDIRECT: use a tool '${redirect.tool}' (${redirect.reason})`,
