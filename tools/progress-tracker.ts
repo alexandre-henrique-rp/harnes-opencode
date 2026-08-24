@@ -8,8 +8,8 @@
 import { tool } from "@opencode-ai/plugin";
 import * as fs from "fs";
 import * as path from "path";
-import { execSync } from "child_process";
 import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
+import { safeExec } from "./lib/safe-exec.ts";
 
 export default tool({
   description: "Gera um relatório completo do progresso do projeto lendo os cabeçalhos das tasks.",
@@ -31,8 +31,14 @@ export default tool({
     }
 
     // Busca rápida usando grep para pegar status nos headers
-    const cmd = `grep -rE "^status: " "${sprintsDir}" --include="*_PROMPT.md" || true`;
-    const output = execSync(cmd).toString();
+    // A4 (v6.5.0+): safeExec com args como array; exit != 0 nao e' erro (sem matches)
+    const grepRes = safeExec("grep", [
+      "-rE",
+      "^status: ",
+      sprintsDir,
+      "--include=*_PROMPT.md",
+    ], { silentStderr: true });
+    const output = grepRes.stdout;
     
     const stats: any = {
       total: 0,

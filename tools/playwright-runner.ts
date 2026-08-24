@@ -13,11 +13,11 @@
  */
 
 import { tool } from "@opencode-ai/plugin";
-import { execSync } from "child_process";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
+import { safeExec } from "./lib/safe-exec.ts";
 
 /**
  * Calcula número ótimo de workers do Playwright baseado em RAM disponível.
@@ -44,16 +44,11 @@ function getOptimalWorkers(): number {
 /**
  * Mata processos Playwright órfãos de execuções anteriores travadas.
  * Evita acúmulo de memória de processos zumbi.
+ * A4 (v6.5.0+): usa safeExec com args como array.
  */
 function cleanupStalePlaywrightProcesses(): void {
-  try {
-    execSync(
-      `pkill -f "playwright test" 2>/dev/null; pkill -f "node.*playwright" 2>/dev/null; true`,
-      { stdio: "ignore" },
-    );
-  } catch {
-    // best-effort
-  }
+  safeExec("pkill", ["-f", "playwright test"], { silentStderr: true });
+  safeExec("pkill", ["-f", "node.*playwright"], { silentStderr: true });
 }
 
 export default tool({
@@ -118,17 +113,20 @@ export default defineConfig({
     }
 
     // 3. Monta comando de execução do Playwright
-    const testPath = testFile 
+    const testPath = testFile
       ? path.join("tests", "e2e", sprintId, testFile)
       : path.join("tests", "e2e", sprintId);
 
-    const cmd = `npx playwright test "${testPath}" || true`;
-
+    // A4 (v6.5.0+): safeExec com args como array; exit != 0 não é erro aqui
+    // (Playwright retorna != 0 quando ha falhas — isso e' tratado abaixo).
     let executionError = "";
-    try {
-      execSync(cmd, { cwd, stdio: "pipe" });
-    } catch (e) {
-      executionError = (e as Error).message;
+    const r = safeExec("npx", ["playwright", "test", testPath], {
+      cwd,
+      silentStderr: false,
+      timeoutMs: 600_000,
+    });
+    if (!r.ok && r.exitCode !== 0) {
+      executionError = r.stderr || r.stdout;
     }
 
     // 4. Se a configuração básica foi criada por nós, remove para deixar o repo limpo

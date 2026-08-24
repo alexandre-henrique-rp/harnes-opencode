@@ -2,13 +2,16 @@
  * pr-automator.ts — Harness v6 tool
  *
  * Captura o diff da branch atual em relação à main/master e gera um esqueleto rico para o Pull Request.
+ *
+ * Migração A4 (v6.5.0+): substituído execSync por runGit (safe-exec) — args
+ * sempre como array, sem interpretacao de shell.
  */
 
 import { tool } from "@opencode-ai/plugin";
-import { execSync } from "child_process";
 import * as path from "path";
 import * as fs from "fs";
 import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
+import { runGit } from "./lib/safe-exec.ts";
 
 export default tool({
   description: "Gera um resumo de Pull Request baseado nas diferenças (diff) com a branch principal.",
@@ -27,27 +30,33 @@ export default tool({
 
     try {
       // 1. Obtém a branch atual
-      const currentBranch = execSync("git branch --show-current", { cwd }).toString().trim();
-      
+      const branchRes = runGit(["branch", "--show-current"], { cwd });
+      if (!branchRes.ok) {
+        return { success: false, error: `git branch falhou: ${branchRes.stderr}` };
+      }
+      const currentBranch = branchRes.stdout.trim();
+
       if (currentBranch === baseBranch) {
         return { success: false, error: `Você já está na branch base (${baseBranch}).` };
       }
 
-      // 2. Tenta fazer git fetch para atualizar as referências
-      try {
-        execSync("git fetch", { cwd });
-      } catch (e) {}
+      // 2. Tenta fazer git fetch para atualizar as referências (best-effort)
+      runGit(["fetch"], { cwd, silentStderr: true });
 
       // 3. Pega as estatísticas de diff
       let diffStat = "";
       let diffLog = "";
-      try {
-        diffStat = execSync(`git diff --stat origin/${baseBranch}...HEAD`, { cwd }).toString();
-        diffLog = execSync(`git log origin/${baseBranch}...HEAD --pretty=format:'- %s'`, { cwd }).toString();
-      } catch (e) {
+      const originStat = runGit(["diff", "--stat", `origin/${baseBranch}...HEAD`], { cwd });
+      const originLog = runGit(["log", `origin/${baseBranch}...HEAD`, "--pretty=format:- %s"], { cwd });
+      if (originStat.ok && originLog.ok) {
+        diffStat = originStat.stdout;
+        diffLog = originLog.stdout;
+      } else {
         // Fallback local se não tiver origin
-        diffStat = execSync(`git diff --stat ${baseBranch}...HEAD`, { cwd }).toString();
-        diffLog = execSync(`git log ${baseBranch}...HEAD --pretty=format:'- %s'`, { cwd }).toString();
+        const localStat = runGit(["diff", "--stat", `${baseBranch}...HEAD`], { cwd });
+        const localLog = runGit(["log", `${baseBranch}...HEAD`, "--pretty=format:- %s"], { cwd });
+        diffStat = localStat.stdout;
+        diffLog = localLog.stdout;
       }
 
       let prContext = `## Contexto\n\n- **Sprint:** ${sprintId || "Não informada"}\n`;

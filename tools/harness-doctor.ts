@@ -28,6 +28,7 @@ import {
   loadMergedAllowlist,
   addToProjectAllowlist,
 } from "../plugins/path-boundary.ts";
+import { safeExec } from "./lib/safe-exec.ts";
 
 const PROJECT_ALLOWLIST = (cwd: string) =>
   path.join(cwd, ".harness", "harness-allowlist.json");
@@ -182,11 +183,19 @@ function readAudit(cwd: string): DoctorReport["audit"] {
 }
 
 function tryExec(cmd: string): { ok: boolean; output: string } {
-  try {
-    return { ok: true, output: execSync(cmd, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim() };
-  } catch {
-    return { ok: false, output: "" };
+  // A4 (v6.5.0+): usa safeExec. Para comandos simples como `bun --version`,
+  // o `cmd` e' uma string fixa sem interpolacao. Mantemos a interface
+  // para nao quebrar callers, mas o caminho seguro e' safeExec direto.
+  // Para `command -v <bin>`, usamos `which` (execFile, sem shell).
+  if (cmd.startsWith("command -v ")) {
+    const bin = cmd.slice("command -v ".length).trim();
+    const r = safeExec("which", [bin], { silentStderr: true });
+    return { ok: r.ok, output: r.ok ? r.stdout : "" };
   }
+  // Outros comandos simples: split por espaco e execFile
+  const parts = cmd.split(/\s+/);
+  const r = safeExec(parts[0], parts.slice(1), { silentStderr: true });
+  return { ok: r.ok, output: r.ok ? r.stdout : "" };
 }
 
 /**

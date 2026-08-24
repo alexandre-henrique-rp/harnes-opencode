@@ -7,6 +7,7 @@
 
 import { tool } from "@opencode-ai/plugin";
 import { execSync } from "child_process";
+import { safeExec } from "./lib/safe-exec.ts";
 import * as fs from "fs";
 import * as path from "path";
 import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
@@ -128,8 +129,13 @@ export default tool({
     if (checks.includes("dependencies")) {
       try {
         if (fs.existsSync(path.join(cwd, "package.json"))) {
-          const auditOutput = execSync("npm audit --json || true").toString();
-          const audit = JSON.parse(auditOutput);
+          // A4 (v6.5.0+): safeExec com args como array; exit != 0 nao e' erro aqui
+          const auditRes = safeExec("npm", ["audit", "--json"], {
+            cwd,
+            silentStderr: true,
+            timeoutMs: 120_000,
+          });
+          const audit = JSON.parse(auditRes.stdout || "{}");
           if (audit.metadata && audit.metadata.vulnerabilities) {
             const vulns = audit.metadata.vulnerabilities;
             if (vulns.critical > 0 || vulns.high > 0) {

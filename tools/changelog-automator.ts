@@ -7,8 +7,8 @@
 import { tool } from "@opencode-ai/plugin";
 import * as fs from "fs";
 import * as path from "path";
-import { execSync } from "child_process";
 import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
+import { runGit } from "./lib/safe-exec.ts";
 
 export default tool({
   description: "Atualiza o arquivo CHANGELOG.md lendo os logs de tarefas concluídas e o histórico recente do Git.",
@@ -33,9 +33,11 @@ export default tool({
 
     try {
       let recentCommits = "";
-      try {
-        recentCommits = execSync("git log -n 15 --pretty=format:'- %s'", { cwd }).toString();
-      } catch (e) {
+      // A4 (v6.5.0+): runGit com args como array
+      const logRes = runGit(["log", "-n", "15", "--pretty=format:- %s"], { cwd });
+      if (logRes.ok) {
+        recentCommits = logRes.stdout;
+      } else {
         recentCommits = "- Repositório Git não inicializado ou sem commits.";
       }
 

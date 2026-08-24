@@ -1,30 +1,29 @@
 #!/usr/bin/env node
-import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import { safeExec } from './lib/safe-exec.ts';
 
 function checkVulnerabilities(targetDir: string) {
     console.log(`[Vuln Checker] Analisando dependências via 'npm audit' em: ${targetDir}`);
     const pkgPath = path.join(targetDir, 'package.json');
-    
+
     if (!fs.existsSync(pkgPath)) {
         console.error("Erro: package.json não encontrado no diretório destino.");
         process.exit(1);
     }
-    
-    try {
-        const result = execSync('npm audit --json', { cwd: targetDir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] });
-        const audit = JSON.parse(result);
-        reportAudit(audit);
-    } catch (error: any) {
-        // npm audit exits with non-zero if vulnerabilities are found
-        if (error.stdout) {
-            try {
-                const audit = JSON.parse(error.stdout);
-                reportAudit(audit);
-            } catch (parseError) {
-                console.log("[Vuln Checker] Falha ao processar o output do audit JSON.");
-            }
+
+    // A4 (v6.5.0+): usar safeExec com args como array, sem shell
+    const r = safeExec('npm', ['audit', '--json'], {
+        cwd: targetDir,
+        silentStderr: true,
+        timeoutMs: 120_000, // npm audit pode demorar
+    });
+    if (r.stdout) {
+        try {
+            const audit = JSON.parse(r.stdout);
+            reportAudit(audit);
+        } catch (parseError) {
+            console.log("[Vuln Checker] Falha ao processar o output do audit JSON.");
         }
     }
 }

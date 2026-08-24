@@ -5,11 +5,14 @@
  * Validação defensiva de tipos em todos os parâmetros para evitar erros do tipo
  * "Cannot read properties of undefined (reading 'split')" quando o runtime do
  * opencode envia args com tipos inesperados.
+ *
+ * Migração A4 (v6.5.0+): substituído execSync por runGit (safe-exec) — args
+ * sempre como array, sem interpretacao de shell.
  */
 
 import { tool } from "@opencode-ai/plugin";
-import { execSync } from "child_process";
 import { resolveProjectCwd } from "../plugins/lib/resolve-project-cwd.js";
+import { runGit } from "./lib/safe-exec.ts";
 
 export default tool({
   description: "Automatiza as ações de status e commit do Git de forma otimizada para os agentes.",
@@ -31,7 +34,7 @@ export default tool({
 
     const action = typeof args.action === "string" ? args.action : "";
     const filesRaw = args.files;
-    const files = typeof filesRaw === "string" && filesRaw.trim() !== "" 
+    const files = typeof filesRaw === "string" && filesRaw.trim() !== ""
       ? filesRaw.split(",").map((f: string) => f.trim()).filter(Boolean)
       : [];
     const message = typeof args.message === "string" ? args.message : "";
@@ -39,12 +42,18 @@ export default tool({
 
     try {
       if (action === "status") {
-        const statusOutput = execSync("git status -s", { cwd }).toString();
-        const branchOutput = execSync("git branch --show-current", { cwd }).toString().trim();
+        const statusRes = runGit(["status", "-s"], { cwd });
+        if (!statusRes.ok) {
+          return { success: false, error: `git status falhou: ${statusRes.stderr}` };
+        }
+        const branchRes = runGit(["branch", "--show-current"], { cwd });
+        if (!branchRes.ok) {
+          return { success: false, error: `git branch falhou: ${branchRes.stderr}` };
+        }
         return {
           success: true,
-          branch: branchOutput,
-          status: statusOutput || "Nenhuma mudança não salva.",
+          branch: branchRes.stdout.trim(),
+          status: statusRes.stdout || "Nenhuma mudança não salva.",
         };
       }
 
@@ -53,14 +62,27 @@ export default tool({
           return { success: false, error: "Mensagem de commit é obrigatória." };
         }
 
-        const filesToAdd = files.length > 0
-          ? files.map((f: string) => `"${f.replace(/"/g, '\\"')}"`).join(" ")
-          : ".";
+        // git add [files...] — args como array, sem shell
+        const addArgs: string[] = files.length > 0
+          ? ["add", ...files]
+          : ["add", "-A"]; // "-A" é seguro aqui; é flag do git add, não shell
 
-        execSync(`git add ${filesToAdd}`, { cwd });
-        execSync(`git commit -m "${message.replace(/"/g, '\\"')}"`, { cwd });
+        const addRes = runGit(addArgs, { cwd });
+        if (!addRes.ok) {
+          return { success: false, error: `git add falhou: ${addRes.stderr}` };
+        }
 
-        const sha = execSync("git rev-parse HEAD", { cwd }).toString().trim();
+        // git commit -m <msg> — msg é um único arg, não concatenado
+        const commitRes = runGit(["commit", "-m", message], { cwd });
+        if (!commitRes.ok) {
+          return { success: false, error: `git commit falhou: ${commitRes.stderr}` };
+        }
+
+        const shaRes = runGit(["rev-parse", "HEAD"], { cwd });
+        if (!shaRes.ok) {
+          return { success: false, error: `git rev-parse falhou: ${shaRes.stderr}` };
+        }
+        const sha = shaRes.stdout.trim();
         return { success: true, sha, message: `Commit ${sha} realizado com sucesso.` };
       }
 
