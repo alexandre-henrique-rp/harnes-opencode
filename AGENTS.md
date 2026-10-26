@@ -1,43 +1,28 @@
-# Mapa de Contexto — OpenCode Agents v6
+# Mapa de Contexto — OpenCode Harness v7 (`opencode-harness`)
 
-Este arquivo serve como o mapa de contexto central do projeto para orientar agentes e humanos no entendimento da estrutura e tecnologias do harness.
+Este arquivo serve como o mapa de contexto central do repositório da CLI e dos templates do **OpenCode Harness v7**.
 
 ## 🚀 Tecnologias e Stack
-- **Linguagem Principal:** Node.js (v18+) & TypeScript para ferramentas e plugins.
-- **Configurações e State:** JSON / JSONC (`opencode.json`, `state-machine.json`, `failure-protocol.json`).
-- **Definição de Agentes e Comandos:** Markdown (`.md`) com frontmatter YAML interpretado pelo runtime do Opencode.
+- **Linguagem Principal:** TypeScript / Node.js ($\ge 18$), zero dependências de terceiros em produção.
+- **Paradigma:** *Spec-Anchored Development por Sprints* inspirado no `onp-spec-driven`, focado na instalação local por projeto via `.opencode/`.
+- **Distribuição:** Pacote NPM executável via `npx opencode-harness`.
 
 ---
 
-## 📋 Briefing do Projeto
-O **OpenCode Agents v6** é um harness de desenvolvimento multi-agente declarativo e auditável de alta fidelidade. Inspirado nas práticas de *vibe-coding* e XP (Extreme Programming), o harness organiza o ciclo de desenvolvimento em **6 fases** e gerencia **20 agentes** especializados com responsabilidades únicas, limites rígidos de escrita (path boundaries) e controle total de auditoria.
-
-### Fases do Workflow:
-1. **Fase 0: Briefing** (Owner: [briefing.md](file:///home/kingdev/.config/opencode/agents/briefing.md)) → Gera o briefing e solicita aprovação do usuário.
-2. **Fase 1: Documentação** (Owner: [documenter.md](file:///home/kingdev/.config/opencode/agents/documenter.md)) → Estrutura o contexto do projeto com arquivos `AGENTS.md` e RAG.
-3. **Fase 2: Requisitos** (Owner: [requirements.md](file:///home/kingdev/.config/opencode/agents/requirements.md)) → Cria o PRD e a SPEC técnica.
-4. **Fase 3: Design** (Owner: [designer.md](file:///home/kingdev/.config/opencode/agents/designer.md)) → Mapeia layouts, design systems e fluxos visuais.
-5. **Fase 4: Planejamento** (Owner: [sprint-tasker.md](file:///home/kingdev/.config/opencode/agents/sprint-tasker.md)) → Planeja e divide as tarefas em sprints.
-6. **Fase 5: Build + Quality** (Coordenado pelo `orchestrator.md`) → Implementa funcionalidades (Backend/Frontend), executa testes, valida LGPD/DPO e segurança e realiza a validação final (QA).
-7. **Fase 6: UX Gate** (Coordenado pelo `orchestrator.md`) → Aprovação humana de UX ao final de cada Marco de entrega.
+## 🏛️ Os 8 Agentes de Elite da v7 (`templates/agents/`)
+1. **[orchestrator.md](file:///home/kingdev/Documentos/Opencode_agents/templates/agents/orchestrator.md)** (`mode: primary`, `edit: deny`) → Recebe o prompt, entende o problema, faz perguntas para zerar dúvidas, auxilia nas definições de produto, planeja e designa aos subagentes (nunca escreve código).
+2. **[spec-engineer.md](file:///home/kingdev/Documentos/Opencode_agents/templates/agents/spec-engineer.md)** (`mode: subagent`) → Escreve e mantém toda a documentação seguindo os padrões da skill `doc-standards` (`PRD.md`, `PRODUCT.md`, `SPEC.md` e `AGENTS.md`).
+3. **[designer.md](file:///home/kingdev/Documentos/Opencode_agents/templates/agents/designer.md)** (`mode: subagent`) → Projeta interfaces, os 4 estados visuais, HTML5 semântico, SEO técnico e acessibilidade (WCAG AA) em `DESIGN.md`.
+4. **[task-planner.md](file:///home/kingdev/Documentos/Opencode_agents/templates/agents/task-planner.md)** (`mode: subagent`) → Gera as **Sprints** (`S01..SN`) e **Tasks** (`T01..TN`) em `TASKS.md`, garantindo que **cada Task possua sua própria Spec (`Spec da Task`)** e cobertura de 100% dos `AC-XX` e `BR-XX`.
+5. **[backend.md](file:///home/kingdev/Documentos/Opencode_agents/templates/agents/backend.md)** (`mode: subagent`) → Responsável **exclusivamente por escrever o código** de backend seguindo a `Spec da Task` e preservando comentários existentes (não escreve testes por task).
+6. **[frontend.md](file:///home/kingdev/Documentos/Opencode_agents/templates/agents/frontend.md)** (`mode: subagent`) → Responsável **exclusivamente por escrever o código** de frontend, SEO e acessibilidade seguindo a `Spec da Task` e `DESIGN.md` (não escreve testes por task).
+7. **[qa-tester.md](file:///home/kingdev/Documentos/Opencode_agents/templates/agents/qa-tester.md)** (`mode: subagent`) → Atua **por Sprint** (e não por task), criando e executando apenas os testes necessários para validar que as regras de negócio (`BR-XX` e `AC-XX`) estão funcionando, evitando testes desnecessários.
+8. **[code-reviewer.md](file:///home/kingdev/Documentos/Opencode_agents/templates/agents/code-reviewer.md)** (`mode: subagent`) → Auditoria Read-Only da Sprint: Spec Compliance, Qualidade de Código, Preservação de Comentários, Segurança (OWASP), LGPD/PII e SEO.
 
 ---
 
-## 📂 Localização de Artefatos Críticos
-Quando o harness está ativo em um projeto alvo, os principais artefatos são gerados e armazenados nos seguintes locais:
-- **Briefing do Projeto:** Salvo no arquivo `.harness/brief.md` na raiz do projeto alvo.
-- **PRD e SPEC (Requisitos):** Gerados como `PRD.md` e `SPEC.md` no diretório `.harness/` (ou na raiz do projeto dependendo da configuração da fase).
-- **Planejamento de Sprints:** Salvo como arquivos JSON em `.harness/sprints/` (ex: `S01.json`, `S02.json`), mapeando todas as tarefas com 100% de cobertura dos requisitos da SPEC.
-- **Arquivos RAG locais:** Localizados na pasta `.harness/RAG/` e listados no índice `RAG/index.json`.
-
-> **Nota Operacional para os Agentes:** Consulte o documento [TOOLS_INDEX.md](file:///home/kingdev/.config/opencode/docs/TOOLS_INDEX.md) localizado em `docs/TOOLS_INDEX.md` para visualizar as **ferramentas (tools)** disponíveis que poupam comandos bash repetitivos (como commit automatizado, atualização de changelog e linter inteligente).
-
----
-
-## 🗂️ Organização das Pastas do Harness
-- [agents/](file:///home/kingdev/.config/opencode/agents/): Definições de identidade e permissões dos 20 agentes.
-- [commands/](file:///home/kingdev/.config/opencode/commands/): Comandos de CLI expostos para controle de execução do harness.
-- [tools/](file:///home/kingdev/.config/opencode/tools/): Ferramentas auxiliares TypeScript para validações de linter, testes, LGPD e build.
-- [plugins/](file:///home/kingdev/.config/opencode/plugins/): Plugins integrados do Opencode que realizam logging e reforçam barreiras de escrita dos agentes.
-- [templates/](file:///home/kingdev/.config/opencode/templates/): Modelos padrão de arquivos para PRD, SPEC, RAG e sprints.
-- [training/](file:///home/kingdev/.config/opencode/training/): Bases globais de RAG e treinamento (como o manual de conformidade LGPD).
+## 🗂️ Organização das Pastas do Repositório
+- **[bin/opencode-harness.js](file:///home/kingdev/Documentos/Opencode_agents/bin/opencode-harness.js)**: Ponto de entrada executável da CLI NPM.
+- **[src/](file:///home/kingdev/Documentos/Opencode_agents/src/)**: Código-fonte TypeScript da CLI (`init`, `spec`, `gate`, `update`, `doctor`, `status`).
+- **[templates/](file:///home/kingdev/Documentos/Opencode_agents/templates/)**: Agentes, comandos, skills (`spec-driven`, `doc-standards`, `security-lgpd`, `seo-a11y`) e templates embarcados copiados para `.opencode/` nos projetos alvo.
+- **[tests/](file:///home/kingdev/Documentos/Opencode_agents/tests/)**: Suíte de testes unitários e de integração (`node:test`).

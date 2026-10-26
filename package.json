@@ -1,34 +1,47 @@
 {
-  "name": "Opencode-Harness",
-  "version": "6.5.0",
-  "description": "Plugin Multi agente para desenvolvimento com Opencode",
+  "name": "opencode-harness",
+  "version": "7.0.0",
+  "description": "Spec-Anchored Multi-Agent Harness for OpenCode — installs and audits .opencode/ project workflows",
   "author": "Alexandre Henrique",
-  "github": "https://github.com/alexandre-henrique-rp",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "validate": "npm run validate:syntax && npm run validate:types && npm test",
-    "validate:syntax": "bash -n install.sh",
-    "validate:types": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test tests/*.test.ts",
-    "test:coverage": "node --experimental-strip-types --experimental-test-coverage --test tests/*.test.ts",
-    "skills:migrate": "node scripts/migrate-skills.mjs",
-    "skills:sync": "rsync -a --delete skills/ ~/.config/opencode/skills/",
-    "skills:status": "echo '=== Setores ===' && ls skills/ && echo '' && echo '=== Por setor ===' && for d in frontend backend design harness geral seguranca pessoal; do count=$(ls skills/$d/ 2>/dev/null | wc -l); echo \"  skills/$d/: $count skills\"; done"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alexandre-henrique-rp/harnes-opencode.git"
   },
-  "dependencies": {
-    "@aws-sdk/client-s3": "^3.1091.0",
-    "@aws-sdk/lib-storage": "^3.1091.0",
-    "@aws-sdk/s3-request-presigner": "^3.1091.0",
-    "@opencode-ai/plugin": "^1.18.3",
-    "clamdjs": "^1.0.2"
+  "keywords": [
+    "opencode",
+    "ai-agents",
+    "spec-driven",
+    "sdd",
+    "harness",
+    "multi-agent",
+    "cli"
+  ],
+  "type": "module",
+  "bin": {
+    "opencode-harness": "./bin/opencode-harness.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "bin",
+    "dist",
+    "templates",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "validate:types": "tsc --noEmit",
+    "test": "npm run build && node --experimental-strip-types --test tests/*.test.ts",
+    "validate": "npm run validate:types && npm test",
+    "prepublishOnly": "npm run validate && npm run build"
   },
   "devDependencies": {
-    "@drawio/mcp": "^1.5.0",
-    "@playwright/mcp": "^0.0.78",
-    "@types/node": "^26.1.1",
-    "chrome-devtools-mcp": "^1.6.0",
-    "duckduckgo-mcp-server": "^0.1.2",
+    "@types/node": "^22.0.0",
     "typescript": "^5.6.3"
   }
 }

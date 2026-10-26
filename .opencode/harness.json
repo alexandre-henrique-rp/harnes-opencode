@@ -1,0 +1,14 @@
+{
+  "name": "opencode-harness",
+  "version": "7.0.0",
+  "paradigm": "spec-anchored",
+  "installedAt": "2026-10-26T17:16:34.949Z",
+  "stack": {
+    "projectName": "opencode-harness",
+    "language": "TypeScript (Node.js)",
+    "framework": "Node.js Standard / Library",
+    "packageManager": "npm",
+    "testCommand": "npm test",
+    "hasUi": false
+  }
+}

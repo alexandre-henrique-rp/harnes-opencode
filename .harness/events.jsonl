@@ -1,6 +1,0 @@
-{"ts":"2026-08-24T14:27:17.970Z","tool":"harness-allowlist","action":"add","pattern":"refact_doc/**","type":"allow","target":"project","result":"requested"}
-{"ts":"2026-08-24T14:27:32.614Z","tool":"harness-allowlist","action":"list","pattern":"","type":"","target":"","result":"approved"}
-{"ts":"2026-08-24T14:27:59.437Z","tool":"harness-allowlist","action":"add","pattern":"refact_doc/**","type":"allow","target":"global","result":"requested"}
-{"ts":"2026-08-24T14:35:27.297Z","tool":"harness-allowlist","action":"add","pattern":"refact_doc/**","type":"allow","target":"project","result":"requested"}
-{"ts":"2026-08-24T14:35:29.736Z","tool":"harness-allowlist","action":"list","pattern":"","type":"","target":"","result":"approved"}
-{"ts":"2026-08-24T15:09:34.663Z","tool":"harness-allowlist","action":"add","pattern":"refact_doc/**","type":"allow","target":"project","result":"requested"}

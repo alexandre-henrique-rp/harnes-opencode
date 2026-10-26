@@ -2,16 +2,8 @@
   "$schema": "https://opencode.ai/config.json",
   "lsp": true,
   "formatter": true,
-  "instructions": ["~/.config/opencode/GERAIS.md", "./system/objectivity.md"],
-  "plugin": [
-    "./plugins/path-boundary.ts",
-    "./plugins/audit-logger.ts",
-    "./plugins/status-injector.ts",
-    "./plugins/context-compressor.ts",
-    "./plugins/prompt-cache-prefixer.ts",
-    "./plugins/token-budget.ts",
-    "./plugins/structured-thinking.ts",
-    "./plugins/stuck-worker-watchdog.ts"
+  "instructions": [
+    ".opencode/CONSTITUTION.md"
   ],
   "permission": {
     "bash": {
@@ -43,9 +35,5 @@
     }
   },
   "mcp": {},
-  "default_agent": "orchestrator",
-  "experimental": {
-    "frontendContextFirst": true,
-    "_comment": "v6.5.0 — habilita novo fluxo frontend (context-first + grill-me). Set false para reverter para o legacy behavior."
-  }
+  "default_agent": "orchestrator"
 }
